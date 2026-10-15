@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hoofbeats results</title>
+<style>
+:root {
+  --bg: #f7f7f5; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6b66; --line: #e3e2dc;
+  --accent: #2f5d8a; --good: #2e7d4f; --bad: #b3412e; --warn-bg: #fff4e0; --warn-ink: #7a4b00;
+  --s1: #2f5d8a; --s2: #d08a2e; --s3: #5b9a6b; --s4: #8c5aa8; --s5: #b3412e; --on-accent: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151514; --panel: #1e1e1c; --ink: #ecebe6; --muted: #a09f98; --line: #34332f;
+    --accent: #7fb0dd; --good: #6cc391; --bad: #e98a76; --warn-bg: #3a2c12; --warn-ink: #f2c27a;
+    --s1: #7fb0dd; --s2: #e7ac5c; --s3: #86c597; --s4: #b991d2; --s5: #e98a76; --on-accent: #10202f;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { padding: 20px 16px 8px; max-width: 1100px; margin: 0 auto; }
+h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+h2 { font-size: 17px; margin: 0 0 10px; }
+.sub { color: var(--muted); margin: 2px 0 0; }
+main { max-width: 1100px; margin: 0 auto; padding: 8px 16px 48px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin: 14px 0; }
+.drop { border: 1.5px dashed var(--line); border-radius: 10px; padding: 18px; text-align: center; color: var(--muted); }
+.drop.over { border-color: var(--accent); color: var(--accent); }
+.drop button, .btn { font: inherit; background: var(--accent); color: var(--on-accent); border: 0; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+.loaded { margin-top: 8px; font-size: 13px; color: var(--muted); }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--line); margin-top: 16px; }
+.tab { font: inherit; background: none; border: 0; padding: 8px 12px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.tab:disabled { opacity: .4; cursor: default; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.tile { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.tile .v { font-size: 24px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.tile .k { color: var(--muted); font-size: 13px; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 600; cursor: pointer; user-select: none; }
+td.num, th.num { text-align: right; }
+tr.hl td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.controls input, .controls select { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); }
+.pill { display: inline-block; padding: 0 7px; border-radius: 10px; font-size: 12px; border: 1px solid var(--line); }
+.hit { color: var(--good); font-weight: 600; } .miss { color: var(--bad); }
+.up { color: var(--good); } .down { color: var(--bad); }
+.warn { background: var(--warn-bg); color: var(--warn-ink); border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin: 6px 0; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+svg text { fill: var(--muted); font-size: 11px; }
+.note { color: var(--muted); font-size: 13px; }
+a { color: var(--accent); }
+.hidden { display: none; }
+.source { display: flex; gap: 8px; align-items: center; margin-top: 14px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+.source select { font: inherit; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); max-width: 100%; }
+</style>
+</head>
+<body>
+<header>
+  <h1>hoofbeats results</h1>
+  <p class="sub">Review benchmark, next-test, MIMIC and MedGemma outputs. Files you open here stay in your browser.</p>
+</header>
+<main>
+  <section class="panel">
+    <div class="drop" id="drop">
+      Drop result CSVs here, or <button id="pick">choose files</button>
+      <input type="file" id="file" accept=".csv" multiple class="hidden">
+      <div class="note" style="margin-top:6px">benchmark.csv · sequential.csv · mimic.csv · medgemma_rerank.csv · medpix.csv</div>
+    </div>
+    <div class="controls" style="margin:10px 0 0"><button class="btn" id="rescan">Reload results</button></div>
+    <div class="loaded" id="loaded">Looking for results… (start the server from the project folder so <code>results/</code> is visible)</div>
+    <div id="policyWarn" class="warn hidden"></div>
+  </section>
+
+  <nav class="tabs" role="tablist" id="tabs">
+    <button class="tab" role="tab" data-tab="benchmark" disabled>Ranking benchmark</button>
+    <button class="tab" role="tab" data-tab="sequential" disabled>Next-test</button>
+    <button class="tab" role="tab" data-tab="mimic" disabled>MIMIC rare + common</button>
+    <button class="tab" role="tab" data-tab="medgemma" disabled>MedGemma</button>
+    <button class="tab" role="tab" data-tab="medpix" disabled>MedPix multimodal</button>
+  </nav>
+
+  <section id="tab-benchmark" class="view hidden"><div class="source" id="src-benchmark"></div><div id="view-benchmark"></div></section>
+  <section id="tab-sequential" class="view hidden"><div class="source" id="src-sequential"></div><div id="view-sequential"></div></section>
+  <section id="tab-mimic" class="view hidden"><div class="source" id="src-mimic"></div><div id="view-mimic"></div></section>
+  <section id="tab-medgemma" class="view hidden"><div class="source" id="src-medgemma"></div><div id="view-medgemma"></div></section>
+  <section id="tab-medpix" class="view hidden"><div class="source" id="src-medpix"></div><div id="view-medpix"></div></section>
+</main>
+
+<script>
+"use strict";
+// CSV
+function parseCSV(text) {
+  const rows = []; let row = [], cell = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+      else cell += c;
+    } else if (c === '"') q = true;
+    else if (c === ",") { row.push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(cell); cell = ""; if (row.length > 1 || row[0] !== "") rows.push(row); row = [];
+    } else cell += c;
+  }
+  if (cell !== "" || row.length) { row.push(cell); rows.push(row); }
+  const head = rows.shift() || [];
+  return rows.map(r => Object.fromEntries(head.map((h, i) => [h.trim(), r[i] ?? ""])));
+}
+const num = v => (v === "" || v == null || v === "nan" || v === "NaN") ? null : Number(v);
+const truthy = v => String(v).toLowerCase() === "true";
+
+function kind(rows) {
+  const h = new Set(Object.keys(rows[0] || {}));
+  if (h.has("rank_text") && h.has("rank_radiologist")) return "medpix";
+  if (h.has("condition") && h.has("rank")) return "benchmark";
+  if (h.has("policy") && h.has("round")) return "sequential";
+  if (h.has("ranker") && h.has("medgemma")) return "medgemma";
+  if (h.has("rare_truth") || (h.has("truth") && h.has("delabel_residual"))) return "mimic";
+  return null;
+}
+
+// metrics
+function topk(ranks) {
+  const n = ranks.length, at = k => n ? ranks.filter(r => r && r <= k).length / n : 0;
+  return { n, top1: at(1), top3: at(3), top10: at(10), mrr: n ? ranks.reduce((s, r) => s + (r ? 1 / r : 0), 0) / n : 0 };
+}
+const pct = x => (x == null || isNaN(x)) ? "–" : (100 * x).toFixed(1) + "%";
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function link(id) {
+  const [db, code] = String(id).split(":");
+  if (db === "OMIM") return `<a href="https://omim.org/entry/${esc(code)}" target="_blank" rel="noopener">${esc(id)}</a>`;
+  if (db === "ORPHA") return `<a href="https://www.orpha.net/en/disease/detail/${esc(code)}" target="_blank" rel="noopener">${esc(id)}</a>`;
+  return esc(id);
+}
+const rankCell = r => r == null ? `<td class="num miss">–</td>` : `<td class="num ${r <= 10 ? "hit" : r > 100 ? "miss" : ""}">${r}</td>`;
+const colors = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)"];
+
+// charts (inline SVG)
+function barChart(groups, series, labels) {
+  // groups: [{name, values:[...]}]; series: names per value
+  const W = 760, H = 230, L = 40, B = 46, T = 10, gw = (W - L) / groups.length, bw = Math.min(26, (gw - 16) / series.length);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Top-k by condition">`;
+  for (let y = 0; y <= 1.0001; y += 0.25) {
+    const yy = T + (H - B - T) * (1 - y);
+    s += `<line x1="${L}" x2="${W}" y1="${yy}" y2="${yy}" stroke="var(--line)"/><text x="${L - 6}" y="${yy + 4}" text-anchor="end">${y * 100}%</text>`;
+  }
+  groups.forEach((g, gi) => {
+    const x0 = L + gi * gw + (gw - bw * series.length) / 2;
+    g.values.forEach((v, si) => {
+      const h = (H - B - T) * v, x = x0 + si * bw;
+      s += `<rect x="${x}" y="${H - B - h}" width="${bw - 3}" height="${h}" rx="2" fill="${colors[si]}"><title>${esc(g.name)} · ${series[si]}: ${pct(v)}</title></rect>`;
+    });
+    const words = (labels ? labels[gi] : g.name).split(" "), lines = [];
+    let cur = ""; words.forEach(w => { if ((cur + " " + w).length > 18 && cur) { lines.push(cur); cur = w; } else cur = (cur ? cur + " " : "") + w; });
+    lines.push(cur);
+    lines.slice(0, 3).forEach((ln, i) => s += `<text x="${L + gi * gw + gw / 2}" y="${H - B + 14 + i * 12}" text-anchor="middle">${esc(ln)}</text>`);
+  });
+  return s + "</svg>" + `<div class="legend">${series.map((n, i) => `<span><i style="background:${colors[i]}"></i>${n}</span>`).join("")}</div>`;
+}
+function lineChart(lines, xs, yLabel) {
+  const W = 760, H = 230, L = 44, B = 28, T = 10, R = 10;
+  const maxY = Math.max(0.05, ...lines.flatMap(l => l.values)) * 1.1;
+  const x = i => L + (W - L - R) * (xs.length > 1 ? i / (xs.length - 1) : 0.5), y = v => T + (H - B - T) * (1 - v / maxY);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(yLabel)} by round">`;
+  for (let k = 0; k <= 4; k++) { const v = maxY * k / 4; s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${(v * 100).toFixed(0)}%</text>`; }
+  xs.forEach((r, i) => s += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${r}</text>`);
+  lines.forEach((l, li) => {
+    s += `<polyline fill="none" stroke="${colors[li]}" stroke-width="2.2" points="${l.values.map((v, i) => `${x(i)},${y(v)}`).join(" ")}"/>`;
+    l.values.forEach((v, i) => s += `<circle cx="${x(i)}" cy="${y(v)}" r="3.2" fill="${colors[li]}"><title>${esc(l.name)}, round ${xs[i]}: ${pct(v)}</title></circle>`);
+  });
+  return s + "</svg>" + `<div class="legend">${lines.map((l, i) => `<span><i style="background:${colors[i]}"></i>${esc(l.name)}</span>`).join("")}<span>x: questions asked</span></div>`;
+}
+
+// sortable/filterable case table
+function caseTable(el, rows, cols, opts = {}) {
+  let sortKey = opts.sort || cols[0].key, dir = opts.dir || 1, q = "", filters = { ...(opts.filters || {}) }, limit = 50;
+  const filterCols = cols.filter(c => c.filter);
+  el.innerHTML = `<div class="controls">
+      <input type="search" placeholder="Search case or disease id" aria-label="search">
+      ${filterCols.map(c => `<select data-f="${c.key}" aria-label="${esc(c.label)}"><option value="">${esc(c.label)}: all</option>${[...new Set(rows.map(r => String(r[c.key])))].sort().map(v => `<option${filters[c.key] === v ? " selected" : ""}>${esc(v)}</option>`).join("")}</select>`).join("")}
+      <span class="note" data-count></span></div>
+    <div class="scroll"><table><thead><tr>${cols.map(c => `<th data-k="${c.key}" class="${c.num ? "num" : ""}">${esc(c.label)}</th>`).join("")}</tr></thead><tbody></tbody></table></div>
+    <div class="controls" style="margin-top:8px"><button class="btn" data-more>Show 50 more</button></div>`;
+  const body = el.querySelector("tbody"), count = el.querySelector("[data-count]"), more = el.querySelector("[data-more]");
+  function draw() {
+    let rs = rows.filter(r => (!q || cols.some(c => String(r[c.key] ?? "").toLowerCase().includes(q))) &&
+      Object.entries(filters).every(([k, v]) => !v || String(r[k]) === v));
+    const total = rs.length;
+    rs = rs.slice().sort((a, b) => {
+      const x = a[sortKey], y = b[sortKey];
+      if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1;
+      return (typeof x === "number" ? x - y : String(x).localeCompare(String(y))) * dir;
+    }).slice(0, limit);
+    body.innerHTML = rs.map(r => `<tr>${cols.map(c => c.render ? c.render(r) : `<td class="${c.num ? "num" : ""}">${esc(r[c.key])}</td>`).join("")}</tr>`).join("");
+    count.textContent = `${total} rows` + (total > rs.length ? `, showing ${rs.length}` : "");
+    more.classList.toggle("hidden", total <= rs.length);
+  }
+  more.addEventListener("click", () => { limit += 50; draw(); });
+  el.querySelector("input").addEventListener("input", e => { q = e.target.value.toLowerCase(); limit = 50; draw(); });
+  el.querySelectorAll("select").forEach(s => s.addEventListener("change", e => { filters[s.dataset.f] = e.target.value; limit = 50; draw(); }));
+  el.querySelectorAll("th").forEach(th => th.addEventListener("click", () => { const k = th.dataset.k; dir = sortKey === k ? -dir : 1; sortKey = k; draw(); }));
+  draw();
+}
+const tile = (v, k) => `<div class="tile"><div class="v">${v}</div><div class="k">${k}</div></div>`;
+
+// views
+const data = {};
+
+function renderBenchmark(rows) {
+  rows.forEach(r => { r.rank = num(r.rank); r.evaluable = truthy(r.evaluable); });
+  const conds = [...new Set(rows.map(r => r.condition))];
+  const stats = conds.map(c => {
+    const rs = rows.filter(r => r.condition === c);
+    return { c, all: topk(rs.map(r => r.rank)), ev: topk(rs.filter(r => r.evaluable).map(r => r.rank)) };
+  });
+  const base = stats.find(s => s.c === "present + absent"), leak = stats.find(s => /NO leakage/.test(s.c));
+  const nCases = new Set(rows.map(r => r.case)).size, nEv = new Set(rows.filter(r => r.evaluable).map(r => r.case)).size;
+  const v = document.getElementById("view-benchmark");
+  v.innerHTML = `
+    <div class="panel"><h2>Overview</h2><div class="tiles">
+      ${tile(nCases, "cases")}${tile(new Set(rows.map(r => r.truth)).size, "diseases")}
+      ${tile(`${nEv}`, "evaluable (gold disease keeps a profile after leakage control)")}
+      ${base ? tile(pct(base.all.top1), "Top-1, present + absent") : ""}
+      ${base && leak ? tile((leak.all.top1 / Math.max(base.all.top1, 1e-9)).toFixed(1) + "×", "Top-1 inflation without leakage control") : ""}
+    </div></div>
+    <div class="panel"><h2>Top-k by condition</h2>
+      <label class="note"><input type="checkbox" id="evOnly"> evaluable cases only</label>
+      <div id="bchart"></div>
+      <div class="scroll"><table id="btable"></table></div></div>
+    <div class="panel"><h2>Cases</h2><p class="note">Click a column to sort. Rank ≤ 10 is green, &gt; 100 red.</p><div id="bcases"></div></div>`;
+  function drawSummary() {
+    const ev = v.querySelector("#evOnly").checked;
+    v.querySelector("#bchart").innerHTML = barChart(stats.map(s => ({ name: s.c, values: [s[ev ? "ev" : "all"].top1, s[ev ? "ev" : "all"].top3, s[ev ? "ev" : "all"].top10] })), ["Top-1", "Top-3", "Top-10"]);
+    v.querySelector("#btable").innerHTML = `<thead><tr><th>condition</th><th class="num">n</th><th class="num">Top-1</th><th class="num">Top-3</th><th class="num">Top-10</th><th class="num">MRR</th></tr></thead><tbody>` +
+      stats.map(s => { const m = s[ev ? "ev" : "all"]; return `<tr class="${s === base ? "hl" : ""}"><td>${esc(s.c)}</td><td class="num">${m.n}</td><td class="num">${pct(m.top1)}</td><td class="num">${pct(m.top3)}</td><td class="num">${pct(m.top10)}</td><td class="num">${m.mrr.toFixed(3)}</td></tr>`; }).join("") + "</tbody>";
+  }
+  v.querySelector("#evOnly").addEventListener("change", drawSummary); drawSummary();
+  caseTable(v.querySelector("#bcases"), rows, [
+    { key: "case", label: "case" }, { key: "truth", label: "truth", render: r => `<td>${link(r.truth)}</td>` },
+    { key: "condition", label: "condition", filter: true }, { key: "rank", label: "rank", num: true, render: r => rankCell(r.rank) },
+    { key: "evaluable", label: "evaluable", filter: true }], { sort: "rank", filters: conds.includes("present + absent") ? { condition: "present + absent" } : {} });
+}
+
+function renderSequential(rows) {
+  rows.forEach(r => { r.round = num(r.round); r.rank = num(r.rank); r.answered = num(r.answered); });
+  const pols = [...new Set(rows.map(r => r.policy))], rounds = [...new Set(rows.map(r => r.round))].sort((a, b) => a - b);
+  const at = (p, k) => rounds.map(rd => topk(rows.filter(r => r.policy === p && r.round === rd).map(r => r.rank))[k]);
+  const last = rounds[rounds.length - 1];
+  const v = document.getElementById("view-sequential");
+  v.innerHTML = `
+    <div class="panel"><h2>Accuracy as questions are answered</h2>
+      <div class="controls"><select id="smetric" aria-label="metric"><option value="top1">Top-1</option><option value="top3">Top-3</option><option value="top10">Top-10</option></select></div>
+      <div id="schart"></div>
+      <div class="scroll"><table><thead><tr><th>policy</th><th class="num">cases</th><th class="num">Top-1 start</th><th class="num">Top-1 end</th><th class="num">Top-10 start</th><th class="num">Top-10 end</th><th class="num">answered</th></tr></thead><tbody>
+      ${pols.map(p => { const st = rows.filter(r => r.policy === p && r.round === 0), en = rows.filter(r => r.policy === p && r.round === last);
+        const ans = en.reduce((s, r) => s + (r.answered || 0), 0) / Math.max(1, en.length * last);
+        return `<tr><td>${esc(p)}</td><td class="num">${st.length}</td><td class="num">${pct(topk(st.map(r => r.rank)).top1)}</td><td class="num">${pct(topk(en.map(r => r.rank)).top1)}</td><td class="num">${pct(topk(st.map(r => r.rank)).top10)}</td><td class="num">${pct(topk(en.map(r => r.rank)).top10)}</td><td class="num">${pct(ans)}</td></tr>`; }).join("")}
+      </tbody></table></div>
+      <p class="note">"answered" = share of questions the case record could answer. Low values cap how much any policy can help.</p></div>
+    <div class="panel"><h2>Cases that moved most (information-gain policy)</h2><div id="scases"></div></div>`;
+  const draw = () => v.querySelector("#schart").innerHTML = lineChart(pols.map(p => ({ name: p, values: at(p, v.querySelector("#smetric").value) })), rounds, "Top-k");
+  v.querySelector("#smetric").addEventListener("change", draw); draw();
+  const eig = pols.includes("eig") ? "eig" : pols[0], byCase = {};
+  rows.filter(r => r.policy === eig).forEach(r => { (byCase[r.case] ||= { case: r.case, truth: r.truth }); byCase[r.case]["r" + r.round] = r.rank; byCase[r.case].answered = r.round === last ? r.answered : byCase[r.case].answered; });
+  const cs = Object.values(byCase).map(c => ({ ...c, start: c.r0, end: c["r" + last], gain: (c.r0 && c["r" + last]) ? c.r0 - c["r" + last] : null }));
+  caseTable(v.querySelector("#scases"), cs, [
+    { key: "case", label: "case" }, { key: "truth", label: "truth", render: r => `<td>${link(r.truth)}</td>` },
+    { key: "start", label: "rank start", num: true, render: r => rankCell(r.start) }, { key: "end", label: "rank end", num: true, render: r => rankCell(r.end) },
+    { key: "gain", label: "places gained", num: true, render: r => `<td class="num ${r.gain > 0 ? "up" : r.gain < 0 ? "down" : ""}">${r.gain ?? "–"}</td>` },
+    { key: "answered", label: "answered", num: true }], { sort: "gain", dir: -1 });
+}
+
+function renderMimic(rows) {
+  rows.forEach(r => { r.rank = num(r.rank); r.rare = truthy(r.rare_truth) || /ORPHA:/.test(r.truth); r.n_present = num(r.n_present); r.n_absent = num(r.n_absent);
+    r.group = !r.truth ? "unlabeled" : r.rare ? "rare" : "common"; });
+  const g = k => topk(rows.filter(r => r.group === k).map(r => r.rank));
+  const rare = g("rare"), common = g("common"), resid = rows.filter(r => r.delabel_residual).length;
+  const v = document.getElementById("view-mimic");
+  v.innerHTML = `
+    <div class="panel"><h2>Rare and common in one list</h2>
+      <div class="tiles">${tile(rows.length, "admissions")}${tile(rare.n, "rare diagnosis")}${tile(common.n, "common diagnosis")}${tile(resid, "notes with leftover diagnosis words")}</div>
+      <div id="mchart" style="margin-top:12px"></div>
+      ${rows.length < 200 ? `<p class="note">Small sample: treat these numbers as a pipeline check, not a result.</p>` : ""}
+      ${resid ? `<div class="warn">${resid} admission(s) still contain words from the diagnosis after de-labelling. Review them before reporting.</div>` : ""}</div>
+    <div class="panel"><h2>Admissions</h2><div id="mcases"></div></div>`;
+  v.querySelector("#mchart").innerHTML = barChart([{ name: `rare (n=${rare.n})`, values: [rare.top1, rare.top3, rare.top10] }, { name: `common (n=${common.n})`, values: [common.top1, common.top3, common.top10] }], ["Top-1", "Top-3", "Top-10"]);
+  caseTable(v.querySelector("#mcases"), rows, [
+    { key: "case", label: "admission" }, { key: "truth", label: "truth", render: r => `<td>${r.truth.split(";").map(link).join(", ")}</td>` },
+    { key: "group", label: "type", filter: true }, { key: "rank", label: "rank", num: true, render: r => rankCell(r.rank) },
+    { key: "top3", label: "top 3 predicted", render: r => `<td style="white-space:normal;min-width:260px">${esc(r.top3)}</td>` },
+    { key: "n_present", label: "present", num: true }, { key: "n_absent", label: "absent", num: true },
+    { key: "delabel_residual", label: "leftover words" }], { sort: "rank" });
+}
+
+function renderMedgemma(rows) {
+  rows.forEach(r => { r.ranker = num(r.ranker); r.medgemma = num(r.medgemma); r.faithfulness = num(r.faithfulness);
+    r.change = (r.ranker && r.medgemma) ? r.ranker - r.medgemma : null; });
+  const a = topk(rows.map(r => r.ranker)), b = topk(rows.map(r => r.medgemma));
+  const f = rows.filter(r => r.faithfulness != null), faith = f.reduce((s, r) => s + r.faithfulness, 0) / Math.max(1, f.length);
+  const up = rows.filter(r => r.change > 0).length, down = rows.filter(r => r.change < 0).length;
+  const v = document.getElementById("view-medgemma");
+  v.innerHTML = `
+    <div class="panel"><h2>MedGemma re-ranking of the top 10</h2>
+      <div class="tiles">${tile(rows.length, "cases")}${tile(pct(faith), "claim-level faithfulness")}${tile(`<span class="up">${up}</span> / <span class="down">${down}</span>`, "cases where truth moved up / down")}${tile(rows.filter(r => r.ranker == null).length, "truth not in top 10 (cannot be fixed by re-ranking)")}</div>
+      <div id="gchart" style="margin-top:12px"></div>
+      <p class="note">MedGemma may have seen published case reports during training. Compare on cases published after its training data before claiming a gain.</p></div>
+    <div class="panel"><h2>Cases</h2><div id="gcases"></div></div>`;
+  v.querySelector("#gchart").innerHTML = barChart([{ name: "Top-1", values: [a.top1, b.top1] }, { name: "Top-3", values: [a.top3, b.top3] }, { name: "Top-10", values: [a.top10, b.top10] }], ["ranker", "MedGemma"]);
+  caseTable(v.querySelector("#gcases"), rows, [
+    { key: "case", label: "case" }, { key: "ranker", label: "ranker", num: true, render: r => rankCell(r.ranker) },
+    { key: "medgemma", label: "MedGemma", num: true, render: r => rankCell(r.medgemma) },
+    { key: "change", label: "places gained", num: true, render: r => `<td class="num ${r.change > 0 ? "up" : r.change < 0 ? "down" : ""}">${r.change ?? "–"}</td>` },
+    { key: "faithfulness", label: "faithfulness", num: true, render: r => `<td class="num">${pct(r.faithfulness)}</td>` }], { sort: "change", dir: -1 });
+}
+
+function renderMedpix(rows) {
+  const cols = [["rank_text", "history + exam text"], ["rank_radiologist", "text + radiologist findings (upper bound)"],
+                ["rank_image", "MedGemma images only"], ["rank_multimodal", "text + MedGemma images"]].filter(([k]) => k in rows[0]);
+  rows.forEach(r => { cols.forEach(([k]) => r[k] = num(r[k])); ["n_text", "n_radiologist", "n_image", "image_precision", "image_recall"].forEach(k => r[k] = num(r[k]));
+    r.gain = (r.rank_text && r.rank_multimodal) ? r.rank_text - r.rank_multimodal : null; r.labeled = r.truth ? "yes" : "no"; });
+  const lab = rows.filter(r => r.truth), hasImg = cols.some(([k]) => k === "rank_multimodal");
+  const mean = k => { const v = rows.map(r => r[k]).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+  const median = k => { const v = rows.map(r => r[k]).filter(x => x != null).sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : "–"; };
+  const v = document.getElementById("view-medpix");
+  v.innerHTML = `
+    <div class="panel"><h2>Does reading the images help?</h2>
+      <div class="tiles">${tile(rows.length, "MedPix cases")}${tile(lab.length, "with a diagnosis the ranker knows")}
+        ${tile(median("n_text"), "median findings from history/exam")}${tile(median("n_radiologist"), "median findings from radiologist report")}
+        ${hasImg ? tile(median("n_image"), "median findings from MedGemma") + tile(`${pct(mean("image_precision"))} / ${pct(mean("image_recall"))}`, "MedGemma vs radiologist: precision / recall") : ""}</div>
+      <div id="pchart" style="margin-top:12px"></div>
+      ${hasImg ? "" : `<p class="note">Run with --llm to add MedGemma image findings.</p>`}
+      <p class="note">MedPix cases are public teaching files; MedGemma may have seen them in training. Treat image-only gains as an upper bound.</p></div>
+    <div class="panel"><h2>Cases</h2><div id="pcases"></div></div>`;
+  v.querySelector("#pchart").innerHTML = barChart(cols.map(([k, n]) => { const m = topk(lab.map(r => r[k])); return { name: n, values: [m.top1, m.top3, m.top10] }; }), ["Top-1", "Top-3", "Top-10"]);
+  caseTable(v.querySelector("#pcases"), rows, [
+    { key: "case", label: "case" },
+    { key: "title", label: "diagnosis (MedPix)", render: r => `<td style="white-space:normal;min-width:200px">${esc(r.title)}</td>` },
+    { key: "truth", label: "mapped to", render: r => `<td>${r.truth ? r.truth.split(";").map(link).join(", ") : "–"}</td>` },
+    { key: "labeled", label: "mapped", filter: true },
+    ...cols.map(([k, n]) => ({ key: k, label: n.replace(" (upper bound)", ""), num: true, render: r => rankCell(r[k]) })),
+    ...(hasImg ? [{ key: "gain", label: "places gained", num: true, render: r => `<td class="num ${r.gain > 0 ? "up" : r.gain < 0 ? "down" : ""}">${r.gain ?? "–"}</td>` },
+                  { key: "report", label: "MedGemma report", render: r => `<td style="white-space:normal;min-width:320px">${esc(r.report)}</td>` }] : [])],
+    { sort: hasImg ? "gain" : "rank_text", dir: hasImg ? -1 : 1, filters: { labeled: "yes" } });
+}
+
+const renderers = { medpix: renderMedpix, benchmark: renderBenchmark, sequential: renderSequential, mimic: renderMimic, medgemma: renderMedgemma };
+
+// loading
+const found = {};   // kind -> [{name, text, published}], newest first
+const isLocal = ["localhost", "127.0.0.1", "[::1]", ""].includes(location.hostname);
+let loadedLine = "";
+
+function add(name, text, published, modified = 0) {
+  const rows = parseCSV(text), k = kind(rows);
+  if (!k) return;
+  if (k === "mimic" && published && !isLocal && rows.some(r => r.policy === "local_only")) {
+    const w = document.getElementById("policyWarn");
+    w.classList.remove("hidden");
+    w.innerHTML = `<strong>${esc(name)} was not shown.</strong> It comes from credentialed MIMIC and is served publicly. Remove it now; the PhysioNet agreement forbids sharing it.`;
+    return;
+  }
+  (found[k] ||= []).push({ name, text, modified });
+  found[k].sort((a, b) => b.modified - a.modified);
+}
+
+function show(k, i = 0) {
+  const list = found[k]; if (!list || !list.length) return;
+  const src = document.getElementById("src-" + k);
+  src.innerHTML = list.length > 1
+    ? `Source <select aria-label="results file">${list.map((f, j) => `<option value="${j}"${j === i ? " selected" : ""}>${esc(f.name)}</option>`).join("")}</select>`
+    : `Source <code>${esc(list[0].name)}</code>`;
+  const sel = src.querySelector("select");
+  if (sel) sel.onchange = () => show(k, Number(sel.value));
+  data[k] = parseCSV(list[i].text);
+  renderers[k](data[k]);
+  document.querySelector(`.tab[data-tab="${k}"]`).disabled = false;
+}
+
+function refreshAll(prefer) {
+  Object.keys(found).forEach(k => show(k));
+  const n = Object.values(found).reduce((a, l) => a + l.length, 0);
+  document.getElementById("loaded").textContent = n
+    ? `Found ${n} result file(s)${loadedLine}. Newest is shown first; pick another under each tab.`
+    : "No results found. Start the server from the project folder, or drop CSVs above.";
+  let saved = null; try { saved = localStorage.getItem("hoofbeats-tab"); } catch (e) {}
+  const k = [prefer, saved, ...Object.keys(renderers)].find(x => x && found[x]);
+  if (k) select(k);
+}
+
+function select(k) {
+  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.tab === k));
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("hidden", v.id !== "tab-" + k));
+  try { localStorage.setItem("hoofbeats-tab", k); } catch (e) {}
+}
+document.getElementById("tabs").addEventListener("click", e => { const t = e.target.closest(".tab"); if (t && !t.disabled) select(t.dataset.tab); });
+
+// dropped files go first in their tab
+const readFiles = files => Promise.all([...files].map(f => f.text().then(t => add("dropped: " + f.name, t, false, Date.now()))))
+  .then(() => refreshAll());
+document.getElementById("pick").onclick = () => document.getElementById("file").click();
+document.getElementById("file").onchange = e => readFiles(e.target.files);
+const drop = document.getElementById("drop");
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => readFiles(e.dataTransfer.files));
+
+// walk folder listings from the local server (python -m http.server) and load every result CSV
+const NAMES = ["benchmark.csv", "sequential.csv", "mimic.csv", "medgemma_rerank.csv", "medpix.csv"];
+async function listing(url) {
+  try {
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok || !(r.headers.get("content-type") || "").includes("html")) return [];
+    const doc = new DOMParser().parseFromString(await r.text(), "text/html");
+    return [...doc.querySelectorAll("a")].map(a => decodeURIComponent(a.getAttribute("href") || ""))
+      .filter(h => h && !h.startsWith("?") && !h.startsWith("/") && !h.startsWith("..") && !h.startsWith("http"));
+  } catch (e) { return []; }
+}
+async function walk(base, depth, out) {
+  for (const h of await listing(base)) {
+    if (h.endsWith("/")) { if (depth > 0) await walk(base + h, depth - 1, out); }
+    else if (NAMES.includes(h)) out.push(base + h);
+  }
+}
+async function discover() {
+  const paths = [];
+  for (const root of ["../results/", "results/", "data/"]) await walk(root, 3, paths);
+  if (!paths.length) paths.push(...NAMES.map(n => "data/" + n));   // servers without folder listings
+  await Promise.all([...new Set(paths)].map(p => fetch(p, { cache: "no-store" }).then(async r => {
+    if (!r.ok) return;
+    const mod = Date.parse(r.headers.get("last-modified") || "") || 0;
+    add(p.replace(/^\.\.\//, ""), await r.text(), true, mod);
+  }).catch(() => null)));
+  refreshAll();
+}
+document.getElementById("rescan").onclick = () => { Object.keys(found).forEach(k => delete found[k]); discover(); };
+discover();
+</script>
+</body>
+</html>
