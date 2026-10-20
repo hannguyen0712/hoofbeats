@@ -3,6 +3,9 @@ from __future__ import annotations
 import argparse
 import math
 import random
+import shlex
+import sys
+import time
 from collections import defaultdict
 from dataclasses import replace
 from pathlib import Path
@@ -11,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 import json
+import re
 
 from .data import (DiseaseMatcher, Extractor, download, learn_common, load_medpix, load_mimic,
                    load_phenopackets, orphadata_icd10)
@@ -18,14 +22,110 @@ from .model import (AnnotationDB, Case, Finding, LRRanker, Ontology, Status, exp
                     most_frequent_test, suggest_tests, verify_claim)
 
 
+# run record: every command logs its settings, metrics and console output under <out>/runs/
+RUN = {"metrics": {}, "files": [], "settings": {}}
+
+
+def note(section: str, **metrics):
+    # store numbers for the run record (read later by `report`)
+    clean = {k: (None if isinstance(v, float) and math.isnan(v) else v) for k, v in metrics.items()}
+    RUN["metrics"].setdefault(section, {}).update(clean)
+
+
+def wrote(path):
+    RUN["files"].append(str(path))
+    return path
+
+
+class _Tee:
+    # copy console output to the run log
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, text):
+        for st in self.streams:
+            st.write(text)
+
+    def flush(self):
+        for st in self.streams:
+            st.flush()
+
+
+def _out_dir(a) -> Path:
+    out = Path(getattr(a, "out", None) or "results")
+    return out.parent if out.suffix else out
+
+
+def _run_dir(a) -> Path:
+    return _out_dir(a) / "runs"
+
+
+def usage_line(llm) -> str:
+    u = llm.usage()
+    note("requests", **u)
+    if llm.dry_run:
+        return f"[llm] dry run: would send {u['would_send']} requests; {u['cache_hits']} already answered from the cache"
+    return (f"[llm] requests sent {u['requests']} (retries {u['retries']}), answered from cache {u['cache_hits']}, "
+            f"{u['sec_per_request']} s per request")
+
+
 # helpers
 def get_llm(a):
     if not a.llm:
         return None
+    import os
     from .llm import MedGemma
-    llm = MedGemma(a.llm_model, a.llm_endpoint)
-    print(f"[llm] {llm.model} via {llm.endpoint or 'transformers (in-process)'}")
+    key = os.environ.get(a.llm_key_env) if a.llm_key_env else None
+    if a.llm_key_env and not key:
+        raise SystemExit(f"environment variable {a.llm_key_env} is not set")
+    vision = {"auto": None, "yes": True, "no": False}[a.llm_vision]
+    extra = json.loads(a.llm_extra) if a.llm_extra else None
+    cache = None if a.llm_cache == "none" else Path(a.llm_cache if a.llm_cache != "auto" else Path(_out_dir(a)) / "llm_cache")
+    llm = MedGemma(a.llm_model, a.llm_endpoint, a.llm_max_tokens, key, vision, extra, a.llm_rpm, cache, a.dry_run)
+    RUN["settings"].update({"model": llm.model, "endpoint": llm.endpoint or "in-process",
+                            "max_tokens": a.llm_max_tokens, "extra": extra or {}})
+    print(f"[llm] {llm.model} via {llm.endpoint or 'transformers (in-process)'}"
+          + (f"; {len(llm._cache)} cached replies in {cache}" if cache else "")
+          + ("; DRY RUN, nothing is sent" if a.dry_run else ""))
+    if not llm.is_local:
+        print("[llm] remote service: only public datasets will be sent; credentialed data is refused")
     return llm
+
+
+def log_compare(a, row: dict):
+    # one summary row per (model, task) run, appended to <out>/llm_compare.csv
+    path = Path(a.out) / "llm_compare.csv"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    row = {"time": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M"), "run": RUN.get("id", ""), "note": RUN.get("note", ""), **row}
+    old = pd.read_csv(path) if path.exists() else pd.DataFrame()
+    pd.concat([old, pd.DataFrame([row])], ignore_index=True).to_csv(path, index=False)
+    print(f"[compare] summary appended to {path}")
+
+
+def get_pubmed(a):
+    if not a.pubmed:
+        return None
+    from .pubmed import PubMed
+    pm = PubMed(a.pubmed_cache)
+    print(f"[pubmed] NCBI E-utilities, cache {a.pubmed_cache}"
+          + ("" if pm.api_key else " (set NCBI_API_KEY for faster requests)"))
+    return pm
+
+
+def gather_literature(a, pm, r: LRRanker, ext, c: Case, ranking, ex, k: int = 10) -> dict:
+    # verified PubMed sentences for the top-k diseases; case paper and (optionally) later papers excluded
+    from .pubmed import case_year, literature_claims, verify_lit
+    maxdate = None
+    if a.pubmed_before_case:
+        y = case_year(pm, c)
+        maxdate = f"{y - 1}/12/31" if y else None
+    out = {}
+    for d, _, _ in ranking.top(k):
+        name = r.db.names[d]
+        out[d] = [lc for lc in literature_claims(pm, r.ont, ext, c, d, name, ex, a.pubmed_per_disease, maxdate=maxdate)
+                  if verify_lit(pm, r.ont, ext, c, lc, name, ex)[0]]
+    pm.save()
+    return out
 
 
 def load_kb(a, prefixes=("OMIM",)):
@@ -39,6 +139,8 @@ def load_kb(a, prefixes=("OMIM",)):
         db.add_common(a.profiles)
         if a.profiles["n_rare_admissions"]:
             rare_mass = a.profiles["n_rare_admissions"] / a.profiles["n_admissions"]
+    RUN["settings"].update({"hpo": ont.version, "annotations": db.version, "prefixes": list(prefixes),
+                            "common": a.profiles["source"] if a.profiles else None, "prior_weight": a.prior_weight})
     print(f"[kb] HPO {ont.version}, annotations {db.version}: {n_rare} rare + {len(db.names) - n_rare} common diseases"
           + (f" (common from {a.profiles['source']}, rare prior mass {rare_mass:.1%})" if a.profiles else ""))
     return LRRanker(ont, db, prior_weight=a.prior_weight, rare_mass=rare_mass)
@@ -83,7 +185,10 @@ def fmt(m: dict) -> str:
 # commands
 def cmd_diagnose(a):
     r = load_kb(a)
-    c = load_phenopackets(a.case)[0]
+    found = load_phenopackets(a.case) if Path(a.case).exists() else []
+    if not found:
+        raise SystemExit(f"no phenopacket found at {a.case}")
+    c = found[0]
     ex = leak(c)
     ranking = r.score(c, ex)
     print(f"\n{c.case_id}: truth {c.truth}, rank {ranking.rank_of(c.truth)}\n")
@@ -94,17 +199,33 @@ def cmd_diagnose(a):
             n_all += 1
             n_ok += verify_claim(r, c, cl, ex)[0]
             print("   -", cl.text)
+    note("diagnose", case=c.case_id, truth=c.truth[0], rank=ranking.rank_of(c.truth), claims=n_all, claims_verified=n_ok)
     print(f"\n{n_ok}/{n_all} claims verified against the record and knowledge base\n\nNext checks:")
     for t, eig, by in suggest_tests(r, ranking, c, ex):
         print(f"   - {r.ont.name(t)} ({t}), {eig:.2f} bits; " +
               ", ".join(f"{r.db.names[d][:30]} {f:.0%}" for d, f in by[:3]))
+    pm, lit = get_pubmed(a), {}
+    if pm:
+        lit = gather_literature(a, pm, r, Extractor(r.ont), c, ranking, ex)
+        print(f"\nPubMed evidence (verified sentences from abstracts, {pm.calls} new requests):")
+        for i, (d, _, _) in enumerate(ranking.top(a.k), 1):
+            print(f"{i}. {r.db.names[d]} ({d})")
+            for lc in lit.get(d, []):
+                print(f"   - {lc.text}")
+            if not lit.get(d):
+                print("   - none found")
     llm = get_llm(a)
     if llm:
         from .llm import rerank
-        res = rerank(llm, r, c, ranking, ex, k=10)
+        print(f"\n[llm] asking {llm.model} to re-rank the top 10 (can take a minute for thinking models)...", flush=True)
+        res = rerank(llm, r, c, ranking, ex, k=10, literature=lit)
         if not res.parsed:
             print(f"\n[llm] could not read MedGemma's reply; it began:\n{res.raw[:1500]}\n")
-        print(f"\nMedGemma re-ranking (truth now at {res.ranking.index(c.truth[0]) + 1 if c.truth[0] in res.ranking else '>10'}), "
+        print(usage_line(llm))
+        note("diagnose", case=c.case_id, rank=ranking.rank_of(c.truth),
+             rerank=res.ranking.index(c.truth[0]) + 1 if c.truth[0] in res.ranking else None,
+             faithfulness=res.faithfulness, parsed=res.parsed)
+        print(f"\n{llm.model} re-ranking (truth now at {res.ranking.index(c.truth[0]) + 1 if c.truth[0] in res.ranking else '>10'}), "
               f"faithfulness {res.faithfulness:.0%}:")
         for i, d in enumerate(res.ranking[: a.k], 1):
             print(f"{i}. {label(r, d)}")
@@ -126,6 +247,7 @@ def cmd_benchmark(a):
         runs["present + absent, evidence only (no prevalence)"] = (lambda c: c, True, False)
     rows, scores = [], {}
     print(f"[data] {len(cases)} cases, {len({c.truth[0] for c in cases})} diseases, {sum(ev)} evaluable\n")
+    note("data", cases=len(cases), diseases=len({c.truth[0] for c in cases}), evaluable=int(sum(ev)))
     print("| condition | Top-1 | Top-3 | Top-10 | MRR | evaluable Top-1 |\n|---|---|---|---|---|---|")
     for name, (prep, control, genes) in runs.items():
         r.use_genes, ranks = genes, []
@@ -136,6 +258,7 @@ def cmd_benchmark(a):
             scores.setdefault(name, []).append(rk.log_scores)
             rows.append({"condition": name, "case": c.case_id, "truth": c.truth[0], "rank": ranks[-1], "evaluable": ev[len(ranks) - 1]})
         print(f"| {name} | {fmt(topk(ranks))} | {topk([x for x, e in zip(ranks, ev) if e])['top1']:.3f} |")
+        note("conditions", **{name: {**topk(ranks), "evaluable": topk([x for x, e in zip(ranks, ev) if e])}})
     r.use_genes, r.prior_weight = False, a.prior_weight
 
     print("\nWeight on absent evidence (evaluable cases):\n| weight | Top-1 | Top-10 |\n|---|---|---|")
@@ -148,6 +271,7 @@ def cmd_benchmark(a):
                 ranks.append(int((s[~g] >= s[g].max()).sum()) + 1)
         m = topk(ranks)
         print(f"| {w} | {m['top1']:.3f} | {m['top10']:.3f} |")
+        note("absent_weight", **{str(w): m})
 
     # calibration: fit temperature on half the diseases, measure on the other half
     dis = sorted({c.truth[0] for c in cases})
@@ -164,32 +288,103 @@ def cmd_benchmark(a):
     conf, hit = np.array(conf), np.array(hit)
     bins = np.minimum((conf * 10).astype(int), 9)
     ece = sum(abs(conf[bins == b].mean() - hit[bins == b].mean()) * (bins == b).mean() for b in set(bins))
+    rel = [{"bin": int(b), "confidence": float(conf[bins == b].mean()), "accuracy": float(hit[bins == b].mean()),
+            "n": int((bins == b).sum())} for b in sorted(set(bins))]
+    note("calibration", temperature=T, ece=float(ece), reliability=rel,
+         top1_confident_half=float(hit[np.argsort(-conf)[: len(conf) // 2]].mean()))
     print(f"\nCalibration on held-out diseases: temperature {T:.2f}, ECE {ece:.3f}, "
           f"Top-1 when answering the 50% most confident: {hit[np.argsort(-conf)[: len(conf) // 2]].mean():.3f}")
     Path(a.out).mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(rows).to_csv(Path(a.out) / "benchmark.csv", index=False)
+    pd.DataFrame(rows).to_csv(wrote(Path(a.out) / "benchmark.csv"), index=False)
 
     llm = get_llm(a)
     if llm:
-        from .llm import rerank
-        sub = [c for c, e in zip(cases, ev) if e][: a.llm_cases]
-        out = []
-        for i, c in enumerate(sub, 1):
-            rk = r.score(c, leak(c))
-            res = rerank(llm, r, c, rk, leak(c), k=10)
-            shortlist = [d for d, _, _ in rk.top(10)]
-            pos = lambda order: next((j for j, d in enumerate(order, 1) if d in c.truth), None)
-            out.append({"case": c.case_id, "ranker": pos(shortlist), "medgemma": pos(res.ranking),
-                        "faithfulness": res.faithfulness})
-            print(f"\r[llm] {i}/{len(sub)}", end="", flush=True)
-        df = pd.DataFrame(out)
-        df.to_csv(Path(a.out) / "medgemma_rerank.csv", index=False)
-        print(f"\n\nMedGemma re-ranking of the top-10 shortlist ({len(df)} evaluable cases):")
-        print("| ranking | Top-1 | Top-3 | Top-10 |\n|---|---|---|---|")
-        for col in ("ranker", "medgemma"):
-            m = topk([None if pd.isna(x) else int(x) for x in df[col]])
-            print(f"| {col} | {m['top1']:.3f} | {m['top3']:.3f} | {m['top10']:.3f} |")
-        print(f"Claim-level faithfulness of MedGemma explanations: {df.faithfulness.mean():.1%}")
+        llm_benchmark(a, r, llm, [c for c, e in zip(cases, ev) if e][: a.llm_cases])
+
+
+def cmd_llm_bench(a):
+    # only the model comparison: same evaluable cases for every model, no ranker ablations
+    a.llm = True
+    r = load_kb(a)
+    cases = [c for c in pick_cases(r, a.phenopackets, a.sample, seed=a.seed) if evaluable(r, c)]
+    print(f"[data] {len(cases)} evaluable cases; sending the first {min(a.llm_cases, len(cases))} to the model")
+    Path(a.out).mkdir(parents=True, exist_ok=True)
+    llm_benchmark(a, r, get_llm(a), cases[: a.llm_cases])
+
+
+def llm_benchmark(a, r: LRRanker, llm, sub: list[Case]):
+    # same cases for every model: ranker alone, ranker + LLM re-rank, LLM alone (no ranker, no evidence)
+    from .llm import QuotaExhausted, direct_diagnose, rerank
+    pm = get_pubmed(a)
+    ext = Extractor(r.ont) if pm else None
+    matcher = DiseaseMatcher(r.db.names)
+    out, failed, streak, stopped = [], 0, 0, ""
+    for i, c in enumerate(sub, 1):
+        rk = r.score(c, leak(c))
+        shortlist = [d for d, _, _ in rk.top(10)]
+        pos = lambda order: next((j for j, d in enumerate(order, 1) if d in c.truth), None)
+        row = {"case": c.case_id, "truth": c.truth[0], "ranker": pos(shortlist)}
+        try:
+            if row["ranker"] is None and not a.rerank_all:   # re-ranking cannot bring the truth into the top 10
+                row.update({"rerank": None, "rerank_skipped": True})
+            else:
+                lit = gather_literature(a, pm, r, ext, c, rk, leak(c)) if pm else {}
+                res = rerank(llm, r, c, rk, leak(c), k=10, literature=lit)
+                row.update({"rerank": pos(res.ranking), "rerank_parsed": res.parsed, "faithfulness": res.faithfulness,
+                            "pubmed_sentences": sum(map(len, lit.values())), "rerank_skipped": False})
+            if not a.skip_direct:
+                slots, ok, _ = direct_diagnose(llm, r, c, matcher, k=10)
+                row.update({"direct": next((j for j, s in enumerate(slots, 1) if s & set(c.truth)), None),
+                            "direct_parsed": ok, "direct_mapped": sum(bool(s) for s in slots) / max(len(slots), 1)})
+            streak = 0
+        except QuotaExhausted as e:    # quota gone: keep what is done, stop asking
+            stopped = str(e)
+            print(f"\n[llm] stopping early: {e}")
+            break
+        except RuntimeError as e:      # a failed call is counted, not fatal
+            failed, streak = failed + 1, streak + 1
+            print(f"\n[llm] {c.case_id}: {e}")
+            if streak == 3:
+                stopped = "3 failed cases in a row"
+                print(f"\n[llm] stopping early: {stopped}")
+                break
+        out.append(row)
+        print(f"\r[llm] {i}/{len(sub)}", end="", flush=True)
+    if llm.dry_run:
+        print("\n" + usage_line(llm))
+        return
+    out = [x for x in out if "rerank" in x]      # only cases the model actually answered
+    if not out:
+        raise SystemExit(f"no case was answered by {llm.model}" + (f": {stopped}" if stopped else ""))
+    df = pd.DataFrame(out)
+    path = Path(a.out) / f"llm_rerank_{llm.slug}.csv"
+    df.to_csv(wrote(path), index=False)
+    print(f"\n\n{llm.model} on {len(df)} evaluable cases (rows in {path}):")
+    print("| ranking | Top-1 | Top-3 | Top-10 | MRR |\n|---|---|---|---|---|")
+    summary = {"model": llm.model, "task": "phenopacket", "cases": len(df), "failed_calls": failed,
+               "stopped_early": stopped, "sec_per_call": llm.usage()["sec_per_request"],
+               "requests": llm.requests, "cache_hits": llm.cache_hits,
+               "reranked": int((~df.rerank_skipped.fillna(False).astype(bool)).sum())}
+    for col, label in (("ranker", "ranker alone"), ("rerank", "ranker + LLM re-rank"), ("direct", "LLM alone")):
+        if col not in df:
+            continue
+        m = topk([None if pd.isna(x) else int(x) for x in df[col]])
+        print(f"| {label} | {fmt(m)} |")
+        summary.update({f"{col}_{k}": round(v, 3) for k, v in m.items()})
+    if "rerank_parsed" in df:
+        asked = df[~df.rerank_skipped.fillna(False).astype(bool)]
+        summary["rerank_parse_rate"] = round(asked.rerank_parsed.fillna(False).astype(bool).mean(), 3) if len(asked) else None
+        summary["faithfulness"] = round(df.faithfulness.mean(), 3)
+        print(f"Re-ranked {summary['reranked']} cases (the others had the truth outside the top 10); replies parsed: "
+              f"{summary['rerank_parse_rate'] or 0:.0%}; "
+              f"explanation sentences kept after checking: {summary['faithfulness']:.0%}")
+    if "direct_parsed" in df:
+        summary["direct_parse_rate"] = round(df.direct_parsed.fillna(False).mean(), 3)
+        summary["direct_mapped"] = round(df.direct_mapped.mean(), 3)
+        print(f"LLM-alone answers matched to a knowledge-base disease: {summary['direct_mapped']:.0%}")
+    print(usage_line(llm))
+    note("llm", **summary)
+    log_compare(a, summary)
 
 
 def simulate(r: LRRanker, c: Case, policy: str, rounds: int, seed: int):
@@ -236,10 +431,11 @@ def cmd_sequential(a):
         s, e = topk([x[0][0] for x in res]), topk([x[0][-1] for x in res])
         rate = sum(x[1] for x in res) / (len(res) * a.rounds)
         print(f"| {pol} | {s['top1']:.3f} | {e['top1']:.3f} | {s['top10']:.3f} | {e['top10']:.3f} | {rate:.0%} |")
+        note("sequential", **{pol: {"start": s, "end": e, "answered": rate}})
         rows += [{"policy": pol, "case": c.case_id, "truth": c.truth[0], "round": i, "rank": rk, "answered": ans}
                  for c, (ranks, ans) in zip(cases, res) for i, rk in enumerate(ranks)]
     Path(a.out).mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(rows).to_csv(Path(a.out) / "sequential.csv", index=False)
+    pd.DataFrame(rows).to_csv(wrote(Path(a.out) / "sequential.csv"), index=False)
 
 
 def cmd_learn_common(a):
@@ -247,6 +443,8 @@ def cmd_learn_common(a):
     prof = learn_common(a.mimic, icd, min_adm=a.min_adm, seed=a.seed)
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     Path(a.out).write_text(json.dumps(prof))
+    note("common", diseases=len(prof["diseases"]), admissions=prof["n_admissions"],
+         rare_admissions=prof["n_rare_admissions"], held_out_patients=len(prof["test_subjects"]), source=prof["source"])
     top = sorted(prof["diseases"].items(), key=lambda x: -x[1]["n_adm"])[:8]
     print(f"[common] {len(prof['diseases'])} diseases with >= {a.min_adm} training admissions "
           f"({prof['n_admissions']} admissions, {len(prof['test_subjects'])} patients held out) -> {a.out}")
@@ -276,13 +474,14 @@ def cmd_mimic(a):
                      "n_present": len(c.present), "n_absent": len(c.absent), "policy": c.meta["policy"],
                      "delabel_residual": ";".join(c.meta.get("delabel", {}).get("residual", []))})
     Path(a.out).mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(rows).to_csv(Path(a.out) / "mimic.csv", index=False)
+    pd.DataFrame(rows).to_csv(wrote(Path(a.out) / "mimic.csv"), index=False)
     print(f"[mimic] {len(cases)} admissions" + (" from held-out patients" if held_out is not None else "")
           + f", policy {cases[0].meta['policy'] if cases else '-'}")
     for name, sel in (("rare diagnosis", lambda x: x["rare_truth"]),
                       ("common diagnosis", lambda x: x["truth"] and not x["rare_truth"])):
         ranks = [x["rank"] for x in rows if sel(x)]
         if ranks:
+            note("mimic", **{name: {"n": len(ranks), **topk(ranks)}})
             print(f"   {name}: n={len(ranks)}, Top-1 {topk(ranks)['top1']:.3f}, Top-3 {topk(ranks)['top3']:.3f}, "
                   f"Top-10 {topk(ranks)['top10']:.3f}")
 
@@ -300,16 +499,27 @@ def cmd_medpix(a):
     ext = Extractor(r.ont)
     syn = orphadata_icd10(a.orphadata_xml)[1] if a.orphadata_xml else {}
     cases = load_medpix(a.medpix, DiseaseMatcher(r.db.names, syn), ext, a.split, a.labels)
+    if a.only_labeled:
+        cases = [c for c in cases if c.truth]
+    if a.limit:
+        cases = cases[: a.limit]
     llm = get_llm(a)
     if llm and not llm.sees_images:
-        raise SystemExit(f"{llm.model} cannot read images; use --llm-model google/medgemma-1.5-4b-it")
+        raise SystemExit(f"{llm.model} cannot read images; pick a vision model or pass --llm-vision yes")
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
-    cache_path = Path(a.cache or out / "medpix_image_reads.jsonl")
+    # image reads are cached per model so different models never share answers
+    cache_path = Path(a.cache or out / f"medpix_image_reads_{llm.slug if llm else 'none'}.jsonl")
     cache = {}
     if cache_path.exists():
         for line in cache_path.read_text().splitlines():
             rec = json.loads(line); cache[rec["image"]] = rec["raw"]
-    n_cached = len(cache)
+    n_cached, failed = len(cache), 0
+
+    def save_cache():
+        with open(cache_path, "w") as fh:
+            for k, v in cache.items():
+                fh.write(json.dumps({"image": k, "raw": v}) + "\n")
+
     rows = []
     for i, c in enumerate(cases, 1):
         text = [f for f in c.findings]
@@ -322,7 +532,17 @@ def cmd_medpix(a):
                "n_text": len(text), "n_radiologist": len(ref), "n_images": len(c.meta["images"])}
         if llm:
             from .llm import read_images
-            img, recs = read_images(llm, ext, c, a.max_images, cache)
+            from .llm import QuotaExhausted
+            try:
+                img, recs = read_images(llm, ext, c, a.max_images, cache, a.images_per_call)
+            except QuotaExhausted as e:   # quota gone: keep finished cases, stop
+                print(f"\n[llm] stopping early: {e}")
+                break
+            except RuntimeError as e:     # a failed call is counted, not fatal
+                failed += 1
+                print(f"\n[llm] {c.case_id}: {e}")
+                rows.append(row)
+                continue
             both = Case(c.case_id, text + [f for f in img if f.hpo_id not in have], c.truth)
             p, rc = image_agreement(r, {f.hpo_id for f in img if f.status == Status.PRESENT}, {f.hpo_id for f in ref})
             row.update({"rank_image": r.score(Case(c.case_id, img, c.truth)).rank_of(c.truth) if c.truth else None,
@@ -331,15 +551,18 @@ def cmd_medpix(a):
                         "unparsed_images": sum(not x["parsed"] for x in recs),
                         "report": " | ".join(x["report"] for x in recs)[:1000]})
             print(f"\r[medpix] {i}/{len(cases)} cases read", end="", flush=True)
+            if i % 10 == 0:
+                save_cache()
         rows.append(row)
+    if llm and llm.dry_run:
+        print("\n" + usage_line(llm))
+        return
     if llm:
         print()
-        with open(cache_path, "w") as fh:   # raw MedGemma replies: reruns reuse them instead of calling the model
-            for k, v in cache.items():
-                fh.write(json.dumps({"image": k, "raw": v}) + "\n")
+        save_cache()   # raw replies: reruns reuse them instead of calling the model
         print(f"[cache] {len(cache) - n_cached} new image reads, {len(cache)} total -> {cache_path}")
     df = pd.DataFrame(rows)
-    df.to_csv(out / "medpix.csv", index=False)
+    df.to_csv(wrote(out / (f"medpix_{llm.slug}.csv" if llm else "medpix.csv")), index=False)
     df[["case", "title", "truth"]].to_csv(out / "medpix_labels.csv", index=False,
                                           header=["U_id", "title", "truth"])
     lab = df[df.truth != ""]
@@ -348,38 +571,69 @@ def cmd_medpix(a):
     print("\n| input | Top-1 | Top-3 | Top-10 | MRR |\n|---|---|---|---|---|")
     conds = [("history + exam text", "rank_text"), ("text + radiologist image findings (upper bound)", "rank_radiologist")]
     if llm:
-        conds += [("MedGemma image findings only", "rank_image"), ("text + MedGemma image findings", "rank_multimodal")]
+        conds += [("LLM image findings only", "rank_image"), ("text + LLM image findings", "rank_multimodal")]
+    summary = {"model": llm.model if llm else "none", "task": "medpix", "cases": len(df), "labeled": len(lab),
+               "failed_calls": failed}
     for name, col in conds:
+        if col not in lab:
+            continue
         m = topk([None if pd.isna(x) else int(x) for x in lab[col]])
         print(f"| {name} | {fmt(m)} |")
+        summary.update({f"{col}_{k}": round(v, 3) for k, v in m.items()})
+    note("medpix", **summary)
     if llm:
-        print(f"\nMedGemma image findings vs radiologist: precision {df.image_precision.mean():.1%}, "
-              f"recall {df.image_recall.mean():.1%}; unparsed replies {int(df.unparsed_images.sum())}")
+        summary.update({"image_precision": round(df.image_precision.mean(), 3), "image_recall": round(df.image_recall.mean(), 3),
+                        "unparsed_images": int(df.unparsed_images.fillna(0).sum()),
+                        "sec_per_call": llm.usage()["sec_per_request"], "requests": llm.requests,
+                        "cache_hits": llm.cache_hits})
+        print(f"\nLLM image findings vs radiologist: precision {summary['image_precision']:.1%}, "
+              f"recall {summary['image_recall']:.1%}; unparsed replies {summary['unparsed_images']}; "
+              f"{summary['sec_per_call']} s per request")
+        print(usage_line(llm))
+        note("medpix", **summary)
+        log_compare(a, summary)
     print(f"\nReview and correct diagnosis labels in {out / 'medpix_labels.csv'} (pass back with --labels).")
 
 
 def main(argv=None):
     p = argparse.ArgumentParser(prog="hoofbeats")
     p.add_argument("--kb", default="data/kb", help="folder with hp.obo, phenotype.hpoa, genes_to_disease.txt")
+    p.add_argument("--note", default="", help="free-text note saved with this run, shown in reports")
     p.add_argument("--common", default="data/kb/common_profiles.json",
                    help="common-disease profiles from learn-common; used whenever the file exists")
     p.add_argument("--prior-weight", type=float, default=1.0, help="0 = ignore how common each disease is")
-    p.add_argument("--llm", action="store_true", help="use MedGemma (see README)")
+    p.add_argument("--pubmed", action="store_true", help="add verified PubMed abstract sentences as evidence")
+    p.add_argument("--pubmed-cache", default="data/kb/pubmed_cache.json")
+    p.add_argument("--pubmed-per-disease", type=int, default=3)
+    p.add_argument("--pubmed-before-case", action="store_true",
+                   help="only papers published before the case's own paper (stricter leakage control)")
+    p.add_argument("--llm", action="store_true", help="use a language model (MedGemma by default; see README)")
     p.add_argument("--llm-model", default="google/medgemma-1.5-4b-it")
-    p.add_argument("--llm-endpoint", help="local OpenAI-compatible server, e.g. http://localhost:8000/v1/chat/completions; "
+    p.add_argument("--llm-endpoint", help="OpenAI-compatible chat URL, e.g. http://localhost:11434/v1/chat/completions; "
                                           "omit to load the model in-process with transformers")
+    p.add_argument("--llm-key-env", help="name of the environment variable holding an API key, e.g. GEMINI_API_KEY")
+    p.add_argument("--llm-vision", default="auto", choices=["auto", "yes", "no"], help="whether the model reads images")
+    p.add_argument("--llm-max-tokens", type=int, default=2048)
+    p.add_argument("--llm-rpm", type=float, help="max model requests per minute (match your free-tier limit, e.g. 5)")
+    p.add_argument("--llm-cache", default="auto", help="folder of saved model replies (default <out>/llm_cache; 'none' to disable)")
+    p.add_argument("--dry-run", action="store_true", help="count the model requests a command would send, send none")
+    p.add_argument("--llm-extra", help='extra JSON fields for the request body, e.g. \'{"reasoning_effort": "low"}\'')
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("download"); s.add_argument("--dest", default="data")
     s = sub.add_parser("diagnose"); s.add_argument("case"); s.add_argument("-k", type=int, default=5)
-    for name in ("benchmark", "sequential"):
+    s.add_argument("--out", default="results", help="run log goes to <out>/runs/")
+    for name in ("benchmark", "sequential", "llm-bench"):
         s = sub.add_parser(name)
         s.add_argument("--phenopackets", default="data/phenopacket-store")
         s.add_argument("--sample", type=int, default=500 if name == "benchmark" else 300)
         s.add_argument("--seed", type=int, default=13)
         s.add_argument("--rounds", type=int, default=5)
         s.add_argument("--out", default="results")
-        if name == "benchmark":
-            s.add_argument("--llm-cases", type=int, default=50, help="cases to re-rank with MedGemma when --llm is set")
+        if name in ("benchmark", "llm-bench"):
+            s.add_argument("--llm-cases", type=int, default=50, help="evaluable cases sent to the model")
+            s.add_argument("--skip-direct", action="store_true", help="skip the LLM-alone baseline")
+            s.add_argument("--rerank-all", action="store_true",
+                           help="also re-rank cases whose truth is outside the top 10 (cannot change accuracy)")
     s = sub.add_parser("learn-common")
     s.add_argument("--mimic", required=True, help="folder containing hosp/")
     s.add_argument("--orphadata-xml", help="so codes of rare diseases are not learned as common ones")
@@ -397,15 +651,98 @@ def main(argv=None):
     s.add_argument("--split", default="all", choices=["all", "train", "train_1", "train_2", "dev", "test"])
     s.add_argument("--labels", help="CSV U_id,truth overriding automatic diagnosis matching")
     s.add_argument("--orphadata-xml", help="adds Orphanet synonyms for diagnosis matching")
-    s.add_argument("--max-images", type=int, default=4, help="images per case sent to MedGemma")
-    s.add_argument("--cache", help="jsonl of raw MedGemma image reads (default: <out>/medpix_image_reads.jsonl)")
+    s.add_argument("--max-images", type=int, default=4, help="images per case sent to the model")
+    s.add_argument("--images-per-call", type=int, default=1, help="images sent together in one request (fewer requests)")
+    s.add_argument("--only-labeled", action="store_true", help="only cases whose diagnosis is in the knowledge base")
+    s.add_argument("--limit", type=int, help="first N cases (quick runs)")
+    s.add_argument("--cache", help="jsonl of raw image reads (default: <out>/medpix_image_reads_<model>.jsonl)")
     s.add_argument("--out", default="results")
+    s = sub.add_parser("report", help="tables, figures and notes from saved runs")
+    s.add_argument("--results", default="results", help="folder searched (recursively) for runs and CSVs")
+    s.add_argument("--out", default="reports/report", help="base name; each run writes <base>-1, <base>-2, ...")
+    s.add_argument("--latex", action="store_true", help="also write LaTeX tables")
     a = p.parse_args(argv)
     if a.cmd == "download":
         download(a.dest)
+    elif a.cmd == "report":
+        from .report import build_report
+        build_report(Path(a.results), Path(a.out), latex=a.latex)
     else:
+        _logged(a)
+
+
+def _clean_console(raw: str) -> str:
+    # keep what the terminal finally showed: progress lines drawn with \r collapse to their last state
+    lines = []
+    for line in raw.split("\n"):
+        parts = [x for x in line.split("\r") if x.strip()]
+        lines.append(parts[-1] if parts else "")
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip() + "\n"
+
+
+def _write_txt(path: Path, body: str, trace: str):
+    # readable log: header with settings, the console output, then status and metrics
+    rule = "=" * 72
+    st = RUN["settings"]
+    head = [f"run       {RUN['id']}", f"started   {RUN['started']}", f"command   {RUN['command']}", f"note      {RUN['note'] or '-'}",
+            f"status    {RUN['status']}", f"duration  {RUN['seconds'] / 60:.1f} min",
+            f"argv      python -m hoofbeats {shlex.join(RUN['argv'])}", ""]
+    head += [f"{k:<14}{v}" for k, v in st.items()]
+    tail = ["", rule, "metrics (also in the .json file)", rule, json.dumps(RUN["metrics"], indent=1, default=str)]
+    if RUN["files"]:
+        tail += ["", "files written:"] + [f"  {f}" for f in RUN["files"]]
+    if trace:
+        tail += ["", rule, "error", rule, trace]
+    path.write_text("\n".join(head + ["", rule, "console output", rule, "", body.rstrip()] + tail) + "\n")
+
+
+def _logged(a):
+    # run the command; save <out>/runs/<id>.txt (readable log) and <id>.json (settings + metrics)
+    import traceback
+    model = re.sub(r"[^A-Za-z0-9.]+", "-", a.llm_model.split("/")[-1]).lower() if a.llm or a.cmd == "llm-bench" else ""
+    RUN.update({"id": time.strftime("%Y%m%d-%H%M%S") + f"_{a.cmd}" + (f"_{model}" if model else ""),
+                "command": a.cmd, "argv": sys.argv[1:], "note": a.note, "started": time.strftime("%Y-%m-%d %H:%M:%S")})
+    RUN["settings"].update({k: v for k, v in vars(a).items()
+                            if k in ("sample", "seed", "llm_cases", "rounds", "split", "limit", "max_images", "only_labeled")})
+    runs = _run_dir(a)
+    runs.mkdir(parents=True, exist_ok=True)
+    partial = runs / f"{RUN['id']}.partial.txt"     # raw output while running; replaced by the clean log at the end
+    log = open(partial, "w")
+    stdout, t0, status, trace = sys.stdout, time.time(), "ok", ""
+    sys.stdout = _Tee(stdout, log)
+    try:
         {"diagnose": cmd_diagnose, "benchmark": cmd_benchmark, "sequential": cmd_sequential,
-         "learn-common": cmd_learn_common, "mimic": cmd_mimic, "medpix": cmd_medpix}[a.cmd](a)
+         "learn-common": cmd_learn_common, "mimic": cmd_mimic, "medpix": cmd_medpix,
+         "llm-bench": cmd_llm_bench}[a.cmd](a)
+    except KeyboardInterrupt:
+        status = "stopped (Ctrl-C)"
+        raise
+    except SystemExit as e:
+        status = f"stopped: {e}"
+        raise
+    except Exception as e:
+        if type(e).__name__ != "QuotaExhausted":
+            status, trace = f"failed: {type(e).__name__}: {e}", traceback.format_exc()
+            raise
+        status = f"stopped: {e}"
+        print(f"\n[llm] {e}")
+        raise SystemExit(1) from None
+    except BaseException as e:
+        status, trace = f"failed: {type(e).__name__}: {e}", traceback.format_exc()
+        raise
+    finally:
+        sys.stdout = stdout
+        log.close()
+        early = RUN["metrics"].get("llm", {}).get("stopped_early")
+        if status == "ok" and early:
+            status = f"partial (stopped early: {early})"
+        RUN.update({"status": status, "seconds": round(time.time() - t0, 1)})
+        (runs / f"{RUN['id']}.json").write_text(json.dumps(RUN, indent=1, default=str))
+        txt = runs / f"{RUN['id']}.txt"
+        _write_txt(txt, _clean_console(partial.read_text()), trace)
+        partial.unlink()
+        (runs / "latest.txt").write_text(txt.read_text())
+        print(f"[run] log: {txt}  ({status})")
 
 
 if __name__ == "__main__":

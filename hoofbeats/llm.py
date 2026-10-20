@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import re
+import time
+import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -20,12 +23,50 @@ class PolicyError(RuntimeError):
     pass
 
 
-class MedGemma:
-    # endpoint=None loads the model in-process; otherwise a local OpenAI-compatible server
+class QuotaExhausted(Exception):
+    # not a RuntimeError on purpose: benchmarks stop instead of skipping to the next case
+    pass
 
-    def __init__(self, model: str = DEFAULT_MODEL, endpoint: str | None = None, max_new_tokens: int = 2048):
+
+def quota_info(body: bytes) -> dict:
+    # read Google-style 429 details: which quota, its limit, and the suggested wait
+    try:
+        obj = json.loads(body)
+    except (ValueError, TypeError):
+        return {"message": body[:300].decode(errors="replace") if isinstance(body, bytes) else ""}
+    err = (obj[0] if isinstance(obj, list) and obj else obj).get("error", {}) if obj else {}
+    out = {"message": str(err.get("message", ""))[:500], "quotas": [], "retry": None}
+    for d in err.get("details", []) or []:
+        for v in d.get("violations", []) or []:
+            out["quotas"].append((str(v.get("quotaId", "")), str(v.get("quotaValue", ""))))
+        if d.get("retryDelay"):
+            m = re.match(r"([\d.]+)s", str(d["retryDelay"]))
+            out["retry"] = float(m.group(1)) if m else None
+    return out
+
+
+class MedGemma:
+    # endpoint=None loads the model in-process; otherwise any OpenAI-compatible server (Ollama, vLLM, Gemini)
+
+    def __init__(self, model: str = DEFAULT_MODEL, endpoint: str | None = None, max_new_tokens: int = 2048,
+                 api_key: str | None = None, vision: bool | None = None, extra: dict | None = None,
+                 rpm: float | None = None, cache_dir: str | Path | None = None, dry_run: bool = False):
         self.model, self.endpoint, self.max_new_tokens = model, endpoint, max_new_tokens
-        self._pipe = None
+        self.api_key, self.vision, self.extra = api_key, vision, extra or {}
+        self.rpm, self._last = rpm, 0.0                 # rpm: max requests per minute (free tiers)
+        self.dry_run = dry_run                          # count requests that would be sent, send none
+        self.n_calls, self.seconds, self.errors = 0, 0.0, 0
+        self.requests, self.cache_hits, self.retries, self.planned = 0, 0, 0, 0
+        self._pipe, self._cache, self._cache_file = None, {}, None
+        if cache_dir:                                   # replies keyed by a hash of everything sent
+            self._cache_file = Path(cache_dir) / f"{self.slug}.jsonl"
+            if self._cache_file.exists():
+                for line in self._cache_file.read_text().splitlines():
+                    try:
+                        rec = json.loads(line)
+                        self._cache[rec["key"]] = rec["reply"]
+                    except (ValueError, KeyError):
+                        continue
 
     @property
     def is_local(self) -> bool:
@@ -40,23 +81,91 @@ class MedGemma:
 
     @property
     def sees_images(self) -> bool:
+        if self.vision is not None:
+            return self.vision
         return "text" not in self.model      # medgemma-27b-text-it is text-only
 
+    @property
+    def slug(self) -> str:
+        return re.sub(r"[^A-Za-z0-9.]+", "-", self.model.split("/")[-1]).strip("-").lower()
+
+    def _key(self, user, system, images) -> str:
+        imgs = [hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in images]
+        blob = json.dumps([self.model, self.max_new_tokens, self.extra, system, user, imgs], sort_keys=True)
+        return hashlib.sha256(blob.encode()).hexdigest()
+
     def chat(self, user: str, system: str = SYSTEM, images: tuple[str, ...] = ()) -> str:
-        # images: local file paths (image models only)
+        # images: local file paths (image models only); identical requests are answered from the cache
         if images and not self.sees_images:
-            raise ValueError(f"{self.model} is text-only; use google/medgemma-1.5-4b-it for images")
-        if self.endpoint:
-            content = user
-            if images:   # OpenAI-compatible servers (vLLM) take images as base64 data URLs
-                content = [{"type": "image_url", "image_url": {"url": "data:image/png;base64," +
-                            base64.b64encode(Path(p).read_bytes()).decode()}} for p in images]
-                content.append({"type": "text", "text": user})
-            body = {"model": self.model, "temperature": 0, "max_tokens": self.max_new_tokens,
-                    "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}]}
-            req = urllib.request.Request(self.endpoint, json.dumps(body).encode(), {"Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=600) as resp:
-                return json.loads(resp.read())["choices"][0]["message"]["content"]
+            raise ValueError(f"{self.model} is text-only; pick a vision model for images")
+        key = self._key(user, system, images)
+        if key in self._cache:
+            self.cache_hits += 1
+            return self._cache[key]
+        if self.dry_run:
+            self.planned += 1
+            return ""
+        t0 = time.time()
+        try:
+            reply = self._endpoint_chat(user, system, images) if self.endpoint else self._local_chat(user, system, images)
+        finally:
+            self.n_calls, self.seconds = self.n_calls + 1, self.seconds + time.time() - t0
+        self._cache[key] = reply
+        if self._cache_file:
+            self._cache_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self._cache_file, "a") as fh:
+                fh.write(json.dumps({"key": key, "reply": reply}) + "\n")
+        return reply
+
+    def usage(self) -> dict:
+        return {"requests": self.requests, "retries": self.retries, "cache_hits": self.cache_hits,
+                "would_send": self.planned, "sec_per_request": round(self.seconds / max(self.n_calls, 1), 2)}
+
+    def _endpoint_chat(self, user, system, images) -> str:
+        content = user
+        if images:   # OpenAI-compatible servers take images as base64 data URLs
+            content = [{"type": "image_url", "image_url": {"url": "data:image/png;base64," +
+                        base64.b64encode(Path(p).read_bytes()).decode()}} for p in images]
+            content.append({"type": "text", "text": user})
+        body = {"model": self.model, "temperature": 0, "max_tokens": self.max_new_tokens,
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}], **self.extra}
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        for attempt in range(6):   # free tiers rate-limit: back off on 429/5xx
+            if self.rpm:            # pace requests so the per-minute limit is never hit
+                gap = 60.0 / self.rpm - (time.time() - self._last)
+                if gap > 0:
+                    time.sleep(gap)
+            self._last = time.time()
+            self.requests += 1
+            self.retries += attempt > 0
+            req = urllib.request.Request(self.endpoint, json.dumps(body).encode(), headers)
+            try:
+                with urllib.request.urlopen(req, timeout=600) as resp:
+                    return json.loads(resp.read())["choices"][0]["message"]["content"] or ""
+            except urllib.error.HTTPError as e:
+                raw = e.read()
+                info = quota_info(raw) if e.code == 429 else {}
+                daily = [(q, v) for q, v in info.get("quotas", []) if "perday" in q.lower()]
+                if daily:           # waiting minutes will not help: stop the run
+                    self.errors += 1
+                    lim = f" (limit {daily[0][1]} requests per day)" if daily[0][1] else ""
+                    raise QuotaExhausted(f"{self.model}: daily free-tier quota used up{lim}. Try again after the "
+                                         f"daily reset, use another model, or check https://ai.dev/rate-limit") from None
+                if e.code not in (429, 500, 502, 503, 504) or attempt == 5:
+                    self.errors += 1
+                    msg = info.get("message") or raw[:300].decode(errors="replace")
+                    if e.code == 429:
+                        raise QuotaExhausted(f"{self.model}: still rate-limited after 6 tries: {msg}") from None
+                    raise RuntimeError(f"{self.model}: HTTP {e.code} {msg}") from None
+                wait = min(90, info.get("retry") or 5 * 2 ** attempt)
+                print(f"\n[llm] HTTP {e.code} ({'rate limit' if e.code == 429 else 'server busy'}), "
+                      f"retrying in {wait}s (attempt {attempt + 1}/6)", flush=True)
+                time.sleep(wait)
+
+    def _local_chat(self, user, system, images) -> str:
+        self.requests += 1
         if self._pipe is None:
             self._load()
         if self._pipe.task == "image-text-to-text":   # message format from the MedGemma model cards
@@ -177,10 +286,21 @@ evidence and standard medical knowledge about how specific each finding is. Do n
 
 Return only JSON, no markdown. Use the disease ids exactly as written above (e.g. "{example}"):
 {{"ranking": ["<disease id>", ...],
-  "explanations": {{"<disease id>": "1-3 sentences; end every sentence with the evidence ids it uses, e.g. [C2][C5]"}}}}"""
+  "explanations": {{"<disease id>": "1-3 sentences; end every sentence with the evidence ids it uses, e.g. [C2][L1]"}}}}"""
 
 _STOP = set("the and with that this have has for are was were from into than been also which patient "
-            "cases case disease diseases shows show consistent supports support suggests".split())
+            "cases case disease diseases shows show consistent supports support suggests "
+            # reasoning words that make no factual claim of their own (claims state LRs as numbers)
+            "likelihood ratio ratios very high highly strong strongly extremely features feature finding findings "
+            "matches matching match key hallmark classic typical presenting presentation exhibits evidence".split())
+
+
+_CITE_GROUP = re.compile(r"\[[^\]]*\b[CL]\d+\b[^\]]*\]")
+
+
+def _cites(sent: str) -> list[str]:
+    # evidence ids in [C2][L1] or [C2, C5] or [C2; L1] form
+    return [x for grp in _CITE_GROUP.findall(sent) for x in re.findall(r"\b([CL]\d+)\b", grp)]
 
 
 def _content(s: str) -> set[str]:
@@ -213,16 +333,22 @@ def _to_id(x, shortlist: list[str], names: dict[str, str]) -> str | None:
     return hit[0] if hit else None
 
 
-def rerank(llm, r: LRRanker, case: Case, ranking: Ranking, exclude=frozenset(), k: int = 10) -> RerankResult:
+def rerank(llm, r: LRRanker, case: Case, ranking: Ranking, exclude=frozenset(), k: int = 10,
+           literature: dict | None = None) -> RerankResult:
+    # literature: disease id -> verified PubMed claims (pubmed.literature_claims), cited as [L#]
     check_policy(llm, [case], r)   # prompts include common-disease frequencies learned from MIMIC
-    claims, lines, owner = {}, [], {}
+    claims, lines, owner, n_lit = {}, [], {}, 0
     for d, p, cls in explain(r, case, ranking, k, exclude):
         common = f" | common: {r.db.prior[d]:.1%} of hospital admissions" if d in r.db.prior else ""
         lines.append(f"\n{d} | {r.db.names[d]} | model posterior {p:.1%}{common}")
         for cl in cls:
-            cid = f"C{len(claims) + 1}"
+            cid = f"C{sum(c.startswith('C') for c in claims) + 1}"
             claims[cid], owner[cid] = cl.text, d
             lines.append(f"  [{cid}] {cl.text}")
+        for lc in (literature or {}).get(d, []):
+            n_lit += 1
+            claims[f"L{n_lit}"], owner[f"L{n_lit}"] = lc.text, d
+            lines.append(f"  [L{n_lit}] {lc.text}")
     shortlist = [d for d, _, _ in ranking.top(k)]
     raw = llm.chat(RERANK_PROMPT.format(evidence="\n".join(lines), example=shortlist[0] if shortlist else "OMIM:100100"))
     obj = _json(raw, "{")
@@ -245,8 +371,8 @@ def rerank(llm, r: LRRanker, case: Case, ranking: Ranking, exclude=frozenset(), 
             continue
         for sent in filter(None, (s.strip() for s in re.split(r"(?<=[.!?\]])\s+(?=[A-Z])", text))):
             n_all += 1
-            cited = re.findall(r"\[(C\d+)\]", sent)
-            body = _content(re.sub(r"\[C\d+\]", "", sent))
+            cited = _cites(sent)
+            body = _content(_CITE_GROUP.sub("", sent))
             support = _content(" ".join(claims.get(c, "") + " " + r.db.names[d] for c in cited))
             if not cited:
                 why = "no citation"
@@ -261,6 +387,36 @@ def rerank(llm, r: LRRanker, case: Case, ranking: Ranking, exclude=frozenset(), 
     n_kept = sum(map(len, kept.values()))
     return RerankResult(order, kept, dropped, n_kept / n_all if n_all else float("nan"), raw,
                         parsed=used_order or n_all > 0)
+
+
+# 2b. model-only baseline: diagnose from the findings with no ranker and no evidence
+DIRECT_PROMPT = """A patient has these clinical findings (HPO terms).
+
+Present: {present}
+Explicitly absent: {absent}
+
+List the {k} most likely diagnoses, most likely first. Prefer specific named diseases (with the OMIM
+number if you know it) over broad categories.
+
+Return only JSON, no markdown:
+{{"diagnoses": [{{"name": "<disease name>", "omim": "<OMIM:number or empty>"}}, ...]}}"""
+
+
+def direct_diagnose(llm, r: LRRanker, case: Case, matcher, k: int = 10) -> tuple[list[set[str]], bool, str]:
+    # each answer slot -> knowledge-base ids, by OMIM number, else by name (a name like "Noonan syndrome"
+    # matches all its numbered subtypes); unmatched answers keep their slot as an empty set
+    check_policy(llm, [case], r)
+    names = lambda st: ", ".join(sorted({r.ont.name(t) for t in case.terms(st) if r.ont.resolve(t)})) or "none"
+    raw = llm.chat(DIRECT_PROMPT.format(present=names(Status.PRESENT), absent=names(Status.ABSENT), k=k))
+    obj = _json(raw, "{")
+    items = obj.get("diagnoses") if isinstance(obj, dict) else None
+    out = []
+    for it in (items if isinstance(items, list) else [])[:k]:
+        name, num = (it.get("name", ""), str(it.get("omim", ""))) if isinstance(it, dict) else (str(it), "")
+        m = re.search(r"(\d+)", num)
+        ids = {f"OMIM:{m.group(1)}"} if m and f"OMIM:{m.group(1)}" in r.db.names else set()
+        out.append(ids | set(matcher.match(str(name))))
+    return out, isinstance(items, list), raw
 
 
 # 3. image reading (MedPix)
@@ -281,16 +437,43 @@ def image_prompt(img: dict) -> str:
                                location=(img.get("location") or "body").lower(), patient=patient)
 
 
-def read_images(llm, ext: Extractor, case: Case, max_images: int = 4, cache: dict | None = None):
-    # read each image, map report and findings to HPO; cache maps image id to raw reply
+MULTI_PROMPT = """These are {n} images from one patient{patient}:
+{listing}
+Describe what you see across them. Do not state a final diagnosis.
+
+Return only JSON:
+{{"report": "2-4 sentences describing the abnormal imaging findings in plain radiology language",
+  "findings": [{{"finding": "short standard term, e.g. pleural effusion, hydrocephalus, splenomegaly",
+                 "status": "present" or "absent"}}]}}"""
+
+
+def multi_prompt(imgs: list[dict]) -> str:
+    first = imgs[0]
+    patient = f", a {first['age']}-year-old {first['sex']}" if first.get("age") and first.get("sex") else ""
+    listing = "\n".join(f"{i}. {img.get('modality') or 'medical'} image" + (f" ({img['plane']} plane)" if img.get("plane") else "")
+                        + f" of the {(img.get('location') or 'body').lower()}" for i, img in enumerate(imgs, 1))
+    return MULTI_PROMPT.format(n=len(imgs), patient=patient, listing=listing)
+
+
+def read_images(llm, ext: Extractor, case: Case, max_images: int = 4, cache: dict | None = None, per_call: int = 1):
+    # read the case's images, per_call images per request; map report and findings to HPO
+    # cache maps an image id (or ids joined by "+") to the raw reply
     check_policy(llm, [case])
     cache = {} if cache is None else cache
     statuses = {s.value: s for s in Status}
     best, records = {}, []
-    for img in case.meta.get("images", [])[:max_images]:
-        if img["id"] not in cache:
-            cache[img["id"]] = llm.chat(image_prompt(img), IMAGE_SYSTEM, images=(img["path"],))
-        obj = _json(cache[img["id"]], "{") or {}
+    imgs = case.meta.get("images", [])[:max_images]
+    groups = [imgs[i:i + max(per_call, 1)] for i in range(0, len(imgs), max(per_call, 1))]
+    for grp in groups:
+        gid = "+".join(img["id"] for img in grp)
+        reply = cache.get(gid)
+        if reply is None:
+            prompt = image_prompt(grp[0]) if len(grp) == 1 else multi_prompt(grp)
+            reply = llm.chat(prompt, IMAGE_SYSTEM, images=tuple(img["path"] for img in grp))
+            if not getattr(llm, "dry_run", False):      # a dry run must not leave empty replies in the cache
+                cache[gid] = reply
+        img = {"id": gid}
+        obj = _json(reply, "{") or {}
         report = str(obj.get("report", ""))
         found = [f for f in ext.findings(report, f"image:{img['id']}") if f.status in (Status.PRESENT, Status.ABSENT)]
         for it in obj.get("findings") or []:

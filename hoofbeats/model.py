@@ -1,4 +1,4 @@
-# ontology, annotations, LR ranker, explanations, next-test selection
+# core model: ontology, annotations, LR ranker, explanations, next-test selection
 from __future__ import annotations
 
 import csv
@@ -371,7 +371,7 @@ class LRRanker:
                 out.append(Contribution(t, Status.PRESENT, 0.0))
                 continue
             best, u_best = self.lr_floor, None
-            for u in self.ont.ancestors(t):
+            for u in sorted(self.ont.ancestors(t)):     # sorted: same tie-break in every run
                 if u in freq and freq[u] / self.bg_of(u) > best:
                     best, u_best = freq[u] / self.bg_of(u), u
             if t in lacks:

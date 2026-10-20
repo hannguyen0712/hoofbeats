@@ -428,6 +428,73 @@ class Tests(unittest.TestCase):
         self.assertTrue(MedGemma().is_local and MedGemma(endpoint="http://127.0.0.1:8000/v1").is_local)
         self.assertFalse(MedGemma(endpoint="https://api.example.com/v1").is_local)
 
+    def test_direct_diagnose_maps_answers(self):
+        from hoofbeats.data import DiseaseMatcher
+        from hoofbeats.llm import direct_diagnose
+        d1 = sorted(self.db.names)[0]
+        d2 = next(d for d in sorted(self.db.names) if "Hypophosphatasia" in self.db.names[d])
+        reply = json.dumps({"diagnoses": [{"name": "made-up disorder", "omim": ""},
+                                          {"name": "x", "omim": d1},
+                                          {"name": self.db.names[d2], "omim": ""}]})
+        slots, ok, _ = direct_diagnose(Fake(reply), self.r, Case("x", P("HP:0000098")), DiseaseMatcher(self.db.names))
+        self.assertTrue(ok)
+        self.assertEqual(slots[0], set())
+        self.assertIn(d1, slots[1])
+        self.assertIn(d2, slots[2])
+        self.assertEqual(direct_diagnose(Fake("no json"), self.r, Case("x", []), DiseaseMatcher(self.db.names))[:2], ([], False))
+
+    def test_citation_formats(self):
+        from hoofbeats.llm import _cites
+        self.assertEqual(_cites("A [C1][L2]."), ["C1", "L2"])
+        self.assertEqual(_cites("A [C1, C2; L3]."), ["C1", "C2", "L3"])
+        self.assertEqual(_cites("A [see above]."), [])
+
+    def test_report_from_saved_runs(self):
+        import pandas as pd
+        from hoofbeats.report import build_report
+        res, out = self.root / "res", self.root / "rep"
+        (res / "runs").mkdir(parents=True)
+        pd.DataFrame({"condition": ["present only"] * 4 + ["present + absent"] * 4, "case": list("abcd") * 2,
+                      "truth": "OMIM:1", "rank": [1, 2, 11, None, 1, 1, 3, None], "evaluable": True}).to_csv(res / "benchmark.csv", index=False)
+        pd.DataFrame({"case": list("abcd"), "truth": "OMIM:1", "ranker": [1, 2, 5, None], "rerank": [2, 1, 5, None],
+                      "direct": [None, 1, None, None], "faithfulness": 0.5}).to_csv(res / "llm_rerank_m.csv", index=False)
+        pd.DataFrame([{"time": "t", "model": "x/m", "task": "phenopacket", "cases": 4, "ranker_top1": 0.25, "rerank_top1": 0.25,
+                       "direct_top1": 0.25, "rerank_top10": 0.75, "faithfulness": 0.5}]).to_csv(res / "llm_compare.csv", index=False)
+        (res / "runs" / "r.json").write_text(json.dumps({"id": "r", "command": "benchmark", "started": "t", "metrics": {}}))
+        first = build_report(res, out, latex=True)
+        second = build_report(res, out)
+        self.assertEqual((first.parent.name, first.name, second.name), ("rep-1", "rep-1.md", "rep-2.md"))
+        self.assertIn("Key findings", first.read_text())
+        d = first.parent
+        self.assertTrue((d / "figures" / "llm_accuracy.png").exists() and (d / "tables" / "benchmark.tex").exists())
+        self.assertTrue((d / "notes-1.md").exists())
+
+    def test_reply_cache_and_dry_run(self):
+        d = self.root / "cache"
+        m = MedGemma("x/m", "http://127.0.0.1:1/v1", cache_dir=d)
+        m._endpoint_chat = lambda u, s, i: (setattr(m, "requests", m.requests + 1), "reply")[1]
+        self.assertEqual([m.chat("a"), m.chat("a"), m.chat("b")], ["reply"] * 3)
+        self.assertEqual((m.requests, m.cache_hits), (2, 1))
+        again = MedGemma("x/m", "http://127.0.0.1:1/v1", cache_dir=d, dry_run=True)
+        self.assertEqual((again.chat("a"), again.chat("c")), ("reply", ""))
+        self.assertEqual((again.cache_hits, again.planned, again.requests), (1, 1, 0))
+
+    def test_quota_errors(self):
+        from hoofbeats.llm import quota_info
+        body = json.dumps([{"error": {"code": 429, "message": "quota", "details": [
+            {"violations": [{"quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier", "quotaValue": "20"}]},
+            {"retryDelay": "41s"}]}}]).encode()
+        info = quota_info(body)
+        self.assertEqual((info["quotas"][0][1], info["retry"]), ("20", 41.0))
+        self.assertEqual(quota_info(b"not json")["message"], "not json")
+
+    def test_llm_options(self):
+        m = MedGemma("models/Gemini-X.Flash", "https://example.com/v1/chat/completions", api_key="k", vision=False)
+        self.assertEqual(m.slug, "gemini-x.flash")
+        self.assertFalse(m.sees_images or m.is_local)
+        with self.assertRaises(ValueError):
+            m.chat("hi", images=("a.png",))
+
     def test_medgemma_rerank_is_verified(self):
         c = Case("x", P("HP:0000098", "HP:0001263"))
         rk = self.r.score(c)
@@ -661,6 +728,103 @@ class TestMedPix(unittest.TestCase):
         with self.assertRaises(ValueError):
             MedGemma("google/medgemma-27b-text-it").chat("x", images=("a.png",))
         self.assertTrue(MedGemma().sees_images)
+
+
+def efetch_xml(papers):
+    arts = []
+    for pmid, title, abstract, year, types in papers:
+        pt = "".join(f"<PublicationType UI=\"D0\">{t}</PublicationType>" for t in types)
+        arts.append(f"""<PubmedArticle><MedlineCitation Status="MEDLINE" Owner="NLM"><PMID Version="1">{pmid}</PMID>
+<Article PubModel="Print"><Journal><Title>Test Journal</Title><JournalIssue><PubDate><Year>{year}</Year></PubDate></JournalIssue></Journal>
+<ArticleTitle>{title}</ArticleTitle><Abstract><AbstractText Label="BACKGROUND">Background sentence about something unrelated here.</AbstractText>
+<AbstractText Label="RESULTS">{abstract}</AbstractText></Abstract><PublicationTypeList>{pt}</PublicationTypeList></Article>
+</MedlineCitation></PubmedArticle>""")
+    return ("<?xml version=\"1.0\"?><PubmedArticleSet>" + "".join(arts) + "</PubmedArticleSet>").encode()
+
+
+class FakeNCBI:
+    def __init__(self, ids, papers):
+        self.ids, self.papers, self.urls = ids, papers, []
+
+    def __call__(self, url, timeout=30):
+        import io, urllib.parse
+        self.urls.append(url)
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+        if "esearch" in url:
+            return io.BytesIO(json.dumps({"esearchresult": {"idlist": self.ids}}).encode())
+        want = q["id"][0].split(",")
+        return io.BytesIO(efetch_xml([p for p in self.papers if p[0] in want]))
+
+
+class TestPubMed(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        root = Path(tempfile.mkdtemp())
+        kb = build(root)
+        cls.root = root
+        cls.ont = Ontology(kb / "hp.obo")
+        cls.db = AnnotationDB(kb / "phenotype.hpoa", cls.ont, ("OMIM",))
+        cls.ext = Extractor(cls.ont)
+        cls.case = Case("PMID_100_P1", P("HP:0000098", "HP:0001083"), ["OMIM:1"], source_pmids=["PMID:100"])
+        cls.papers = [
+            ("11", "Disease Alpha in three families", "Patients had tall stature and ectopia lentis. Other text follows here.", 2015, ["Journal Article"]),
+            ("12", "Retracted report of Disease Alpha", "All patients had tall stature with ectopia lentis.", 2016, ["Retracted Publication"]),
+            ("100", "Disease Alpha case (the test case)", "Our patient had tall stature and ectopia lentis.", 2018, ["Case Reports"]),
+            ("13", "Unrelated cardiology paper", "Tall stature was common in athletes in this cohort.", 2017, ["Journal Article"])]
+
+    def pm(self, ids=("11", "12", "100", "13")):
+        from hoofbeats.pubmed import PubMed
+        return PubMed(self.root / "pm_cache.json", opener=FakeNCBI(list(ids), self.papers))
+
+    def test_query_uses_only_labels(self):
+        from hoofbeats.pubmed import build_query
+        c = Case("x", [Finding("HP:0007359", Status.PRESENT, "note", "SECRET PATIENT TEXT")])
+        q = build_query(self.ont, c, "Disease Beta (DB)")
+        self.assertIn('"Disease Beta"[tiab]', q)
+        self.assertIn("Focal-onset seizure", q)
+        self.assertIn("NOT retracted publication[pt]", q)
+        self.assertNotIn("SECRET", q)
+
+    def test_literature_claims_filter_and_verify(self):
+        from hoofbeats.pubmed import literature_claims, verify_lit
+        pm = self.pm()
+        claims = literature_claims(pm, self.ont, self.ext, self.case, "OMIM:1", "Disease Alpha", frozenset({"PMID:100"}))
+        self.assertEqual([c.pmid for c in claims], ["11"])           # retracted, own paper, off-topic excluded
+        c = claims[0]
+        self.assertEqual(c.hpo_ids, ("HP:0000098", "HP:0001083"))
+        self.assertIn("PMID:11 (2015)", c.text)
+        self.assertTrue(all(u.startswith("https://eutils.ncbi.nlm.nih.gov/") for u in pm.opener.urls))
+        self.assertTrue(verify_lit(pm, self.ont, self.ext, self.case, c, "Disease Alpha", frozenset({"PMID:100"}))[0])
+        c.sentence = "Patients had tall stature and ectopia lentis and a made-up sign."
+        self.assertFalse(verify_lit(pm, self.ont, self.ext, self.case, c, "Disease Alpha")[0])
+
+    def test_cache_and_policy(self):
+        from hoofbeats.pubmed import PubMed, PubMedPolicyError, literature_claims, parse_pubmed_xml
+        pm = self.pm()
+        literature_claims(pm, self.ont, self.ext, self.case, "OMIM:1", "Disease Alpha")
+        pm.save()
+        again = PubMed(self.root / "pm_cache.json", opener=FakeNCBI([], []))
+        literature_claims(again, self.ont, self.ext, self.case, "OMIM:1", "Disease Alpha")
+        self.assertEqual(again.calls, 0)                                # served from cache
+        with self.assertRaises(PubMedPolicyError):
+            literature_claims(pm, self.ont, self.ext, Case("m", [], meta={"policy": "local_only"}), "OMIM:1", "Disease Alpha")
+        p = parse_pubmed_xml(efetch_xml([self.papers[0]]))[0]
+        self.assertEqual((p.pmid, p.year, p.journal), ("11", 2015, "Test Journal"))
+        self.assertIn("Patients had tall stature and ectopia lentis.", p.sentences)
+
+    def test_rerank_can_cite_literature(self):
+        from hoofbeats.pubmed import literature_claims
+        r = LRRanker(self.ont, self.db)
+        rk = r.score(self.case)
+        lit = {"OMIM:1": literature_claims(self.pm(), self.ont, self.ext, self.case, "OMIM:1", "Disease Alpha",
+                                           frozenset({"PMID:100"}))}
+        reply = json.dumps({"ranking": ["OMIM:1"], "explanations": {
+            "OMIM:1": "Patients with Disease Alpha had tall stature and ectopia lentis [L1]."}})
+        llm = Fake(reply)
+        res = rerank(llm, r, self.case, rk, k=3, literature=lit)
+        self.assertNotIn("PMID:100 (2018)", llm.prompt)
+        self.assertIn("[L1] PubMed PMID:11", llm.prompt)
+        self.assertEqual(res.faithfulness, 1.0)
 
 
 def image_prompt_of(case):
