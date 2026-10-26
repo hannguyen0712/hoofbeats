@@ -9,8 +9,9 @@ from typing import Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
-from .data import LABS, Extractor
+from .data import LABS, DiseaseNames, Extractor, Mention
 from .fusion import fuse
+from .grounding import GroundedFinding, level_of, verify_provenance
 from .model import Case, Finding, Ontology, Status
 
 FORMAT = "hoofbeats-intake/1"
@@ -95,20 +96,24 @@ def _why(e: ValidationError, depth: int) -> str:
     return "; ".join(f"{'.'.join(map(str, x['loc'][depth:])) or 'value'}: {x['msg']}" for x in e.errors())
 
 
-def validate(obj: dict, warn, default_id: str = "case") -> IntakeCase:
-    # field by field (list fields item by item), so one bad entry never discards the rest
+def validate(obj: dict, warn, default_id: str = "case", positions: dict | None = None) -> IntakeCase:
+    # field by field (list fields item by item), so one bad entry never discards the rest;
+    # positions (if given) receives each list field's original item indices
     clean = {}
     for k, v in obj.items():
         if k not in IntakeCase.model_fields:
             warn(f"unknown field '{k}' ignored")
         elif k in LIST_FIELDS and isinstance(v, list):
-            items = []
+            items, kept = [], []
             for i, x in enumerate(v):
                 try:
                     items += getattr(IntakeCase.model_validate({"case_id": "x", k: [x]}), k)
+                    kept.append(i)
                 except ValidationError as e:
                     warn(f"{k}[{i}] skipped ({_why(e, 2)})")
             clean[k] = items
+            if positions is not None:
+                positions[k] = kept
         elif k == "vitals" and isinstance(v, dict):
             ok = {}
             for kk, vv in v.items():
@@ -128,37 +133,55 @@ def validate(obj: dict, warn, default_id: str = "case") -> IntakeCase:
     return IntakeCase(**clean)
 
 
-# readers: each returns findings tagged with their source and the words or value behind them
-def read_hpo_terms(items: list[HpoTerm], ont: Ontology, warn) -> list[Finding]:
+# readers: each returns findings tagged with their source and the exact words or value behind them
+def _grounded(m: Mention, source: str, field: str, status: Status | None = None, evidence: str | None = None):
+    # a text mention as a finding; with status given (stated elsewhere), the text's own cue is not the reason
+    return GroundedFinding(m.hpo_id, status or m.status, source, evidence or m.quote, quote=m.quote, field=field,
+                           start=m.start, end=m.end, status_cue=None if status else m.cue, link=m.link,
+                           grounding=m.grounding, reader="rules", section=m.section or None,
+                           disease_mention=m.disease_mention)
+
+
+def read_hpo_terms(items: list[HpoTerm], ont: Ontology, warn, pos=None) -> list[Finding]:
     out = []
-    for t in items:
+    for i, t in zip(pos or range(len(items)), items):
         h = ont.resolve(t.id)
         if h is None:
             warn(f"hpo_terms: {t.id} is not a current HPO phenotype term; skipped")
             continue
-        out.append(Finding(h, Status(t.status), "input:hpo", t.id))
+        out.append(GroundedFinding(h, Status(t.status), "input:hpo", t.id, quote=t.id, field=f"hpo_terms[{i}].id",
+                                   start=0, end=len(t.id), link=("hpo_id", t.id), grounding="strong", reader="input"))
     return out
 
 
-def read_text(text: str | None, ext: Extractor, source: str) -> list[Finding]:
-    return ext.findings(text, source) if text and text.strip() else []
+def read_text(text: str | None, ext: Extractor, source: str, field: str | None = None, diseases=None,
+              disease_mentions: list | None = None) -> list[Finding]:
+    # disease_mentions (if given) receives the disease names found in the text
+    if not text or not text.strip():
+        return []
+    found, dm = ext.analyze(text, diseases)
+    if disease_mentions is not None:
+        disease_mentions += [{**x, "field": field or source, "source": source} for x in dm]
+    return [_grounded(m, source, field or source) for m in found]
 
 
-def read_image_findings(items: list[ImageFinding], ont: Ontology, ext: Extractor, warn) -> list[Finding]:
+def read_image_findings(items: list[ImageFinding], ont: Ontology, ext: Extractor, warn, pos=None) -> list[Finding]:
     out = []
-    for x in items:
+    for i, x in zip(pos or range(len(items)), items):
         src, st = f"image:{x.image_id or 'unknown'}", Status(x.status)
         if x.hpo_id:
             h = ont.resolve(x.hpo_id)
             if h is None:
                 warn(f"image_findings: {x.hpo_id} is not a current HPO phenotype term; skipped")
                 continue
-            out.append(Finding(h, st, src, x.evidence or x.hpo_id))
+            out.append(GroundedFinding(h, st, src, x.evidence or x.hpo_id, quote=x.hpo_id, field=f"image_findings[{i}].hpo_id",
+                                       start=0, end=len(x.hpo_id), link=("hpo_id", x.hpo_id), grounding="strong",
+                                       reader="input"))
             continue
-        hits = ext.findings(x.finding)
+        hits = ext.mentions(x.finding)
         if not hits:
             warn(f"image_findings: no HPO term found for '{x.finding}'; skipped")
-        out += [Finding(f.hpo_id, st, src, x.evidence or x.finding) for f in hits]   # the stated status wins
+        out += [_grounded(m, src, f"image_findings[{i}].finding", st, x.evidence or x.finding) for m in hits]
     return out
 
 
@@ -188,7 +211,9 @@ def read_labs(items: list[Lab], warn) -> list[Finding]:
         label, (low, high, _) = hit
         rng = f"{'' if lab.ref_low is None else f'{lab.ref_low:g}'}-{'' if lab.ref_high is None else f'{lab.ref_high:g}'}"
         ev = f"{lab.name}={lab.value:g}{' ' + lab.unit if lab.unit else ''} (ref {rng})"
-        found = [Finding(hpo, Status.PRESENT if abnormal else Status.ABSENT, f"lab:{label}", ev)
+        found = [GroundedFinding(hpo, Status.PRESENT if abnormal else Status.ABSENT, f"lab:{label}", ev, quote=ev,
+                                 link=("lab_range", label), grounding="strong", reader="labs",
+                                 lab=(lab.value, lab.unit, lab.ref_low, lab.ref_high, "input"))
                  for hpo, bound, abnormal in ((low, lab.ref_low, lab.ref_low is not None and lab.value < lab.ref_low),
                                               (high, lab.ref_high, lab.ref_high is not None and lab.value > lab.ref_high))
                  if hpo and bound is not None]
@@ -199,34 +224,51 @@ def read_labs(items: list[Lab], warn) -> list[Finding]:
 
 
 # case
-def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancestors: bool = True, path=None) -> Case:
+def original_texts(d: IntakeCase, pos: dict) -> dict[str, str]:
+    # every input string a provenance span can point into, by field name
+    texts = {"note_text": d.note_text or "", "image_context": d.image_context or ""}
+    texts.update({f"hpo_terms[{i}].id": t.id for i, t in zip(pos.get("hpo_terms", []), d.hpo_terms)})
+    for i, x in zip(pos.get("image_findings", []), d.image_findings):
+        texts.update({f"image_findings[{i}].hpo_id": x.hpo_id or "", f"image_findings[{i}].finding": x.finding or ""})
+    return texts
+
+
+def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancestors: bool = True, path=None,
+               disease_names: dict[str, str] | None = None) -> Case:
+    # disease_names: knowledge-base names (id -> name); their mentions are recorded, never turned into findings
     if not isinstance(obj, dict):
         raise IntakeError("a case must be a JSON object")
     warnings: list[str] = []
-    d = validate(obj, warnings.append, Path(path).stem if path else "case")
+    pos: dict = {}
+    d = validate(obj, warnings.append, Path(path).stem if path else "case", pos)
     ext = ext or Extractor(ont)
-    findings, prov = fuse([read_hpo_terms(d.hpo_terms, ont, warnings.append),
-                           read_text(d.note_text, ext, "note"),
-                           read_text(d.image_context, ext, "image_context"),
-                           read_image_findings(d.image_findings, ont, ext, warnings.append),
+    diseases = DiseaseNames(disease_names, ext) if disease_names else None
+    mentions: list[dict] = []
+    findings, prov = fuse([read_hpo_terms(d.hpo_terms, ont, warnings.append, pos.get("hpo_terms")),
+                           read_text(d.note_text, ext, "note", "note_text", diseases, mentions),
+                           read_text(d.image_context, ext, "image_context", "image_context", diseases, mentions),
+                           read_image_findings(d.image_findings, ont, ext, warnings.append, pos.get("image_findings")),
                            read_labs(d.labs, warnings.append)], ont, drop_ancestors)
     warnings += [f"{c['hpo_id']} {ont.name(c['hpo_id'])}: {c['reason']} "
                  f"({', '.join(c['contradicted_by'])}); absent {c['action']}" for c in prov["conflicts"]]
     meta = {"input_format": FORMAT, "policy": d.policy, "images": [], "age": d.age, "sex": d.sex,
             "vitals": d.vitals.model_dump(exclude_none=True) if d.vitals else {},
-            "provenance": prov, "intake_warnings": warnings}
+            "provenance": prov, "disease_mentions": mentions, "intake_warnings": warnings}
     if path:
         meta["path"] = str(path)
-    return Case(d.case_id, findings, list(dict.fromkeys(d.truth)), list(dict.fromkeys(g.strip() for g in d.genes if g.strip())),
-                meta=meta)
+    case = Case(d.case_id, findings, list(dict.fromkeys(d.truth)),
+                list(dict.fromkeys(g.strip() for g in d.genes if g.strip())), meta=meta)
+    warnings += [f"provenance: {p}" for p in verify_provenance(case, original_texts(d, pos))]
+    return case
 
 
-def load_case(path, ont: Ontology, ext: Extractor | None = None, *, drop_ancestors: bool = True) -> Case:
+def load_case(path, ont: Ontology, ext: Extractor | None = None, *, drop_ancestors: bool = True,
+              disease_names: dict[str, str] | None = None) -> Case:
     try:
         obj = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as e:
         raise IntakeError(f"{path}: cannot read case file ({e})") from None
-    return parse_case(obj, ont, ext, drop_ancestors=drop_ancestors, path=path)
+    return parse_case(obj, ont, ext, drop_ancestors=drop_ancestors, path=path, disease_names=disease_names)
 
 
 def intake_summary(c: Case, ont: Ontology) -> str:
@@ -242,6 +284,12 @@ def intake_summary(c: Case, ont: Ontology) -> str:
              "  from: " + (", ".join(f"{s} {n}" for s, n in src.most_common()) or "nothing")]
     if any(ctx):
         lines.append("  context: " + "; ".join(x for x in ctx if x))
+    g = Counter(level_of(f) for f in c.findings)
+    lines.append("  grounding: " + ", ".join(f"{k} {g[k]}" for k in ("strong", "supported", "weak")))
+    for d in m.get("disease_mentions", []):
+        lines.append(f"  disease mention: '{d['quote']}' = {d['name']} ({', '.join(d['disease_ids'][:3])}"
+                     f"{', ...' if len(d['disease_ids']) > 3 else ''}), {d['status']}"
+                     + ("; also an HPO term, kept as a finding" if d["also_hpo"] else "; not used as a finding"))
     for h, by in prov.get("subsumed_by", {}).items():
         lines.append(f"  subsumed: {ont.name(h)} ({h}) <- " + ", ".join(f"{ont.name(b)} ({b})" for b in by))
     lines += [f"  warning: {w}" for w in m.get("intake_warnings", [])]

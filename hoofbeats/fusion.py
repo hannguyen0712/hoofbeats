@@ -1,19 +1,37 @@
 # fusion: merge findings from every reader into one finding per HPO term, with provenance
 from __future__ import annotations
 
+from dataclasses import replace
+
+from .grounding import RANK as GROUNDING_RANK, GroundedFinding, level_of, provenance_entry
 from .model import Finding, Ontology, Status
 
 RANK = {Status.PRESENT: 3, Status.ABSENT: 2, Status.UNCERTAIN: 1}
 
 
 def _merge(h: str, status: Status, fs: list[Finding]) -> Finding:
-    # sources that reported this status, in input order; evidence of the first one
-    return Finding(h, status, ";".join(dict.fromkeys(f.source for f in fs)), fs[0].evidence)
+    # sources that reported this status, in input order; the best-grounded contributor gives quote and grounding
+    source = ";".join(dict.fromkeys(f.source for f in fs))
+    best = max(fs, key=lambda f: GROUNDING_RANK[level_of(f)])      # first one wins ties
+    if isinstance(best, GroundedFinding):
+        return replace(best, hpo_id=h, status=status, source=source)
+    return Finding(h, status, source, fs[0].evidence)
+
+
+def _add_entry(entries: list[dict], f: Finding):
+    # one entry per contribution; the same span found again (e.g. by another reader) only adds its reader
+    e = provenance_entry(f)
+    if e.get("start") is not None:
+        same = next((x for x in entries if all(x.get(k) == e.get(k) for k in ("source", "field", "start", "end", "status"))), None)
+        if same:
+            same["readers"] += [r for r in e["readers"] if r not in same["readers"]]
+            return
+    entries.append(e)
 
 
 def fuse(finding_lists, ont: Ontology, drop_ancestors: bool = True) -> tuple[list[Finding], dict]:
     # one patient finding per HPO id (present > absent > uncertain); family findings are kept separately
-    # provenance: hpo id -> [{source, evidence, status}], plus "subsumed_by", "conflicts" and "unresolved"
+    # provenance: hpo id -> [entry per contribution], plus "subsumed_by", "conflicts" and "unresolved"
     prov: dict = {"subsumed_by": {}, "conflicts": [], "unresolved": []}
     groups: dict[tuple[str, bool], list[Finding]] = {}
     for f in (f for fl in finding_lists for f in fl):
@@ -21,7 +39,7 @@ def fuse(finding_lists, ont: Ontology, drop_ancestors: bool = True) -> tuple[lis
         if h is None:
             prov["unresolved"].append({"hpo_id": f.hpo_id, "source": f.source, "evidence": f.evidence})
             continue
-        prov.setdefault(h, []).append({"source": f.source, "evidence": f.evidence, "status": f.status.value})
+        _add_entry(prov.setdefault(h, []), f)
         groups.setdefault((h, f.status == Status.FAMILY), []).append(f)
 
     patient, family = {}, {}

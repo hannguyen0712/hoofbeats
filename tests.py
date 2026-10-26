@@ -945,6 +945,72 @@ class TestExtractorRules(unittest.TestCase):
         self.assertEqual(text[m.start:m.end], "afebrile")
 
 
+class TestGrounding(unittest.TestCase):
+    # spans, cues, links and grounding levels in provenance; disease mentions
+    @classmethod
+    def setUpClass(cls):
+        root = Path(tempfile.mkdtemp())
+        build(root)
+        (root / "kb" / "hp.obo").write_text(OBO.replace("[Typedef]", EXTRA_TERMS + "[Typedef]"))
+        cls.ont = Ontology(root / "kb" / "hp.obo")
+        cls.ext = Extractor(cls.ont)
+
+    def parse(self, obj, **kw):
+        from hoofbeats.intake import parse_case
+        return parse_case({"case_id": "g", **obj}, self.ont, self.ext, **kw)
+
+    def test_spans_point_into_original_text_after_abbreviations(self):
+        note = "Pt denies CP, N/V.\nFHx: szs in mother."
+        c = self.parse({"note_text": note})
+        cp = c.meta["provenance"]["HP:0100749"][0]
+        self.assertEqual((note[cp["start"]:cp["end"]], cp["quote"], cp["field"], cp["status"]), ("CP", "CP", "note_text", "absent"))
+        self.assertEqual(cp["link"], {"method": "abbreviation:chest pain", "matched_string": "Chest pain"})
+        self.assertEqual((cp["grounding"], cp["readers"], cp["section"]), ("supported", ["rules"], None))
+        self.assertEqual(cp["status_cue"], {"word": "denies", "start": 3, "end": 9})
+        sz = c.meta["provenance"]["HP:0001250"][0]
+        self.assertEqual((sz["quote"], sz["status"], sz["status_cue"]["word"], sz["section"]), ("szs", "family", "FHx", "family"))
+        self.assertFalse([w for w in c.meta["intake_warnings"] if w.startswith("provenance")])
+
+    def test_verify_provenance_catches_a_bad_span(self):
+        from hoofbeats.grounding import verify_provenance
+        note = "Exam: dislocated lens."
+        c = self.parse({"note_text": note})
+        self.assertEqual(verify_provenance(c, {"note_text": note}), [])
+        c.meta["provenance"]["HP:0001083"][0]["start"] += 1
+        bad = verify_provenance(c, {"note_text": note})
+        self.assertEqual(len(bad), 1)
+        self.assertIn("not 'dislocated lens'", bad[0])
+
+    def test_disease_mentions(self):
+        names = {"OMIM:10": "Marfan syndrome", "OMIM:11": "Pheochromocytoma", "OMIM:12": "Familial Mediterranean fever"}
+        c = self.parse({"note_text": "Pt w/ hx of Marfan. Known pheochromocytoma. Father had Marfan syndrome. "
+                                     "Has familial Mediterranean fever."}, disease_names=names)
+        got = [(d["quote"], d["disease_ids"], d["status"], d["also_hpo"]) for d in c.meta["disease_mentions"]]
+        self.assertEqual(got, [("Marfan", ["OMIM:10"], "present", False), ("pheochromocytoma", ["OMIM:11"], "present", True),
+                               ("Marfan syndrome", ["OMIM:10"], "family", False),
+                               ("familial Mediterranean fever", ["OMIM:12"], "present", False)])
+        ids = {f.hpo_id for f in c.findings}
+        self.assertNotIn("HP:0001945", ids)                    # "fever" inside a disease name that is not an HPO term
+        self.assertIn("HP:0002666", ids)                       # name that is also an HPO term: kept and flagged
+        self.assertTrue(c.meta["provenance"]["HP:0002666"][0]["disease_mention"])
+        self.assertFalse([w for w in c.meta["intake_warnings"] if w.startswith("provenance")])
+        self.assertIn("HP:0001945", {f.hpo_id for f in self.parse({"note_text": "Has familial Mediterranean fever."}).findings})
+
+    def test_grounding_levels_and_merge(self):
+        from hoofbeats.grounding import level_of
+        from hoofbeats.intake import intake_summary
+        c = self.parse({"note_text": "Exam: dislocated lens. He has fits. Pt afebrile.", "hpo_terms": [{"id": "HP:0001250"}],
+                        "labs": [{"name": "Alkaline Phosphatase", "value": 20, "unit": "U/L", "ref_low": 35, "ref_high": 105}]})
+        lvl = {f.hpo_id: level_of(f) for f in c.findings}
+        self.assertEqual((lvl["HP:0001083"], lvl["HP:0001945"], lvl["HP:0003282"]), ("strong", "supported", "strong"))
+        self.assertEqual(lvl["HP:0001250"], "strong")                                   # strongest contributor wins
+        self.assertEqual(sorted(e["grounding"] for e in c.meta["provenance"]["HP:0001250"]), ["strong", "supported"])
+        lab = c.meta["provenance"]["HP:0003282"][0]
+        self.assertEqual((lab["value"], lab["unit"], lab["ref_low"], lab["ref_high"], lab["range_source"], lab["start"]),
+                         (20.0, "U/L", 35.0, 105.0, "input", None))
+        self.assertIn("grounding: strong 4, supported 1, weak 0", intake_summary(c, self.ont))
+
+
 F = lambda h, st, src="x", ev="": Finding(h, st, src, ev or f"{src}: {h}")
 
 
@@ -1005,7 +1071,10 @@ class TestIntake(unittest.TestCase):
         w = " | ".join(c.meta["intake_warnings"])
         self.assertIn("HP:1234567 is not a current HPO phenotype term", w)
         self.assertIn("'Troponin' is not in the lab map", w)
-        self.assertEqual(c.meta["provenance"]["HP:0001250"], [{"source": "input:hpo", "evidence": "HP:0099999", "status": "absent"}])
+        self.assertEqual(c.meta["provenance"]["HP:0001250"], [{
+            "source": "input:hpo", "status": "absent", "evidence": "HP:0099999", "quote": "HP:0099999", "field": "hpo_terms[0].id",
+            "start": 0, "end": 10, "status_cue": None, "link": {"method": "hpo_id", "matched_string": "HP:0099999"},
+            "readers": ["input"], "grounding": "strong", "section": None}])
 
     # fusion
     def test_fusion_status_priority_and_family(self):

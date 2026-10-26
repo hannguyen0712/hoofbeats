@@ -193,7 +193,7 @@ def read_case(a, r: LRRanker) -> tuple[Case, frozenset[str]]:
         obj = None
     if is_intake(obj):
         try:
-            c = load_case(path, r.ont, Extractor(r.ont))
+            c = load_case(path, r.ont, Extractor(r.ont), disease_names=r.db.names)
         except IntakeError as e:
             raise SystemExit(str(e))
         print(intake_summary(c, r.ont))
@@ -510,8 +510,9 @@ def cmd_extract_eval(a):
     # reader outputs vs gold findings, per case file and reader
     from .extract_eval import TEXT_READERS, evaluate, report, summarize
     ont = Ontology(Path(a.kb) / "hp.obo")
+    names = AnnotationDB(Path(a.kb) / "phenotype.hpoa", ont).names     # same disease names as diagnose (OMIM)
     RUN["settings"].update({"hpo": ont.version, "cases": a.cases, "gold": a.gold})
-    rows, problems = evaluate(a.cases, a.gold, ont, Extractor(ont))
+    rows, problems = evaluate(a.cases, a.gold, ont, Extractor(ont), names)
     print(f"[extract-eval] {len({r['case'] for r in rows})} cases from {a.cases}, gold {a.gold}\n")
     print(report(rows, ont, a.details))
     for p in problems:

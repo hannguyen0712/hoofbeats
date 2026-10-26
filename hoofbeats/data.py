@@ -240,6 +240,7 @@ class Mention:
     cue: tuple[str, int, int] | None = None   # status cue word and its offsets
     link: tuple[str, str] = ("exact_label", "")   # (method, matched label or synonym)
     grounding: str = "strong"
+    disease_mention: bool = False   # the words are also a knowledge-base disease name
 
 
 GROUNDING = {"exact_label": "strong", "synonym:exact": "strong", "synonym:related": "supported",
@@ -360,15 +361,22 @@ class Extractor:
         nlp = _spacy() if lemmas else None
         self.lemma = LemmaIndex(nlp, [x for v in self.index.values() for x in v], ont) if nlp else None
 
-    def mentions(self, text: str) -> list[Mention]:
-        out = []
+    def analyze(self, text: str, diseases: DiseaseNames | None = None) -> tuple[list[Mention], list[dict]]:
+        # findings and, if diseases is given, disease-name mentions; findings inside a disease name that is
+        # not also an HPO term are dropped, otherwise they are kept and flagged
+        out, dm = [], []
         lmap = self.lemma.text_lemmas(text) if self.lemma and text.strip() else {}
         for start, end, name, typ, head in sections(text):
             if name.startswith(SKIP_SECTIONS):
                 continue
             for s, e in sentence_spans(text, start, end):
-                out += self._sentence(text, s, e, typ, head, lmap)
-        return out
+                ms, ds = self._sentence(text, s, e, typ, head, lmap, diseases)
+                out += ms
+                dm += ds
+        return out, dm
+
+    def mentions(self, text: str) -> list[Mention]:
+        return self.analyze(text)[0]
 
     def _match(self, norms, lems, raws, i):
         # longest label at token i: surface words first, lemmas only if they match more words;
@@ -397,7 +405,7 @@ class Extractor:
             out.append((w, a, b, None))
         return out
 
-    def _sentence(self, text: str, s: int, e: int, sec: str, head, lmap=None) -> list[Mention]:
+    def _sentence(self, text: str, s: int, e: int, sec: str, head, lmap=None, diseases=None):
         words = self._words(text, s, e)
         toks = [(_norm(w), a, b) for w, a, b, _ in words]
         lems = tuple(_norm(w) if x else l for (w, _, _, x), l in zip(words, _lemmas([w[:3] for w in words], lmap or {})))
@@ -410,6 +418,14 @@ class Extractor:
                 c += 1
             clause.append(c)
         cues = self._cues(norms)
+        dspans, dm = [], []         # disease names: (start, end, also an HPO term?)
+        for k, n, ids, name, is_hpo in (diseases.find(norms) if diseases else []):
+            a, b = toks[k][1], toks[k + n - 1][2]
+            dspans.append((a, b, is_hpo))
+            st, cue = self._status(text, toks, norms, clause, cues, k, n, sec, head)
+            if st is not None:
+                dm.append({"name": name, "disease_ids": ids, "quote": text[a:b], "start": a, "end": b, "status": st.value,
+                           "status_cue": dict(zip(("word", "start", "end"), cue)) if cue else None, "also_hpo": is_hpo})
         while i < len(toks):
             hit, link = self._match(norms, lems, raws, i)
             neg = None if hit else next((x for x in self.negated.get(norms[i], ()) if tuple(norms[i:i + len(x[0])]) == x[0]), None)
@@ -430,9 +446,12 @@ class Extractor:
                     out += [Mention(h, Status.ABSENT, text[a:b], a, b, (s, e), sec, (text[a:b], a, b),
                                     ("negated_word", neg[2]), GROUNDING["negated_word"]) for h in neg[1]]
             elif st is not None:
-                out.append(Mention(hit[1], st, text[a:b], a, b, (s, e), sec, cue, link, grounding_of(link[0])))
+                inside = [x for x in dspans if x[0] <= a and b <= x[1]]
+                if not inside or any(x[2] for x in inside):     # dropped inside a disease name unless it is also HPO
+                    out.append(Mention(hit[1], st, text[a:b], a, b, (s, e), sec, cue, link, grounding_of(link[0]),
+                                       bool(inside)))
             i += n
-        return out
+        return out, dm
 
     @staticmethod
     def _cues(norms: list[str]) -> dict:
@@ -465,13 +484,53 @@ class Extractor:
         return Status.PRESENT, None
 
     def findings(self, text: str, source="note") -> list[Finding]:
-        # one finding per term for the patient (present > absent > uncertain) and, separately, one for the family
+        # one finding per term for the patient (present > absent > uncertain) and, separately, one for the family;
+        # evidence is the sentence (MIMIC, MedPix and the LLM readers use this)
         best = {}
         for m in self.mentions(text):
             key = (m.hpo_id, m.status == Status.FAMILY)
             if key not in best or ORDER[m.status] > ORDER[best[key].status]:
                 best[key] = m
         return [Finding(m.hpo_id, m.status, source, text[m.sentence[0]:m.sentence[1]][:300]) for m in best.values()]
+
+
+NAME_TAIL = {"syndrome", "disease", "disorder", "type"}
+ROMAN_TAIL = {"i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x"}
+
+
+class DiseaseNames:
+    # knowledge-base disease names as token sequences: each full name, plus a one-word core name when the name
+    # minus a trailing syndrome/disease/type N is one distinctive word (5+ letters, not an HPO word): "Marfan"
+    def __init__(self, names: dict[str, str], ext: Extractor):
+        hpo = {x[0] for v in ext.index.values() for x in v if GROUNDING[x[2]] == "strong"}   # labels, EXACT synonyms
+        found = {}
+        for did, name in sorted(names.items()):
+            full = tuple(tokens(name))
+            core = list(full)
+            while core and (core[-1] in NAME_TAIL or core[-1].isdigit() or core[-1] in ROMAN_TAIL or len(core[-1]) == 1):
+                core.pop()
+            keys = [full] + ([tuple(core)] if len(core) == 1 and tuple(core) != full and len(core[0]) >= 5
+                             and core[0] not in ext.vocab else [])
+            for k in keys:
+                if k:
+                    found.setdefault(k, [name, []])[1].append(did)
+        self.index = defaultdict(list)
+        for k, (name, ids) in found.items():
+            self.index[k[0]].append((k, ids, name, k in hpo))
+        for v in self.index.values():
+            v.sort(key=lambda x: -len(x[0]))
+
+    def find(self, norms: list[str]) -> list[tuple[int, int, list[str], str, bool]]:
+        # (token start, length, disease ids, name, also an HPO term) for each name in a sentence, longest first
+        out, k = [], 0
+        while k < len(norms):
+            hit = next((x for x in self.index.get(norms[k], ()) if tuple(norms[k:k + len(x[0])]) == x[0]), None)
+            if hit:
+                out.append((k, len(hit[0]), hit[1], hit[2], hit[3]))
+                k += len(hit[0])
+            else:
+                k += 1
+        return out
 
 
 def delabel(text: str, names, genes, vocab) -> tuple[str, dict]:
