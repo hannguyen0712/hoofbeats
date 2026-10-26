@@ -183,13 +183,32 @@ def fmt(m: dict) -> str:
 
 
 # commands
+def read_case(a, r: LRRanker) -> tuple[Case, frozenset[str]]:
+    # a hoofbeats case file (intake format) or a phenopacket; case files have no PMIDs to exclude
+    from .intake import IntakeError, intake_summary, is_intake, load_case
+    path = Path(a.case)
+    try:
+        obj = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        obj = None
+    if is_intake(obj):
+        try:
+            c = load_case(path, r.ont, Extractor(r.ont))
+        except IntakeError as e:
+            raise SystemExit(str(e))
+        print(intake_summary(c, r.ont))
+        note("intake", case=c.case_id, findings=len(c.findings), warnings=len(c.meta["intake_warnings"]),
+             subsumed=len(c.meta["provenance"]["subsumed_by"]))
+        return c, frozenset()
+    found = load_phenopackets(a.case) if path.exists() else []
+    if not found:
+        raise SystemExit(f"no phenopacket or hoofbeats case found at {a.case}")
+    return found[0], leak(found[0])
+
+
 def cmd_diagnose(a):
     r = load_kb(a)
-    found = load_phenopackets(a.case) if Path(a.case).exists() else []
-    if not found:
-        raise SystemExit(f"no phenopacket found at {a.case}")
-    c = found[0]
-    ex = leak(c)
+    c, ex = read_case(a, r)
     ranking = r.score(c, ex)
     print(f"\n{c.case_id}: truth {c.truth}, rank {ranking.rank_of(c.truth)}\n")
     n_ok = n_all = 0
@@ -199,7 +218,8 @@ def cmd_diagnose(a):
             n_all += 1
             n_ok += verify_claim(r, c, cl, ex)[0]
             print("   -", cl.text)
-    note("diagnose", case=c.case_id, truth=c.truth[0], rank=ranking.rank_of(c.truth), claims=n_all, claims_verified=n_ok)
+    note("diagnose", case=c.case_id, truth=c.truth[0] if c.truth else None, rank=ranking.rank_of(c.truth),
+         claims=n_all, claims_verified=n_ok)
     print(f"\n{n_ok}/{n_all} claims verified against the record and knowledge base\n\nNext checks:")
     for t, eig, by in suggest_tests(r, ranking, c, ex):
         print(f"   - {r.ont.name(t)} ({t}), {eig:.2f} bits; " +
@@ -222,11 +242,11 @@ def cmd_diagnose(a):
         if not res.parsed:
             print(f"\n[llm] could not read MedGemma's reply; it began:\n{res.raw[:1500]}\n")
         print(usage_line(llm))
-        note("diagnose", case=c.case_id, rank=ranking.rank_of(c.truth),
-             rerank=res.ranking.index(c.truth[0]) + 1 if c.truth[0] in res.ranking else None,
+        pos = next((i for i, d in enumerate(res.ranking, 1) if d in c.truth), None)
+        note("diagnose", case=c.case_id, rank=ranking.rank_of(c.truth), rerank=pos,
              faithfulness=res.faithfulness, parsed=res.parsed)
-        print(f"\n{llm.model} re-ranking (truth now at {res.ranking.index(c.truth[0]) + 1 if c.truth[0] in res.ranking else '>10'}), "
-              f"faithfulness {res.faithfulness:.0%}:")
+        where = f"truth now at {pos or '>10'}" if c.truth else "no truth given"
+        print(f"\n{llm.model} re-ranking ({where}), faithfulness {res.faithfulness:.0%}:")
         for i, d in enumerate(res.ranking[: a.k], 1):
             print(f"{i}. {label(r, d)}")
             for sent in res.explanations.get(d, []):
@@ -620,7 +640,8 @@ def main(argv=None):
     p.add_argument("--llm-extra", help='extra JSON fields for the request body, e.g. \'{"reasoning_effort": "low"}\'')
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("download"); s.add_argument("--dest", default="data")
-    s = sub.add_parser("diagnose"); s.add_argument("case"); s.add_argument("-k", type=int, default=5)
+    s = sub.add_parser("diagnose"); s.add_argument("case", help="phenopacket JSON or hoofbeats case file (see examples/)")
+    s.add_argument("-k", type=int, default=5)
     s.add_argument("--out", default="results", help="run log goes to <out>/runs/")
     for name in ("benchmark", "sequential", "llm-bench"):
         s = sub.add_parser(name)
