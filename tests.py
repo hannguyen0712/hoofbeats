@@ -899,7 +899,7 @@ class TestExtractorRules(unittest.TestCase):
 
     def test_related_synonyms_behind_flag(self):
         m = self.ext.mentions("He has fits at night.")[0]          # "Fits" is a RELATED synonym of Seizure
-        self.assertEqual((m.hpo_id, m.link, m.grounding), ("HP:0001250", ("synonym:related", "Fits"), "supported"))
+        self.assertEqual((m.hpo_id, m.link, m.grounding), ("HP:0001250", ("synonym:related", "Fits"), "weak"))
         self.assertNotIn("Fits", self.ont.terms["HP:0001250"].synonyms)          # EXACT list unchanged
         exact_only = Extractor(Ontology(self.ont.path, extra_synonyms=False))
         self.assertEqual(exact_only.mentions("He has fits at night."), [])
@@ -952,6 +952,21 @@ class TestExtractorRules(unittest.TestCase):
         self.assertEqual(self.st("Has dislocated lens, no seizures."),
                          {("HP:0001083", Status.PRESENT), ("HP:0001250", Status.ABSENT)})   # whole tokens only
         self.assertEqual(self.ext.mentions("Shows unseizureable lens."), [])
+
+    def test_grounding_of_synonym_kinds(self):
+        root = Path(tempfile.mkdtemp())
+        (root / "hp.obo").write_text(OBO.replace("[Typedef]", "".join(
+            f"[Term]\nid: {i}\nname: {n}\n{s}is_a: HP:0000118\n\n" for i, n, s in (
+                ("HP:0001382", "Joint hypermobility", 'synonym: "Double-jointed" EXACT layperson []\n'),
+                ("HP:0002094", "Dyspnea", 'synonym: "Shortness of breath" RELATED []\n'),
+                ("HP:0000969", "Edema", 'synonym: "Puffiness" BROAD layperson []\n'))) + "[Typedef]"))
+        ext = Extractor(Ontology(root / "hp.obo"))
+        level = {m.hpo_id: (m.link[0], m.grounding) for m in ext.mentions("Double-jointed, shortness of breath, puffiness.")}
+        self.assertEqual(level["HP:0001382"], ("synonym:exact", "strong"))          # EXACT layperson
+        self.assertEqual(level["HP:0002094"], ("synonym:related", "weak"))          # RELATED
+        self.assertEqual(level["HP:0000969"], ("synonym:layperson", "supported"))   # non-EXACT layperson
+        sob = ext.mentions("Pt reports SOB.")[0]                                    # abbreviation onto a RELATED synonym
+        self.assertEqual((sob.hpo_id, sob.link[0], sob.grounding), ("HP:0002094", "abbreviation:shortness of breath", "weak"))
 
     def test_negated_words(self):
         text = "Pt afebrile, tall."
@@ -1048,7 +1063,7 @@ class TestGrounding(unittest.TestCase):
         lvl = {f.hpo_id: level_of(f) for f in c.findings}
         self.assertEqual((lvl["HP:0001083"], lvl["HP:0001945"], lvl["HP:0003282"]), ("strong", "supported", "strong"))
         self.assertEqual(lvl["HP:0001250"], "strong")                                   # strongest contributor wins
-        self.assertEqual(sorted(e["grounding"] for e in c.meta["provenance"]["HP:0001250"]), ["strong", "supported"])
+        self.assertEqual(sorted(e["grounding"] for e in c.meta["provenance"]["HP:0001250"]), ["strong", "weak"])   # RELATED "fits"
         lab = c.meta["provenance"]["HP:0003282"][0]
         self.assertEqual((lab["value"], lab["unit"], lab["ref_low"], lab["ref_high"], lab["range_source"], lab["start"]),
                          (20.0, "U/L", 35.0, 105.0, "input", None))

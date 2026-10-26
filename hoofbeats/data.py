@@ -243,8 +243,9 @@ class Mention:
     disease_mention: bool = False   # the words are also a knowledge-base disease name
 
 
-GROUNDING = {"exact_label": "strong", "synonym:exact": "strong", "synonym:related": "supported",
+GROUNDING = {"exact_label": "strong", "synonym:exact": "strong", "synonym:related": "weak",
              "synonym:layperson": "supported", "negated_word": "supported", "lemma": "supported"}
+LEVEL = {"strong": 3, "supported": 2, "weak": 1}
 SPACY_MODEL = "en_core_web_sm"
 
 
@@ -451,8 +452,9 @@ class Extractor:
             elif st is not None:
                 inside = [x for x in dspans if x[0] <= a and b <= x[1]]
                 if not inside or any(x[2] for x in inside):     # dropped inside a disease name unless it is also HPO
-                    out.append(Mention(hit[1], st, text[a:b], a, b, (s, e), sec, cue, link, grounding_of(link[0]),
-                                       bool(inside)))
+                    # the weaker of the label kind (a RELATED synonym is weak) and the way it matched (lemma, abbreviation)
+                    level = min(GROUNDING[hit[2]], grounding_of(link[0]), key=LEVEL.get)
+                    out.append(Mention(hit[1], st, text[a:b], a, b, (s, e), sec, cue, link, level, bool(inside)))
             i += n
         return out, dm
 
