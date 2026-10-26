@@ -1,0 +1,10 @@
+{
+  "case_id": "heldout-dm1",
+  "note_text": "Neuromuscular clinic f/u\n\n38 y/o M machinist referred by PCP. Pt c/o his hands 'lock up' after gripping a wrench, takes several seconds before he can let go. Worse in cold. Also more trouble w/ buttons and opening jars over 2 yrs. Wife says his eyelids droop and he dozes off at work and in the car at red lights. Had lens replacement both eyes last yr at 37 for cloudy lenses. Food sometimes 'sticks' halfway down. Denies seeing double, CP, or heart fluttering. GERD on omeprazole.\n\nFHx: mother had cloudy lenses removed in her 40s and 'weak legs', used a cane by 55. Pt's 2 y/o son was very floppy at birth, needed NICU for feeding.\n\nExam: long, thin face with hollow temples. Receding hairline at the front. Bilat lid droop. Grip release slow (~5 s); percussion of thenar eminence -> sustained contraction. Wrist and finger extensor weakness 4/5, ankle dorsiflexion 4/5 bilat. Reflexes reduced at ankles.\n\nECG: sinus rhythm, PR 236 ms (1st degree AV block).",
+  "vitals": {"bp": "118/72", "hr": 64},
+  "age": 38,
+  "sex": "male",
+  "genes": ["DMPK"],
+  "truth": ["OMIM:160900"],
+  "policy": "open"
+}

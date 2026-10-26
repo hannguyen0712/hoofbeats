@@ -1,0 +1,18 @@
+{
+  "case_id": "heldout-hht",
+  "note_text": "Hematology consult - iron deficiency\n\n45 y/o F, referred for transfusion-dependent iron def. Nosebleeds since teens, now 3-4x/wk, some needing packing in ED. Tired, gets winded on one flight of stairs. Black tarry stools x2 last month. Takes ferrous sulfate, poorly tolerated. Denies coughing up blood, HA, focal weakness. On levothyroxine for underactive thyroid.\n\nFHx: father and paternal grandmother w/ frequent nosebleeds; father had a 'brain bleed' at 60.\n\nExam: multiple tiny red spots on lips, tongue and fingertips that blanch with pressure. Pale conjunctivae. Lungs clear.",
+  "image_context": "CT CHEST W/ CONTRAST: 2.1 cm serpiginous enhancing lesion in the RLL with a single feeding artery and draining vein, c/w pulmonary AVM. No effusion.\nCT ABD/PELVIS: multiple small hypervascular foci throughout the liver, likely vascular malformations. 1.5 cm simple cyst in R kidney.\nMRI BRAIN: no intracranial vascular malformation.",
+  "image_findings": [
+    {"image_id": "CT-chest-14", "finding": "RLL pulmonary AVM", "status": "present"},
+    {"image_id": "MR-brain-2", "finding": "brain AVM", "status": "absent"}
+  ],
+  "labs": [
+    {"name": "Hemoglobin", "value": 8.9, "unit": "g/dL", "ref_low": 12.0, "ref_high": 15.5},
+    {"name": "Ferritin", "value": 6, "unit": "ng/mL", "ref_low": 15, "ref_high": 150},
+    {"name": "Platelet Count", "value": 260, "unit": "K/uL", "ref_low": 150, "ref_high": 400}
+  ],
+  "age": 45,
+  "sex": "female",
+  "truth": ["OMIM:187300"],
+  "policy": "open"
+}

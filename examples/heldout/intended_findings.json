@@ -1,0 +1,409 @@
+{
+ "_about": "Gold findings per case file and reader: hpo_id (+ optional alternatives accepted as exact), status, and quote = the exact words in the reader's input text (null for labs and HPO ids). Not a case file. Held-out set: evaluate only, never tune on it.",
+ "fabry_note_labs.json": {
+  "note": [
+   {
+    "hpo_id": "HP:0031006",
+    "label": "Acroparesthesia",
+    "status": "present",
+    "quote": "burning pain in hands and feet"
+   },
+   {
+    "hpo_id": "HP:0000966",
+    "label": "Hypohidrosis",
+    "status": "present",
+    "quote": "barely sweats"
+   },
+   {
+    "hpo_id": "HP:0002046",
+    "label": "Heat intolerance",
+    "status": "present",
+    "quote": "gets 'wiped out' in the heat"
+   },
+   {
+    "hpo_id": "HP:0002027",
+    "label": "Abdominal pain",
+    "status": "present",
+    "quote": "crampy belly pain"
+   },
+   {
+    "hpo_id": "HP:0002014",
+    "label": "Diarrhea",
+    "status": "present",
+    "quote": "loose stools after meals"
+   },
+   {
+    "hpo_id": "HP:0000093",
+    "label": "Proteinuria",
+    "status": "present",
+    "quote": "foamy urine"
+   },
+   {
+    "hpo_id": "HP:0000360",
+    "label": "Tinnitus",
+    "status": "present",
+    "quote": "Ringing in both ears"
+   },
+   {
+    "hpo_id": "HP:0100749",
+    "label": "Chest pain",
+    "status": "absent",
+    "quote": "Denies CP"
+   },
+   {
+    "hpo_id": "HP:0000504",
+    "label": "Abnormality of vision",
+    "status": "absent",
+    "quote": "vision changes",
+    "alternatives": [
+     "HP:0000505"
+    ]
+   },
+   {
+    "hpo_id": "HP:0001279",
+    "label": "Syncope",
+    "status": "absent",
+    "quote": "fainting"
+   },
+   {
+    "hpo_id": "HP:0000545",
+    "label": "Myopia",
+    "status": "present",
+    "quote": "nearsightedness"
+   },
+   {
+    "hpo_id": "HP:0001014",
+    "label": "Angiokeratoma",
+    "status": "present",
+    "quote": "tiny dark-red raised spots around umbilicus"
+   },
+   {
+    "hpo_id": "HP:0500008",
+    "label": "Cornea verticillata",
+    "status": "present",
+    "quote": "whorl-like opacities in both corneas"
+   },
+   {
+    "hpo_id": "HP:0010741",
+    "label": "Pedal edema",
+    "status": "absent",
+    "quote": "No swelling of legs",
+    "alternatives": [
+     "HP:0000969"
+    ]
+   },
+   {
+    "hpo_id": "HP:0003774",
+    "label": "Stage 5 chronic kidney disease",
+    "status": "family",
+    "quote": "started dialysis at 42",
+    "alternatives": [
+     "HP:0000083"
+    ]
+   },
+   {
+    "hpo_id": "HP:0001297",
+    "label": "Stroke",
+    "status": "family",
+    "quote": "died of a stroke at 50"
+   },
+   {
+    "hpo_id": "HP:0000077",
+    "label": "Abnormality of the kidney",
+    "status": "family",
+    "quote": "kidney issues"
+   }
+  ],
+  "labs": [
+   {
+    "hpo_id": "HP:0003259",
+    "label": "Elevated circulating creatinine concentration",
+    "status": "present",
+    "quote": null
+   },
+   {
+    "hpo_id": "HP:0003138",
+    "label": "Increased blood urea nitrogen",
+    "status": "present",
+    "quote": null
+   },
+   {
+    "hpo_id": "HP:0001903",
+    "label": "Anemia",
+    "status": "absent",
+    "quote": null
+   }
+  ]
+ },
+ "dm1_note.json": {
+  "note": [
+   {
+    "hpo_id": "HP:0002486",
+    "label": "Myotonia",
+    "status": "present",
+    "quote": "hands 'lock up' after gripping a wrench"
+   },
+   {
+    "hpo_id": "HP:0002460",
+    "label": "Distal muscle weakness",
+    "status": "present",
+    "quote": "Wrist and finger extensor weakness 4/5"
+   },
+   {
+    "hpo_id": "HP:0000508",
+    "label": "Ptosis",
+    "status": "present",
+    "quote": "his eyelids droop"
+   },
+   {
+    "hpo_id": "HP:0001262",
+    "label": "Excessive daytime somnolence",
+    "status": "present",
+    "quote": "dozes off at work"
+   },
+   {
+    "hpo_id": "HP:0000518",
+    "label": "Cataract",
+    "status": "present",
+    "quote": "cloudy lenses"
+   },
+   {
+    "hpo_id": "HP:0002015",
+    "label": "Dysphagia",
+    "status": "present",
+    "quote": "Food sometimes 'sticks' halfway down"
+   },
+   {
+    "hpo_id": "HP:0000651",
+    "label": "Diplopia",
+    "status": "absent",
+    "quote": "seeing double"
+   },
+   {
+    "hpo_id": "HP:0100749",
+    "label": "Chest pain",
+    "status": "absent",
+    "quote": "CP"
+   },
+   {
+    "hpo_id": "HP:0001962",
+    "label": "Palpitations",
+    "status": "absent",
+    "quote": "heart fluttering"
+   },
+   {
+    "hpo_id": "HP:0002020",
+    "label": "Gastroesophageal reflux",
+    "status": "present",
+    "quote": "GERD"
+   },
+   {
+    "hpo_id": "HP:0000276",
+    "label": "Long face",
+    "status": "present",
+    "quote": "long, thin face",
+    "alternatives": [
+     "HP:0000275"
+    ]
+   },
+   {
+    "hpo_id": "HP:0002292",
+    "label": "Frontal balding",
+    "status": "present",
+    "quote": "Receding hairline at the front"
+   },
+   {
+    "hpo_id": "HP:0011705",
+    "label": "First degree atrioventricular block",
+    "status": "present",
+    "quote": "1st degree AV block"
+   },
+   {
+    "hpo_id": "HP:0200101",
+    "label": "Decreased/absent ankle reflexes",
+    "status": "present",
+    "quote": "Reflexes reduced at ankles",
+    "alternatives": [
+     "HP:0001265",
+     "HP:0002600"
+    ]
+   },
+   {
+    "hpo_id": "HP:0000518",
+    "label": "Cataract",
+    "status": "family",
+    "quote": "mother had cloudy lenses removed"
+   },
+   {
+    "hpo_id": "HP:0001324",
+    "label": "Muscle weakness",
+    "status": "family",
+    "quote": "'weak legs'",
+    "alternatives": [
+     "HP:0007340"
+    ]
+   },
+   {
+    "hpo_id": "HP:0001319",
+    "label": "Neonatal hypotonia",
+    "status": "family",
+    "quote": "very floppy at birth"
+   }
+  ]
+ },
+ "hht_imaging.json": {
+  "note": [
+   {
+    "hpo_id": "HP:0000421",
+    "label": "Epistaxis",
+    "status": "present",
+    "quote": "Nosebleeds since teens"
+   },
+   {
+    "hpo_id": "HP:0012378",
+    "label": "Fatigue",
+    "status": "present",
+    "quote": "Tired"
+   },
+   {
+    "hpo_id": "HP:0002875",
+    "label": "Exertional dyspnea",
+    "status": "present",
+    "quote": "gets winded on one flight of stairs"
+   },
+   {
+    "hpo_id": "HP:0002249",
+    "label": "Melena",
+    "status": "present",
+    "quote": "Black tarry stools"
+   },
+   {
+    "hpo_id": "HP:0001891",
+    "label": "Iron deficiency anemia",
+    "status": "present",
+    "quote": "iron def"
+   },
+   {
+    "hpo_id": "HP:0002105",
+    "label": "Hemoptysis",
+    "status": "absent",
+    "quote": "coughing up blood"
+   },
+   {
+    "hpo_id": "HP:0002315",
+    "label": "Headache",
+    "status": "absent",
+    "quote": "HA"
+   },
+   {
+    "hpo_id": "HP:0000821",
+    "label": "Hypothyroidism",
+    "status": "present",
+    "quote": "underactive thyroid"
+   },
+   {
+    "hpo_id": "HP:0001009",
+    "label": "Telangiectasia",
+    "status": "present",
+    "quote": "tiny red spots on lips, tongue and fingertips that blanch",
+    "alternatives": [
+     "HP:0000214",
+     "HP:0007428"
+    ]
+   },
+   {
+    "hpo_id": "HP:0000980",
+    "label": "Pallor",
+    "status": "present",
+    "quote": "Pale conjunctivae"
+   },
+   {
+    "hpo_id": "HP:0000421",
+    "label": "Epistaxis",
+    "status": "family",
+    "quote": "frequent nosebleeds"
+   },
+   {
+    "hpo_id": "HP:0002170",
+    "label": "Intracranial hemorrhage",
+    "status": "family",
+    "quote": "'brain bleed'"
+   }
+  ],
+  "image_context": [
+   {
+    "hpo_id": "HP:0006548",
+    "label": "Pulmonary arteriovenous malformation",
+    "status": "present",
+    "quote": "c/w pulmonary AVM"
+   },
+   {
+    "hpo_id": "HP:0006576",
+    "label": "Hepatic vascular malformations",
+    "status": "present",
+    "quote": "small hypervascular foci throughout the liver",
+    "alternatives": [
+     "HP:0006574"
+    ]
+   },
+   {
+    "hpo_id": "HP:0000107",
+    "label": "Renal cyst",
+    "status": "present",
+    "quote": "simple cyst in R kidney"
+   },
+   {
+    "hpo_id": "HP:0002202",
+    "label": "Pleural effusion",
+    "status": "absent",
+    "quote": "No effusion"
+   },
+   {
+    "hpo_id": "HP:0002408",
+    "label": "Cerebral arteriovenous malformation",
+    "status": "absent",
+    "quote": "no intracranial vascular malformation"
+   }
+  ],
+  "image_findings": [
+   {
+    "hpo_id": "HP:0006548",
+    "label": "Pulmonary arteriovenous malformation",
+    "status": "present",
+    "quote": "RLL pulmonary AVM"
+   },
+   {
+    "hpo_id": "HP:0002408",
+    "label": "Cerebral arteriovenous malformation",
+    "status": "absent",
+    "quote": "brain AVM"
+   }
+  ],
+  "labs": [
+   {
+    "hpo_id": "HP:0001903",
+    "label": "Anemia",
+    "status": "present",
+    "quote": null
+   },
+   {
+    "hpo_id": "HP:0003281",
+    "label": "Increased circulating ferritin concentration",
+    "status": "absent",
+    "quote": null
+   },
+   {
+    "hpo_id": "HP:0001873",
+    "label": "Thrombocytopenia",
+    "status": "absent",
+    "quote": null
+   },
+   {
+    "hpo_id": "HP:0001894",
+    "label": "Thrombocytosis",
+    "status": "absent",
+    "quote": null
+   }
+  ]
+ }
+}

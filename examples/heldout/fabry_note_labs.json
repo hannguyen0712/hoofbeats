@@ -1,0 +1,15 @@
+{
+  "case_id": "heldout-fabry",
+  "note_text": "Nephrology clinic - new referral\n\nCC: protein in urine on work physical.\n\nHPI: 24 y/o M w/ burning pain in hands and feet since about age 9, comes in attacks lasting hrs-days, worse with hot weather, exercise, or when he gets a fever. Says he barely sweats, even playing basketball, and gets 'wiped out' in the heat. Intermittent crampy belly pain and loose stools after meals x yrs. Notes foamy urine x 6 mo. Ringing in both ears. Denies CP, vision changes, or fainting. Wears glasses for nearsightedness.\n\nFHx: maternal uncle started dialysis at 42, died of a stroke at 50. Mother has 'kidney issues', no workup. No known consanguinity.\n\nExam: BP 142/88. Cluster of tiny dark-red raised spots around umbilicus and over the scrotum, nonblanching. Slit lamp: faint whorl-like opacities in both corneas. No swelling of legs. Neuro intact.",
+  "labs": [
+    {"name": "Creatinine", "value": 1.6, "unit": "mg/dL", "ref_low": 0.7, "ref_high": 1.3},
+    {"name": "Urea Nitrogen", "value": 24, "unit": "mg/dL", "ref_low": 7, "ref_high": 20},
+    {"name": "Hemoglobin", "value": 14.2, "unit": "g/dL", "ref_low": 13.5, "ref_high": 17.5},
+    {"name": "Alpha-galactosidase A activity", "value": 0.9, "unit": "nmol/hr/mL", "ref_low": 8}
+  ],
+  "vitals": {"bp": "142/88", "hr": 76, "temp_c": 36.9},
+  "age": 24,
+  "sex": "male",
+  "truth": ["OMIM:301500"],
+  "policy": "open"
+}
