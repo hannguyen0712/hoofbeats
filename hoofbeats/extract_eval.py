@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import defaultdict
 from pathlib import Path
 
@@ -41,6 +42,19 @@ def predictions(case, raw: dict) -> dict[str, list[dict]]:
     return out
 
 
+def locate_quote(text: str, g: dict) -> int | None:
+    # start of the gold quote in text: its own offsets if given and valid, else the first whole-word match
+    # ("CP" is not found inside "PCP")
+    q = g.get("quote")
+    if not q:
+        return None
+    if isinstance(g.get("start"), int) and text[g["start"]:g["start"] + len(q)] == q:
+        return g["start"]
+    pat = (r"(?<![A-Za-z0-9])" if q[0].isalnum() else "") + re.escape(q) + (r"(?![A-Za-z0-9])" if q[-1].isalnum() else "")
+    m = re.search(pat, text)
+    return m.start() if m else None
+
+
 def _related(ont: Ontology, a: str, b: str) -> bool:
     return a != b and (a in ont.ancestors(b) or b in ont.ancestors(a))
 
@@ -66,9 +80,9 @@ def score_reader(ont: Ontology, gold: list[dict], preds: list[dict], text: str |
         overlap = None
         q = g.get("quote")
         if text is not None and q and (hit or near):
-            qs = text.find(q)
+            qs = locate_quote(text, g)
             spans = [p["span"] for p in hit + near if p["span"]]
-            overlap = qs >= 0 and any(s < qs + len(q) and qs < e for s, e in spans)
+            overlap = qs is not None and any(s < qs + len(q) and qs < e for s, e in spans)
             res["span_checked"] += 1
             res["span_overlap"] += overlap
         res["items"].append({**g, "result": kind, "got": [p["hpo_id"] for p in hit + near], "span_overlap": overlap})
@@ -120,7 +134,7 @@ def evaluate(cases_dir, gold_path, ont: Ontology, ext: Extractor | None = None,
         for r in sorted(set(by_reader) | set(preds)):
             text = raw.get(TEXT_FIELDS[r]) if r in TEXT_FIELDS else None
             for g in by_reader.get(r, []):
-                if text is not None and g.get("quote") and g["quote"] not in text:
+                if text is not None and g.get("quote") and locate_quote(text, g) is None:
                     problems.append(f"{fn}/{r}: gold quote not in text: {g['quote']!r}")
             rows.append({"case": fn, "reader": r, **score_reader(ont, by_reader.get(r, []), preds.get(r, []), text)})
     return rows, problems

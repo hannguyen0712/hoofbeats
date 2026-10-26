@@ -1261,6 +1261,23 @@ class TestIntake(unittest.TestCase):
         self.assertAlmostEqual(s["strict"][1], 2 / 4)
         self.assertEqual(problems, [])
 
+    def test_extract_eval_locates_quotes_by_whole_word(self):
+        from hoofbeats.extract_eval import evaluate, locate_quote
+        text = "Referred by PCP. Denies CP."
+        self.assertEqual(locate_quote(text, {"quote": "CP"}), 24)                  # not inside "PCP"
+        self.assertEqual(locate_quote(text, {"quote": "CP", "start": 13}), 13)     # gold offsets win when they match
+        self.assertIsNone(locate_quote("Referred by PCP.", {"quote": "CP"}))
+        self.assertEqual(locate_quote("N/V. Denies N/V.", {"quote": "N/V."}), 0)
+        cases = self.root / "eval_quotes"
+        cases.mkdir(exist_ok=True)
+        (cases / "c.json").write_text(json.dumps({"case_id": "c", "note_text": "Referred by PCP. No seizures."}))
+        (cases / "gold.json").write_text(json.dumps({"c.json": {"note": [
+            {"hpo_id": "HP:0001250", "label": "Seizure", "status": "absent", "quote": "seizures"},
+            {"hpo_id": "HP:0001945", "label": "Fever", "status": "absent", "quote": "CP"}]}}))
+        rows, problems = evaluate(cases, cases / "gold.json", self.ont, self.ext)
+        self.assertEqual(rows[0]["span_overlap"], 1)
+        self.assertEqual(problems, ["c.json/note: gold quote not in text: 'CP'"])
+
     # diagnose
     def test_diagnose_reads_case_file(self):
         import contextlib, io
