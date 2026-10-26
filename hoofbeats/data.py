@@ -96,11 +96,15 @@ def match_icd(code: str, icd_map) -> set[str]:
 
 
 # note extraction
-NEG = ["no", "not", "denies", "denied", "without", "negative for", "absence of", "free of",
-       "no evidence of", "no history of", "never", "ruled out"]
-NEG_AFTER = ["was ruled out", "is ruled out", "not seen", "is absent", "was absent", "resolved"]
-HEDGE = ["possible", "possibly", "probable", "suspected", "rule out", "r o", "concern for", "cannot exclude"]
-STOP_SCOPE = {"but", "however", "although", "except"}
+RESOURCES = Path(__file__).parent / "resources"
+
+
+def resource(name: str) -> list[dict]:
+    # tab-separated table from hoofbeats/resources; lines starting with "#" are comments
+    lines = [l for l in (RESOURCES / name).read_text(encoding="utf-8").splitlines() if l.strip() and not l.startswith("#")]
+    return list(csv.DictReader(lines, delimiter="\t"))
+
+
 FAMILY = {"mother", "father", "brother", "sister", "sibling", "aunt", "uncle", "grandmother",
           "grandfather", "cousin", "maternal", "paternal", "family", "son", "daughter", "child", "children",
           "parent", "grandparent", "niece", "nephew", "twin", "relative", "mom", "dad", "sib"}
@@ -156,8 +160,32 @@ def tokens(text: str) -> list[str]:
             for t in re.findall(r"[a-z0-9]+", text.lower())]
 
 
-def _has(window, phrases):
-    return any(tuple(window[i:i + len(p)]) == p for p in phrases for i in range(len(window)))
+def _phrase_index(phrases) -> dict[str, list[tuple[str, ...]]]:
+    # first token -> token tuples, longest first
+    idx = defaultdict(list)
+    for p in phrases:
+        t = tuple(tokens(p))
+        if t:
+            idx[t[0]].append(t)
+    for v in idx.values():
+        v.sort(key=len, reverse=True)
+    return idx
+
+
+def _find(norms: list[str], idx) -> list[tuple[int, int]]:
+    # (start, end) token spans of every phrase in idx, longest match at each position
+    out = []
+    for k, w in enumerate(norms):
+        p = next((p for p in idx.get(w, ()) if tuple(norms[k:k + len(p)]) == p), None)
+        if p:
+            out.append((k, k + len(p)))
+    return out
+
+
+CUES = defaultdict(list)
+for _row in resource("negation_terms.tsv"):
+    CUES[_row["type"]].append(_row["phrase"])
+CUE_INDEX = {k: _phrase_index(v) for k, v in CUES.items()}
 
 
 def _norm(word: str) -> str:
@@ -209,7 +237,7 @@ class Mention:
     grounding: str = "strong"
 
 
-GROUNDING = {"exact_label": "strong", "synonym:exact": "strong"}
+GROUNDING = {"exact_label": "strong", "synonym:exact": "strong", "negated_word": "supported"}
 
 
 class Extractor:
@@ -228,7 +256,12 @@ class Extractor:
                     self.index[toks[0]].append((toks, t.id, method, label))
         for v in self.index.values():
             v.sort(key=lambda x: -len(x[0]))
-        self.neg, self.neg_after, self.hedge = ([tuple(tokens(p)) for p in ps] for ps in (NEG, NEG_AFTER, HEDGE))
+        self.negated = defaultdict(list)    # "afebrile" -> Fever absent
+        for row in resource("negated_words.tsv"):
+            ids = [h for h in (ont.resolve(x.strip()) for x in row["hpo_ids"].split(";")) if h]
+            t = tuple(tokens(row["phrase"]))
+            if ids and t:
+                self.negated[t[0]].append((t, ids, row["phrase"]))
 
     def mentions(self, text: str) -> list[Mention]:
         out = []
@@ -248,33 +281,53 @@ class Extractor:
                       or (w == "and" and k + 1 < len(toks) and toks[k + 1][0] in ("pt", "patient"))):
                 c += 1
             clause.append(c)
+        cues = self._cues(norms)
         while i < len(toks):
             hit = next((x for x in self.index.get(norms[i], ()) if tuple(norms[i:i + len(x[0])]) == x[0]), None)
-            if not hit:
+            neg = None if hit else next((x for x in self.negated.get(norms[i], ()) if tuple(norms[i:i + len(x[0])]) == x[0]), None)
+            if not hit and not neg:
                 i += 1
                 continue
-            n = len(hit[0])
-            st, cue = self._status(text, toks, norms, clause, i, n, sec, head)
+            n = len((hit or neg)[0])
             a, b = toks[i][1], toks[i + n - 1][2]
-            out.append(Mention(hit[1], st, text[a:b], a, b, (s, e), sec, cue, (hit[2], hit[3]), GROUNDING[hit[2]]))
+            st, cue = self._status(text, toks, norms, clause, cues, i, n, sec, head)
+            if neg:       # the word itself says absent; a relative's "afebrile" is not about the patient
+                if st != Status.FAMILY:
+                    out += [Mention(h, Status.ABSENT, text[a:b], a, b, (s, e), sec, (text[a:b], a, b),
+                                    ("negated_word", neg[2]), GROUNDING["negated_word"]) for h in neg[1]]
+            elif st is not None:
+                out.append(Mention(hit[1], st, text[a:b], a, b, (s, e), sec, cue, (hit[2], hit[3]), GROUNDING[hit[2]]))
             i += n
         return out
 
-    def _status(self, text, toks, norms, clause, i, n, sec, head):
-        if sec == "family":
-            return Status.FAMILY, (text[head[0]:head[1]], *head)
-        fam = next((k for k, w in enumerate(norms) if w in FAMILY and clause[k] == clause[i]), None)
-        if fam is not None:
-            return Status.FAMILY, (text[toks[fam][1]:toks[fam][2]], toks[fam][1], toks[fam][2])
-        pre = norms[max(0, i - 6):i]
-        for k in range(len(pre) - 1, -1, -1):
-            if pre[k] in STOP_SCOPE:
-                pre = pre[k + 1:]
-                break
-        if _has(pre, self.hedge):
-            return Status.UNCERTAIN, None
-        if _has(pre, self.neg) or _has(norms[i + n:i + n + 4], self.neg_after):
-            return Status.ABSENT, None
+    @staticmethod
+    def _cues(norms: list[str]) -> dict:
+        # NegEx/ConText cues in one sentence; cues inside a pseudo-cue ("no change") do not count
+        pseudo = {k for a, b in _find(norms, CUE_INDEX["pseudo"]) for k in range(a, b)}
+        found = {t: [(a, b) for a, b in _find(norms, CUE_INDEX[t]) if a not in pseudo] for t in ("pre", "post", "hedge")}
+        found["stop"] = sorted(a for t in ("contrast", "termination") for a, _ in _find(norms, CUE_INDEX[t]))
+        return found
+
+    def _status(self, text, toks, norms, clause, cues, i, n, sec, head):
+        # family (section or a family word in the clause) > nearest hedge or negation cue in scope > present;
+        # None = a relative's finding that is negated ("no family history of ..."), which is dropped
+        span = lambda a, b: (text[toks[a][1]:toks[b - 1][2]], toks[a][1], toks[b - 1][2])
+        blocked = lambda lo, hi: any(lo <= t < hi for t in cues["stop"])
+        before = [(b, a, kind) for kind in ("pre", "hedge") for a, b in cues[kind] if b <= i and not blocked(b, i)]
+        after = [(a, b) for a, b in cues["post"] if i + n <= a <= i + n + 3 and not blocked(i + n, a)]
+        near = max(before, default=None)
+        negated = (near and near[2] == "pre") or after
+        if sec == "family" or any(w in FAMILY and clause[k] == clause[i] for k, w in enumerate(norms)):
+            if negated:
+                return None, None
+            if sec == "family":
+                return Status.FAMILY, (text[head[0]:head[1]], *head)
+            k = next(k for k, w in enumerate(norms) if w in FAMILY and clause[k] == clause[i])
+            return Status.FAMILY, span(k, k + 1)
+        if near:
+            return (Status.UNCERTAIN if near[2] == "hedge" else Status.ABSENT), span(near[1], near[0])
+        if after:
+            return Status.ABSENT, span(*after[0])
         return Status.PRESENT, None
 
     def findings(self, text: str, source="note") -> list[Finding]:

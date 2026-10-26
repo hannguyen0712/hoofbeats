@@ -1,0 +1,15 @@
+# Words that state a finding is absent. phrase is matched on whole tokens (case-insensitive);
+# hpo_ids are separated by ";" and must be current HPO phenotype terms (others are ignored).
+phrase	hpo_ids	note
+afebrile	HP:0001945	Fever
+anicteric	HP:0000952	Jaundice
+normotensive	HP:0000822	Hypertension
+acyanotic	HP:0000961	Cyanosis
+nondistended	HP:0003270	Abdominal distention
+non distended	HP:0003270	Abdominal distention
+normocephalic	HP:0000252;HP:0000256	Microcephaly; Macrocephaly
+eupneic	HP:0002094	Dyspnea
+nontachycardic	HP:0001649	Tachycardia
+non tachycardic	HP:0001649	Tachycardia
+nonedematous	HP:0000969	Edema
+non edematous	HP:0000969	Edema

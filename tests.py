@@ -874,6 +874,24 @@ class TestExtractorRules(unittest.TestCase):
         self.assertEqual(self.st("Seizures in her brother but dislocated lens noted."),
                          {("HP:0001250", Status.FAMILY), ("HP:0001083", Status.PRESENT)})
 
+    def test_negation_scope(self):
+        self.assertEqual(self.st("No fever, presents with seizures."),
+                         {("HP:0001945", Status.ABSENT), ("HP:0001250", Status.PRESENT)})       # termination word
+        self.assertEqual(self.st("Denies fever, seizures or dislocated lens."),
+                         {("HP:0001945", Status.ABSENT), ("HP:0001250", Status.ABSENT), ("HP:0001083", Status.ABSENT)})
+        self.assertEqual(self.st("Denies fever but dislocated lens on exam."),
+                         {("HP:0001945", Status.ABSENT), ("HP:0001083", Status.PRESENT)})       # contrast word
+        self.assertEqual(self.st("No change in seizures."), {("HP:0001250", Status.PRESENT)})  # pseudo-negation
+        self.assertEqual(self.st("No family history of seizures."), set())                        # negated relative: dropped
+        m = next(m for m in self.ext.mentions("Denies fever, seizures.") if m.hpo_id == "HP:0001250")
+        self.assertEqual(m.cue, ("Denies", 0, 6))
+
+    def test_negated_words(self):
+        text = "Pt afebrile, tall."
+        m = self.ext.mentions(text)[0]
+        self.assertEqual((m.hpo_id, m.status, m.quote, m.link[0], m.grounding), ("HP:0001945", Status.ABSENT, "afebrile", "negated_word", "supported"))
+        self.assertEqual(text[m.start:m.end], "afebrile")
+
 
 F = lambda h, st, src="x", ev="": Finding(h, st, src, ev or f"{src}: {h}")
 
