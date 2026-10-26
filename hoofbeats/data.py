@@ -139,13 +139,20 @@ def section_type(heading: str) -> str:
     return "other"
 
 
+def _unknown_heading_ok(name: str) -> bool:
+    # an unknown heading: 3+ characters, at most 4 words, no family word or "pt" ("Mother with seizures   Pt:" is text)
+    words = [_norm(w) for w in re.findall(r"[A-Za-z]+", name)]
+    return len(name) >= 3 and len(words) <= 4 and not any(w in FAMILY or w in ("pt", "patient") for w in words)
+
+
 def sections(text: str) -> list[tuple[int, int, str, str, tuple[int, int] | None]]:
-    # (content start, end, heading, type, heading span); 2-character headings only if known (CC, FH, PE)
+    # (content start, end, heading, type, heading span); known headings (CC, FH, PE, ...) at any length,
+    # unknown ones only if _unknown_heading_ok; a heading always starts its line
     heads = []
     for m in LINE_HEADING.finditer(text):
         name = m.group(1).strip()
         typ = section_type(name)
-        if len(name) >= 3 or typ != "other":
+        if typ != "other" or _unknown_heading_ok(name):
             heads.append((m.start(1), m.end(), name.lower(), typ, (m.start(1), m.start(1) + len(name))))
     out, prev = [], (0, "", "", None)
     for h0, h1, name, typ, span in heads:

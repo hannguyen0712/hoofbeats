@@ -881,6 +881,15 @@ class TestExtractorRules(unittest.TestCase):
         m = self.ext.mentions("Family Hx: seizures")[0]
         self.assertEqual((m.section, m.cue), ("family", ("Family Hx", 0, 9)))
 
+    def test_unknown_line_headings_are_short_and_not_family(self):
+        from hoofbeats.data import sections
+        self.assertEqual([s[2] for s in sections("Mother with seizures   Pt: dislocated lens") if s[2]], [])
+        self.assertEqual(self.st("Mother with seizures   Pt: dislocated lens"),
+                         {("HP:0001250", Status.FAMILY), ("HP:0001083", Status.PRESENT)})
+        self.assertEqual(self.st("Mother: seizures"), {("HP:0001250", Status.FAMILY)})          # family word is not a heading
+        self.assertEqual([s[2] for s in sections("Slit lamp exam: lens\nOne two three four five: x") if s[2]], ["slit lamp exam"])
+        self.assertEqual([s[3] for s in sections("Family history of note: seizures") if s[2]], ["family"])   # known heading
+
     def test_family_word_reaches_only_its_clause(self):
         self.assertEqual(self.st("Mother had seizures, pt has dislocated lens."),
                          {("HP:0001250", Status.FAMILY), ("HP:0001083", Status.PRESENT)})
