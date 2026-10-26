@@ -832,12 +832,21 @@ def image_prompt_of(case):
     return image_prompt(case.meta["images"][0])
 
 
+EXTRA_TERMS = "".join(f"[Term]\nid: {i}\nname: {n}\n{s}is_a: HP:0000118\n\n" for i, n, s in (
+    ("HP:0100749", "Chest pain", ""), ("HP:0002018", "Nausea", ""), ("HP:0002013", "Vomiting", ""),
+    ("HP:0001653", "Mitral regurgitation", ""), ("HP:0030828", "Wheezing", ""),
+    ("HP:0030212", "Collectionism", 'synonym: "Collecting" EXACT []\n'), ("HP:0012115", "Hepatitis", ""),
+    ("HP:0002666", "Pheochromocytoma", "")))
+
+
 class TestExtractorRules(unittest.TestCase):
-    # text reader rules, on short sentences
+    # text reader rules, on short sentences (base mini-ontology plus EXTRA_TERMS)
     @classmethod
     def setUpClass(cls):
-        root = Path(tempfile.mkdtemp())
-        cls.ont = Ontology(build(root) / "hp.obo")
+        cls.root = Path(tempfile.mkdtemp())
+        build(cls.root)
+        (cls.root / "kb" / "hp.obo").write_text(OBO.replace("[Typedef]", EXTRA_TERMS + "[Typedef]"))
+        cls.ont = Ontology(cls.root / "kb" / "hp.obo")
         cls.ext = Extractor(cls.ont)
 
     def st(self, text):
@@ -898,15 +907,28 @@ class TestExtractorRules(unittest.TestCase):
         from hoofbeats.data import _spacy
         if _spacy() is None:
             self.skipTest("spaCy model not installed")
-        root = Path(tempfile.mkdtemp())
-        (root / "hp.obo").write_text(OBO.replace("[Typedef]", "[Term]\nid: HP:0030828\nname: Wheezing\nis_a: HP:0000118\n\n[Typedef]"))
-        ont = Ontology(root / "hp.obo")
         text = "He wheezes at night."
-        m = Extractor(ont).mentions(text)[0]
+        m = self.ext.mentions(text)[0]
         self.assertEqual((m.hpo_id, m.quote, text[m.start:m.end], m.link, m.grounding),
                          ("HP:0030828", "wheezes", "wheezes", ("lemma", "Wheezing"), "supported"))
-        self.assertEqual(Extractor(ont, lemmas=False).mentions(text), [])
-        self.assertTrue(list((root / ".cache").glob("lemmas-*.json")))           # label lemmas cached
+        self.assertEqual(Extractor(self.ont, lemmas=False).mentions(text), [])
+        self.assertTrue(list((self.root / "kb" / ".cache").glob("lemmas-*.json")))     # label lemmas cached
+
+    def test_abbreviations_keep_original_offsets(self):
+        text = "Denies CP, N/V. Echo: mild MR."
+        got = {(m.hpo_id, m.status, m.quote, m.link[0]) for m in self.ext.mentions(text)}
+        self.assertEqual(got, {("HP:0100749", Status.ABSENT, "CP", "abbreviation:chest pain"),
+                               ("HP:0002018", Status.ABSENT, "N/V", "abbreviation:nausea and vomiting"),
+                               ("HP:0002013", Status.ABSENT, "N/V", "abbreviation:nausea and vomiting"),
+                               ("HP:0001653", Status.PRESENT, "MR", "abbreviation:mitral regurgitation")})
+        for m in self.ext.mentions(text):
+            self.assertEqual(text[m.start:m.end], m.quote)
+            self.assertEqual(m.grounding, "supported")
+        self.assertEqual(self.ext.mentions("MR scan of the brain."), [])          # MR needs a cardiac context word
+        m = self.ext.mentions("r/o seizure")[0]
+        self.assertEqual((m.status, m.cue), (Status.UNCERTAIN, ("r/o", 0, 3)))     # expansion feeds the hedge cue
+        self.assertEqual(self.st("Fever w/o seizures"), {("HP:0001945", Status.PRESENT), ("HP:0001250", Status.ABSENT)})
+        self.assertEqual(Extractor(self.ont, abbreviations=False).mentions("Denies CP."), [])
 
     def test_negated_words(self):
         text = "Pt afebrile, tall."

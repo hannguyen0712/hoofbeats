@@ -209,7 +209,7 @@ def sentence_spans(text: str, start: int = 0, end: int | None = None) -> list[tu
     cuts, s = [], start
     for m in BOUNDARY.finditer(text, start, end):
         if text[m.start() - 1] == "." and not re.search(r"\n\s*\n", m.group()):
-            w = re.search(r"([A-Za-z.]+)\.$", text[s:m.start()])
+            w = re.search(r"(?:^|[\s(])([A-Za-z.]+)\.$", text[s:m.start()])    # a free-standing word, not "N/V."
             w = w.group(1).lower() if w else ""
             if w in NO_SPLIT or (w == "no" and text[m.end():m.end() + 1].isdigit()):
                 continue
@@ -265,6 +265,41 @@ def _lemmas(words, lmap) -> tuple[str, ...]:
     return tuple(lmap[a][1] if a in lmap and lmap[a][0] == b else _norm(w) for w, a, b in words)
 
 
+def grounding_of(method: str) -> str:
+    return GROUNDING.get(method) or ("supported" if method.startswith("abbreviation:") else "weak")
+
+
+class Abbreviations:
+    # resources/abbreviations.tsv: whole-token matches, optional context words in the same sentence
+    def __init__(self, rows):
+        self.table = {True: defaultdict(list), False: defaultdict(list)}    # case-sensitive? -> abbr -> rows
+        for r in rows:
+            abbr, cs = r["abbr"].strip(), any(ch.isupper() for ch in r["abbr"])
+            ctx = [c for c in (r.get("context") or "").lower().split("|") if c]
+            self.table[cs][abbr if cs else abbr.lower()].append((r["expansion"].strip(), ctx))
+        # capitalised abbreviations may take a plural "s" (AMLs, LFTs)
+        self.rx = {cs: re.compile(r"(?<![A-Za-z0-9])(" + "|".join(sorted(map(re.escape, t), key=len, reverse=True))
+                                  + (r")s?(?![A-Za-z0-9])" if cs else r")(?![A-Za-z0-9])"), 0 if cs else re.I)
+                   for cs, t in self.table.items() if t}
+
+    def find(self, text: str, s: int, e: int, words: set[str]) -> list[tuple[int, int, str]]:
+        # (start, end, expansion) in text[s:e], longest first, no overlaps
+        fits = lambda ctx: any(w == c or (c.endswith("*") and w.startswith(c[:-1])) for c in ctx for w in words)
+        hits = []
+        for cs, rx in self.rx.items():
+            for m in rx.finditer(text, s, e):
+                rows = self.table[cs][m.group(1) if cs else m.group(1).lower()]
+                exp = next((x for x, ctx in rows if ctx and fits(ctx)), None) or next((x for x, ctx in rows if not ctx), None)
+                if exp:
+                    hits.append((m.start(), m.end(), exp))
+        out, last = [], -1
+        for h in sorted(hits, key=lambda h: (h[0], h[0] - h[1])):
+            if h[0] >= last:
+                out.append(h)
+                last = h[1]
+        return out
+
+
 class LemmaIndex:
     # HPO labels by lemma sequence; label lemmas are cached next to hp.obo (.cache/)
     def __init__(self, nlp, entries, ont: Ontology):
@@ -293,9 +328,11 @@ class LemmaIndex:
 class Extractor:
     # offline HPO matcher with negation, family and uncertainty rules; every mention keeps its offsets
 
-    def __init__(self, ont: Ontology, lemmas: bool = True):
+    def __init__(self, ont: Ontology, lemmas: bool = True, abbreviations: bool = True):
         # lemmas: also match on spaCy lemmas (wheezes ~ wheezing); off if spaCy is not installed
+        # abbreviations: expand resources/abbreviations.tsv before matching (spans stay on the original text)
         self.ont = ont
+        self.abbr = Abbreviations(resource("abbreviations.tsv")) if abbreviations else None
         self.index, self.vocab = defaultdict(list), set()
         for t in ont.terms.values():
             if t.obsolete or not ont.is_phenotype(t.id):
@@ -339,10 +376,27 @@ class Extractor:
                 return lhit, ("lemma", lhit[3])
         return hit, (hit[2], hit[3]) if hit else None
 
-    def _sentence(self, text: str, s: int, e: int, sec: str, head, lmap=None) -> list[Mention]:
+    def _words(self, text: str, s: int, e: int):
+        # (word, start, end, expansion or None); an abbreviation becomes its expansion's words, all with its span
         words = [(m.group(), m.start(), m.end()) for m in WORD.finditer(text, s, e)]
-        toks = [(_norm(w), a, b) for w, a, b in words]
-        lems, raws = _lemmas(words, lmap or {}), [w.lower() for w, _, _ in words]
+        found = self.abbr.find(text, s, e, {w.lower() for w, _, _ in words}) if self.abbr else []
+        out, j, done = [], 0, set()
+        for w, a, b in words:
+            while j < len(found) and found[j][1] <= a:
+                j += 1
+            if j < len(found) and found[j][0] <= a < found[j][1]:
+                if j not in done:
+                    done.add(j)
+                    out += [(x, found[j][0], found[j][1], found[j][2]) for x in WORD.findall(found[j][2])]
+                continue
+            out.append((w, a, b, None))
+        return out
+
+    def _sentence(self, text: str, s: int, e: int, sec: str, head, lmap=None) -> list[Mention]:
+        words = self._words(text, s, e)
+        toks = [(_norm(w), a, b) for w, a, b, _ in words]
+        lems = tuple(_norm(w) if x else l for (w, _, _, x), l in zip(words, _lemmas([w[:3] for w in words], lmap or {})))
+        raws, expanded = [w.lower() for w, _, _, _ in words], [x for *_, x in words]
         norms, out, i = [t[0] for t in toks], [], 0
         clause, c = [], 0    # family words only reach their own clause (split at , ; but while "and pt")
         for k, (w, a, _) in enumerate(toks):
@@ -359,13 +413,16 @@ class Extractor:
                 continue
             n = len((hit or neg)[0])
             a, b = toks[i][1], toks[i + n - 1][2]
+            exp = next((x for x in expanded[i:i + n] if x), None)
+            if hit and exp:
+                link = (f"abbreviation:{exp}", link[1])
             st, cue = self._status(text, toks, norms, clause, cues, i, n, sec, head)
             if neg:       # the word itself says absent; a relative's "afebrile" is not about the patient
                 if st != Status.FAMILY:
                     out += [Mention(h, Status.ABSENT, text[a:b], a, b, (s, e), sec, (text[a:b], a, b),
                                     ("negated_word", neg[2]), GROUNDING["negated_word"]) for h in neg[1]]
             elif st is not None:
-                out.append(Mention(hit[1], st, text[a:b], a, b, (s, e), sec, cue, link, GROUNDING[link[0]]))
+                out.append(Mention(hit[1], st, text[a:b], a, b, (s, e), sec, cue, link, grounding_of(link[0])))
             i += n
         return out
 
