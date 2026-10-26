@@ -987,6 +987,19 @@ class TestExtractorRules(unittest.TestCase):
         sob = ext.mentions("Pt reports SOB.")[0]                                    # abbreviation onto a RELATED synonym
         self.assertEqual((sob.hpo_id, sob.link[0], sob.grounding), ("HP:0002094", "abbreviation:shortness of breath", "weak"))
 
+    def test_negation_stops_at_a_new_label(self):
+        self.assertEqual(self.st("Gen: no fever    NEURO: seizures today"),
+                         {("HP:0001945", Status.ABSENT), ("HP:0001250", Status.PRESENT)})
+        self.assertEqual(self.st("No fever, seizures."), {("HP:0001945", Status.ABSENT), ("HP:0001250", Status.ABSENT)})
+        self.assertEqual(self.st("Seen today; mother with seizures   Pt: dislocated lens"),   # family word stays in its segment
+                         {("HP:0001250", Status.FAMILY), ("HP:0001083", Status.PRESENT)})
+        root = Path(tempfile.mkdtemp())
+        (root / "hp.obo").write_text(OBO.replace("[Typedef]", '[Term]\nid: HP:0030828\nname: Wheezing\n'
+                                                 'synonym: "Wheezes" EXACT []\nis_a: HP:0000118\n\n[Typedef]'))
+        ext = Extractor(Ontology(root / "hp.obo"))
+        got = {(m.hpo_id, m.status) for m in ext.mentions("HEENT: no JVD/HJR    LUNGS: rhales B/L, wheezes B/L")}
+        self.assertEqual(got, {("HP:0030828", Status.PRESENT)})
+
     def test_negated_words(self):
         text = "Pt afebrile, tall."
         m = self.ext.mentions(text)[0]

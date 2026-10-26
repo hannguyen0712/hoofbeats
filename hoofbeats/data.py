@@ -275,6 +275,7 @@ def _lemmas(words, lmap) -> tuple[str, ...]:
 
 
 LIST_DELIM = re.compile(r"[,;]|\b(?:and|or)\b", re.I)
+INLINE_LABEL = re.compile(r"(?<![A-Za-z0-9/])([A-Z][A-Za-z/&\-]*(?: [A-Za-z][A-Za-z/&\-]*){0,2}):(?!\d)")   # "LUNGS:", "Heart:"
 
 
 def grounding_of(method: str) -> str:
@@ -435,13 +436,17 @@ class Extractor:
         lems = tuple(_norm(w[0]) if w[3] else l for w, l in zip(words, _lemmas([w[:3] for w in words], lmap or {})))
         raws, expanded, guessed = [w[0].lower() for w in words], [w[3] for w in words], [w[4] for w in words]
         norms, out, i = [t[0] for t in toks], [], 0
-        clause, c = [], 0    # family words only reach their own clause (split at , ; but while "and pt")
+        # a "LABEL:" inside the sentence starts a new segment ("no JVD/HJR    LUNGS: rhales, wheezes")
+        labels = {k for m in INLINE_LABEL.finditer(text, s, e) if m.start() > s
+                  for k in [next((k for k, t in enumerate(toks) if t[1] >= m.start(1)), None)] if k}
+        clause, c = [], 0    # family words only reach their own clause (split at , ; but while "and pt", labels)
         for k, (w, a, _) in enumerate(toks):
-            if k and (re.search(r"[,;]", text[toks[k - 1][2]:a]) or w in CLAUSE_WORDS
+            if k and (re.search(r"[,;]", text[toks[k - 1][2]:a]) or w in CLAUSE_WORDS or k in labels
                       or (w == "and" and k + 1 < len(toks) and toks[k + 1][0] in ("pt", "patient"))):
                 c += 1
             clause.append(c)
         cues = self._cues(norms)
+        cues["stop"] = sorted(set(cues["stop"]) | labels)     # negation and hedge scopes end at a new label
         dspans, dm = [], []         # disease names: (start, end, also an HPO term?)
         for k, n, ids, name, is_hpo in (diseases.find(norms) if diseases else []):
             a, b = toks[k][1], toks[k + n - 1][2]
