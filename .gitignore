@@ -1,6 +1,7 @@
 __pycache__/
 /data/
 /results/
+/scratch/
 # never commit credentialed MIMIC data or anything derived from it
 **/mimic*/
 .DS_Store
