@@ -21,6 +21,8 @@ def reader_of(source: str) -> str:
         return "image_findings"
     if source.startswith("lab:"):
         return "labs"
+    if source.startswith("vitals:"):
+        return "vitals"
     return source
 
 
@@ -38,7 +40,8 @@ def predictions(case, raw: dict) -> dict[str, list[dict]]:
             elif e.get("start") is None and r in TEXT_FIELDS and e.get("evidence"):
                 i = (raw.get(TEXT_FIELDS[r]) or "").find(e["evidence"])
                 span = (i, i + len(e["evidence"])) if i >= 0 else None
-            out[r].append({"hpo_id": h, "status": e["status"], "evidence": e.get("evidence", ""), "span": span})
+            method = (e.get("readers") or [None])[0] or ("rules" if r in TEXT_FIELDS else r)
+            out[r].append({"hpo_id": h, "status": e["status"], "evidence": e.get("evidence", ""), "span": span, "method": method})
     return out
 
 
@@ -62,10 +65,12 @@ def _related(ont: Ontology, a: str, b: str) -> bool:
 def score_reader(ont: Ontology, gold: list[dict], preds: list[dict], text: str | None) -> dict:
     # exact = same id (or an alternative) and status; near = ancestor/descendant with the same status
     res = {"gold": len(gold), "exact": 0, "near": 0, "missed": 0, "pred": 0, "pred_exact": 0, "pred_near": 0, "extra": 0,
-           "span_checked": 0, "span_overlap": 0, "span_chars": [], "items": [], "extras": []}
-    uniq = {}
+           "span_checked": 0, "span_overlap": 0, "span_chars": [], "items": [], "extras": [],
+           "by_method": defaultdict(lambda: {"exact": 0, "near": 0, "pred": 0, "extra": 0})}
+    uniq, methods = {}, defaultdict(set)
     for p in preds:
         uniq.setdefault((p["hpo_id"], p["status"]), p)
+        methods[(p["hpo_id"], p["status"])].add(p.get("method") or "?")
     preds = list(uniq.values())
     used = defaultdict(set)
     for g in gold:
@@ -77,6 +82,8 @@ def score_reader(ont: Ontology, gold: list[dict], preds: list[dict], text: str |
         res[kind] += 1
         for p in hit + near:
             used[(p["hpo_id"], p["status"])].add(kind)
+        for m in {m for p in (hit or near) for m in methods[(p["hpo_id"], p["status"])]}:   # which methods found it
+            res["by_method"][m][kind] += 1
         overlap = None
         q = g.get("quote")
         if text is not None and q and (hit or near):
@@ -88,6 +95,9 @@ def score_reader(ont: Ontology, gold: list[dict], preds: list[dict], text: str |
         res["items"].append({**g, "result": kind, "got": [p["hpo_id"] for p in hit + near], "span_overlap": overlap})
     for p in preds:
         k = used.get((p["hpo_id"], p["status"]), set())
+        for m in methods[(p["hpo_id"], p["status"])]:
+            res["by_method"][m]["pred"] += 1
+            res["by_method"][m]["extra"] += not k
         res["pred"] += 1
         res["pred_exact"] += "exact" in k
         res["pred_near"] += "near" in k and "exact" not in k
@@ -140,6 +150,17 @@ def evaluate(cases_dir, gold_path, ont: Ontology, ext: Extractor | None = None,
     return rows, problems
 
 
+def method_breakdown(rows: list[dict]) -> list[tuple[str, str, dict]]:
+    # per reader and method (rules, numbers, labs, vitals, input): gold found and extras, summed over cases;
+    # a gold finding found by two methods counts for both
+    acc = defaultdict(lambda: {"exact": 0, "near": 0, "pred": 0, "extra": 0})
+    for r in rows:
+        for m, v in r["by_method"].items():
+            for k in v:
+                acc[(r["reader"], m)][k] += v[k]
+    return [(rd, m, v) for (rd, m), v in sorted(acc.items())]
+
+
 def _pct(x) -> str:
     return f"{100 * x:.0f}%"
 
@@ -159,6 +180,9 @@ def report(rows: list[dict], ont: Ontology, details: bool = False) -> str:
         sp = f"{s['span_overlap']}/{s['span_checked']}" if s["span_checked"] else "–"
         out.append(f"| {name} | {s['gold']} | {s['pred']} | " + " | ".join(_pct(x) for x in s["strict"] + s["lenient"])
                    + f" | {s['extra']} | {sp} |")
+    out += ["", "| reader | method | gold found exact | gold found parent/child | pred | extra |", "|---|---|---|---|---|---|"]
+    for reader, method, m in method_breakdown(rows):
+        out.append(f"| {reader} | {method} | {m['exact']} | {m['near']} | {m['pred']} | {m['extra']} |")
     if details:
         for r in rows:
             out.append(f"\n{r['case']} / {r['reader']}")

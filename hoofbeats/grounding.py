@@ -20,7 +20,7 @@ class GroundedFinding(Finding):
     grounding: str = "weak"              # strong | supported | weak
     reader: str = ""
     section: str | None = None
-    lab: tuple | None = None             # (value, unit, ref_low, ref_high, range_source)
+    lab: tuple | None = None             # numeric details as (key, value) pairs: value, unit, ref_low, ref_high, range_source, ...
     disease_mention: bool = False        # the words are also a knowledge-base disease name
 
 
@@ -36,7 +36,7 @@ def provenance_entry(f: Finding) -> dict:
                   "link": dict(zip(("method", "matched_string"), f.link)) if f.link else None,
                   "readers": [f.reader] if f.reader else [], "grounding": f.grounding, "section": f.section})
         if f.lab:
-            e.update(zip(("value", "unit", "ref_low", "ref_high", "range_source"), f.lab))
+            e.update(dict(f.lab))
         if f.disease_mention:
             e["disease_mention"] = True
     return e

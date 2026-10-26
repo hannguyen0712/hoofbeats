@@ -821,8 +821,11 @@ class DiseaseMatcher:
         return sorted(d for d, v in found.items() if v == best)
 
 
-def load_medpix(root, matcher: DiseaseMatcher, ext: Extractor, split: str = "all", labels_csv=None) -> list[Case]:
+def load_medpix(root, matcher: DiseaseMatcher, ext: Extractor, split: str = "all", labels_csv=None,
+                numbers: bool = True) -> list[Case]:
     # input = history + exam only; findings, captions and diagnosis kept in meta
+    # numbers: also read lab values and vitals from the history (age from the image metadata, else the text)
+    from .numbers import age_from_text, age_years, read_numbers
     root = Path(root)
     cases_json = json.loads((root / "Case_topic.json").read_text(encoding="utf-8"))
     desc = json.loads((root / "Descriptions.json").read_text(encoding="utf-8"))
@@ -854,7 +857,16 @@ def load_medpix(root, matcher: DiseaseMatcher, ext: Extractor, split: str = "all
                                names, [], ext.vocab)
         truth = overrides.get(uid) or matcher.match(title) or matcher.match(info.get("Case Diagnosis") or "")
         findings = [f for f in ext.findings(history, "medpix:history") if f.status in (Status.PRESENT, Status.ABSENT)]
+        warnings = []
+        if numbers:
+            age = next((a for a in (age_years(i["age"]) for i in images[uid] if i["age"]) if a is not None), None)
+            age = age if age is not None else age_from_text(history)
+            have = {f.hpo_id for f in findings}
+            for f in read_numbers(history, "medpix:history", "history", age, warnings.append):
+                if f.hpo_id not in have and f.status in (Status.PRESENT, Status.ABSENT):
+                    findings.append(f)
+                    have.add(f.hpo_id)
         out.append(Case(uid, findings, truth, meta={
             "policy": "open", "title": title, "differential": field("Differential Diagnosis"),
-            "history": history, "reference_text": reference, "images": images[uid]}))
+            "history": history, "reference_text": reference, "images": images[uid], "intake_warnings": warnings}))
     return out

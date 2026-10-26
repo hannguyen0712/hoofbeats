@@ -1113,6 +1113,21 @@ class TestGrounding(unittest.TestCase):
         c = self.parse({"note_text": "Father had Cousin syndrome."}, disease_names=names)
         self.assertEqual([(d["quote"], d["status"]) for d in c.meta["disease_mentions"]], [("Cousin syndrome", "family")])
 
+    def test_numbers_conflict_with_text_and_provenance(self):
+        root = Path(tempfile.mkdtemp())
+        (root / "hp.obo").write_text(OBO.replace("[Typedef]", "[Term]\nid: HP:0000822\nname: Hypertension\nis_a: HP:0000118\n\n"
+                                                 "[Term]\nid: HP:0002615\nname: Hypotension\nis_a: HP:0000118\n\n[Typedef]"))
+        from hoofbeats.intake import parse_case
+        ont = Ontology(root / "hp.obo")
+        c = parse_case({"case_id": "n", "note_text": "Known hypertension. BP 118/76 today.", "vitals": {"bp": "150/95"}}, ont, Extractor(ont))
+        prov = c.meta["provenance"]["HP:0000822"]
+        self.assertEqual(sorted((e["source"], e["status"], e["readers"][0]) for e in prov),
+                         [("note", "absent", "numbers"), ("note", "present", "rules"), ("vitals:bp", "present", "vitals")])
+        self.assertEqual(c.meta["provenance"]["conflicts"][0]["hpo_id"], "HP:0000822")   # text/number disagreement recorded
+        num = next(e for e in prov if e["readers"] == ["numbers"])
+        self.assertEqual((num["quote"], num["range_source"], num["grounding"]), ("BP 118/76", "threshold", "supported"))
+        self.assertFalse([x for x in c.meta["intake_warnings"] if x.startswith("provenance")])
+
     def test_grounding_levels_and_merge(self):
         from hoofbeats.grounding import level_of
         from hoofbeats.intake import intake_summary
@@ -1126,6 +1141,89 @@ class TestGrounding(unittest.TestCase):
         self.assertEqual((lab["value"], lab["unit"], lab["ref_low"], lab["ref_high"], lab["range_source"], lab["start"]),
                          (20.0, "U/L", 35.0, 105.0, "input", None))
         self.assertIn("grounding: strong 4, supported 1, weak 0", intake_summary(c, self.ont))
+
+
+class TestNumbers(unittest.TestCase):
+    # numbers reader: outputs before fusion, with the real HPO ids from resources/lab_reference.tsv and vital_thresholds.tsv
+    def read(self, text, age=None):
+        from hoofbeats.numbers import read_numbers
+        warnings = []
+        found = read_numbers(text, "note", "note_text", age, warnings.append)
+        for f in found:
+            self.assertEqual(text[f.start:f.end], f.quote)            # spans point at the original characters
+        return {(f.hpo_id, f.status) for f in found}, found, warnings
+
+    def test_lab_values_ranges_flags_and_lists(self):
+        got, found, _ = self.read("Na 128 mmol/L (ref 135-145), K 5.9 H")
+        self.assertIn(("HP:0002902", Status.PRESENT), got)              # hyponatremia
+        self.assertIn(("HP:0002153", Status.PRESENT), got)              # hyperkalemia from the H flag
+        na = next(f for f in found if f.hpo_id == "HP:0002902")
+        self.assertEqual((na.grounding, dict(na.lab)["range_source"], na.quote), ("strong", "input", "Na 128 mmol/L (ref 135-145)"))
+        k = next(f for f in found if f.hpo_id == "HP:0002153")
+        self.assertEqual((k.grounding, k.status_cue[0]), ("weak", "H"))    # "K" is an ambiguous alias
+        got, found, _ = self.read("ALB 2.6 ALK PHOS 202 AST 572 ALT 757 TBILI 0.9")
+        self.assertTrue({("HP:0003073", Status.PRESENT), ("HP:0003155", Status.PRESENT), ("HP:0002910", Status.PRESENT),
+                         ("HP:0002904", Status.ABSENT)} <= got)
+        self.assertEqual({f.grounding for f in found}, {"weak"})          # no units: plausible values, weak
+
+    def test_units(self):
+        got, found, w = self.read("Hgb 95 g/L, creatinine 150 umol/L, glucose 3.1 mmol/L, ammonia 80 ug/dL, Na 1280")
+        self.assertTrue({("HP:0001903", Status.PRESENT), ("HP:0003259", Status.PRESENT), ("HP:0001943", Status.PRESENT)} <= got)
+        self.assertEqual(round(dict(next(f for f in found if f.hpo_id == "HP:0003259").lab)["converted_value"], 2), 1.7)
+        self.assertFalse(any(h == "HP:0001987" for h, _ in got))        # ug/dL is not a supported ammonia unit
+        self.assertFalse(any(h in ("HP:0002902", "HP:0003228") for h, _ in got))   # Na 1280 without unit: implausible
+        self.assertTrue(any("not supported" in x for x in w) and any("not plausible" in x for x in w))
+
+    def test_specimens_and_test_context(self):
+        got, _, w = self.read("CSF: LP opening pressure 18, wbc=32, glc=53")
+        self.assertEqual(got, set())
+        got, _, _ = self.read("Urine glucose 300 mg/dL")
+        self.assertEqual(got, set())
+
+    def test_vitals(self):
+        got, found, _ = self.read("Vitals: T 101.0F, HR 112, BP 120/95, RR 16, SpO2 88%")
+        self.assertTrue({("HP:0001945", Status.PRESENT), ("HP:0001649", Status.PRESENT), ("HP:0000822", Status.PRESENT),
+                         ("HP:0002615", Status.ABSENT), ("HP:0002789", Status.ABSENT), ("HP:0012418", Status.PRESENT)} <= got)
+        t = next(f for f in found if f.hpo_id == "HP:0001945")
+        self.assertEqual((t.grounding, dict(t.lab)["value"]), ("weak", 38.33))   # "T" is a one-letter label
+        got, _, _ = self.read("BP 85/50 on arrival.")
+        self.assertTrue({("HP:0002615", Status.PRESENT), ("HP:0000822", Status.ABSENT)} <= got)
+        got, _, _ = self.read("BP 142/88.")
+        self.assertIn(("HP:0000822", Status.PRESENT), got)
+        self.assertEqual(self.read("Tested for P 85 deficiency.")[0], set())      # "P" only counts among vitals
+
+    def test_ecg_zscores_centiles_arm_span(self):
+        got, found, _ = self.read("ECG: PR 236 ms. QTc 480 ms. Echo: aortic root 4.1 cm (Z +3.2). Arm span > height. "
+                                  "OFC below the 3rd centile; height at the 50th percentile.")
+        self.assertTrue({("HP:0011705", Status.PRESENT), ("HP:0005184", Status.PRESENT), ("HP:0002616", Status.PRESENT),
+                         ("HP:0012771", Status.PRESENT), ("HP:0000252", Status.PRESENT), ("HP:0000098", Status.ABSENT),
+                         ("HP:0004322", Status.ABSENT)} <= got)
+        z = next(f for f in found if f.hpo_id == "HP:0002616")
+        self.assertEqual(z.quote, "aortic root 4.1 cm (Z +3.2")
+
+    def test_children_get_no_adult_defaults(self):
+        got, _, w = self.read("Na 128, HR 150, Na 128 mmol/L (ref 133-146), OFC below the 3rd centile", age=6)
+        self.assertIn(("HP:0002902", Status.PRESENT), got)                # input range: still used
+        self.assertIn(("HP:0000252", Status.PRESENT), got)                # centile: age-independent
+        self.assertFalse(any(h in ("HP:0001649", "HP:0001662") for h, _ in got))
+        self.assertEqual(len([x for x in w if "younger than 18" in x]), 1)
+
+    def test_structured_labs_vitals_and_age(self):
+        from hoofbeats.intake import Lab, Vitals
+        from hoofbeats.numbers import age_from_text, age_years, read_structured_labs, read_structured_vitals
+        w = []
+        labs = read_structured_labs([Lab(name="Sodium", value=128, unit="mmol/L"), Lab(name="Ammonia", value=40, ref_high=32),
+                                     Lab(name="Troponin", value=1)], w.append)
+        got = {(f.hpo_id, f.status, f.grounding) for f in labs}
+        self.assertIn(("HP:0002902", Status.PRESENT, "supported"), got)   # default table, unit given
+        self.assertIn(("HP:0001987", Status.PRESENT, "strong"), got)      # input range
+        self.assertIn("labs: 'Troponin' is not in the lab map; skipped", w)
+        vit = read_structured_vitals(Vitals(bp="150/85", temp_c=36.8), w.append)
+        self.assertIn(("HP:0000822", Status.PRESENT), {(f.hpo_id, f.status) for f in vit})
+        self.assertEqual(next(f for f in vit if f.hpo_id == "HP:0000822").field, "vitals.bp")
+        self.assertEqual(read_structured_labs([Lab(name="Sodium", value=128)], w.append, age=10), [])
+        self.assertEqual((age_years("3 months"), age_years("P3Y6M"), age_years(17)), (0.25, 3.5, 17.0))
+        self.assertEqual(age_from_text("38 y/o M machinist"), 38.0)
 
 
 F = lambda h, st, src="x", ev="": Finding(h, st, src, ev or f"{src}: {h}")

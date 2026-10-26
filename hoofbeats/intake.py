@@ -2,16 +2,16 @@
 from __future__ import annotations
 
 import json
-import re
 from collections import Counter
 from pathlib import Path
 from typing import Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
-from .data import LABS, DiseaseNames, Extractor, Mention
+from .data import DiseaseNames, Extractor, Mention
 from .fusion import fuse
 from .grounding import GroundedFinding, level_of, verify_provenance
+from .numbers import age_from_text, age_years, read_numbers, read_structured_labs, read_structured_vitals
 from .model import Case, Finding, Ontology, Status
 
 FORMAT = "hoofbeats-intake/1"
@@ -185,48 +185,17 @@ def read_image_findings(items: list[ImageFinding], ont: Ontology, ext: Extractor
     return out
 
 
-def _lab_index() -> dict:
-    # full LABS label or the abbreviation in its parentheses, case-insensitive
-    idx = {}
-    for (label, _), hpos in LABS.items():
-        for name in (label, *re.findall(r"\(([^)]+)\)", label)):
-            idx.setdefault(name.lower(), (label, hpos))
-    return idx
-
-
-LAB_INDEX = _lab_index()
-
-
-def read_labs(items: list[Lab], warn) -> list[Finding]:
-    # value vs reference range for labs in the LABS map; present if out of range that way, else absent
-    out = []
-    for lab in items:
-        hit = LAB_INDEX.get(lab.name.strip().lower())
-        if hit is None:
-            warn(f"labs: '{lab.name}' is not in the lab map; skipped")
-            continue
-        if lab.ref_low is None and lab.ref_high is None:
-            warn(f"labs: '{lab.name}' has no reference range; skipped")
-            continue
-        label, (low, high, _) = hit
-        rng = f"{'' if lab.ref_low is None else f'{lab.ref_low:g}'}-{'' if lab.ref_high is None else f'{lab.ref_high:g}'}"
-        ev = f"{lab.name}={lab.value:g}{' ' + lab.unit if lab.unit else ''} (ref {rng})"
-        found = [GroundedFinding(hpo, Status.PRESENT if abnormal else Status.ABSENT, f"lab:{label}", ev, quote=ev,
-                                 link=("lab_range", label), grounding="strong", reader="labs",
-                                 lab=(lab.value, lab.unit, lab.ref_low, lab.ref_high, "input"))
-                 for hpo, bound, abnormal in ((low, lab.ref_low, lab.ref_low is not None and lab.value < lab.ref_low),
-                                              (high, lab.ref_high, lab.ref_high is not None and lab.value > lab.ref_high))
-                 if hpo and bound is not None]
-        if not found:
-            warn(f"labs: '{lab.name}' has no HPO term for the given reference range; skipped")
-        out += found
-    return out
+def read_labs(items: list[Lab], warn, age: float | None = None) -> list[Finding]:
+    # labs from the case file, through the numbers reader: the input reference range wins, else the default table
+    return read_structured_labs(items, warn, age)
 
 
 # case
 def original_texts(d: IntakeCase, pos: dict) -> dict[str, str]:
     # every input string a provenance span can point into, by field name
     texts = {"note_text": d.note_text or "", "image_context": d.image_context or ""}
+    if d.vitals and d.vitals.bp:
+        texts["vitals.bp"] = d.vitals.bp
     texts.update({f"hpo_terms[{i}].id": t.id for i, t in zip(pos.get("hpo_terms", []), d.hpo_terms)})
     for i, x in zip(pos.get("image_findings", []), d.image_findings):
         texts.update({f"image_findings[{i}].hpo_id": x.hpo_id or "", f"image_findings[{i}].finding": x.finding or ""})
@@ -244,11 +213,15 @@ def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancesto
     ext = ext or Extractor(ont)
     diseases = DiseaseNames(disease_names, ext) if disease_names else None
     mentions: list[dict] = []
-    findings, prov = fuse([read_hpo_terms(d.hpo_terms, ont, warnings.append, pos.get("hpo_terms")),
+    age = age_years(d.age) if d.age is not None else age_from_text(d.note_text)
+    w = warnings.append
+    findings, prov = fuse([read_hpo_terms(d.hpo_terms, ont, w, pos.get("hpo_terms")),
                            read_text(d.note_text, ext, "note", "note_text", diseases, mentions),
+                           read_numbers(d.note_text, "note", "note_text", age, w),
                            read_text(d.image_context, ext, "image_context", "image_context", diseases, mentions),
-                           read_image_findings(d.image_findings, ont, ext, warnings.append, pos.get("image_findings")),
-                           read_labs(d.labs, warnings.append)], ont, drop_ancestors)
+                           read_numbers(d.image_context, "image_context", "image_context", age, w),
+                           read_image_findings(d.image_findings, ont, ext, w, pos.get("image_findings")),
+                           read_labs(d.labs, w, age), read_structured_vitals(d.vitals, w, age)], ont, drop_ancestors)
     warnings += [f"{c['hpo_id']} {ont.name(c['hpo_id'])}: {c['reason']} "
                  f"({', '.join(c['contradicted_by'])}); absent {c['action']}" for c in prov["conflicts"]]
     meta = {"input_format": FORMAT, "policy": d.policy, "images": [], "age": d.age, "sex": d.sex,
