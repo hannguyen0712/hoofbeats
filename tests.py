@@ -832,6 +832,34 @@ def image_prompt_of(case):
     return image_prompt(case.meta["images"][0])
 
 
+class TestExtractorRules(unittest.TestCase):
+    # text reader rules, on short sentences
+    @classmethod
+    def setUpClass(cls):
+        root = Path(tempfile.mkdtemp())
+        cls.ont = Ontology(build(root) / "hp.obo")
+        cls.ext = Extractor(cls.ont)
+
+    def st(self, text):
+        return {(f.hpo_id, f.status) for f in self.ext.findings(text)}
+
+    def test_patient_and_family_status_kept_apart(self):
+        self.assertEqual(self.st("No seizures. Mother had seizures."),
+                         {("HP:0001250", Status.ABSENT), ("HP:0001250", Status.FAMILY)})
+
+    def test_sentence_split_keeps_abbreviations(self):
+        from hoofbeats.data import sentence_spans
+        cut = lambda t: [t[a:b] for a, b in sentence_spans(t)]
+        self.assertEqual(cut("Seen by Dr. Smith. No seizures."), ["Seen by Dr. Smith.", "No seizures."])
+        self.assertEqual(cut("Aunt also v. tall, e.g. 6 ft. Temp 38.5 today. Ref No. 5 noted"),
+                         ["Aunt also v. tall, e.g. 6 ft.", "Temp 38.5 today.", "Ref No. 5 noted"])
+        self.assertEqual(cut("Problems:\n- seizures\n- dislocated lens\nmild"), ["Problems:", "- seizures", "- dislocated lens\nmild"])
+        text = "Mother also v. tall with dislocated lens."
+        self.assertEqual(self.st(text), {("HP:0001083", Status.FAMILY)})       # not cut at "v."
+        m = self.ext.mentions(text)[0]
+        self.assertEqual((m.quote, text[m.start:m.end]), ("dislocated lens", "dislocated lens"))
+
+
 F = lambda h, st, src="x", ev="": Finding(h, st, src, ev or f"{src}: {h}")
 
 

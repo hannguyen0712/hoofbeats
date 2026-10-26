@@ -8,6 +8,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
 from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
@@ -119,54 +120,124 @@ def _has(window, phrases):
     return any(tuple(window[i:i + len(p)]) == p for p in phrases for i in range(len(window)))
 
 
+def _norm(word: str) -> str:
+    # same normalisation as tokens(): lower case, trailing plural "s" dropped
+    w = word.lower()
+    return w[:-1] if len(w) > 4 and w.endswith("s") and not w.endswith(("ss", "is", "us")) else w
+
+
+WORD = re.compile(r"[A-Za-z0-9]+")
+NO_SPLIT = {"v", "vs", "dr", "pt", "approx", "e.g", "i.e", "etc", "mr", "mrs", "ms", "st", "fig"}
+BOUNDARY = re.compile(r"(?<=[.;!?])\s+|\n\s*\n|\n(?=[ \t]*(?:[-*•]|\d{1,2}[.)])\s)")
+ORDER = {Status.PRESENT: 3, Status.ABSENT: 2, Status.UNCERTAIN: 1, Status.FAMILY: 0}
+
+
+def sentence_spans(text: str, start: int = 0, end: int | None = None) -> list[tuple[int, int]]:
+    # sentence offsets in text; no split after common abbreviations ("v.", "Dr.", "e.g.") or "No." before a number,
+    # and a new sentence at each list item
+    end = len(text) if end is None else end
+    cuts, s = [], start
+    for m in BOUNDARY.finditer(text, start, end):
+        if text[m.start() - 1] == "." and not re.search(r"\n\s*\n", m.group()):
+            w = re.search(r"([A-Za-z.]+)\.$", text[s:m.start()])
+            w = w.group(1).lower() if w else ""
+            if w in NO_SPLIT or (w == "no" and text[m.end():m.end() + 1].isdigit()):
+                continue
+        cuts.append((s, m.start()))
+        s = m.end()
+    cuts.append((s, end))
+    out = []
+    for a, b in cuts:
+        piece = text[a:b]
+        if piece.strip():
+            out.append((a + len(piece) - len(piece.lstrip()), b - len(piece) + len(piece.rstrip())))
+    return out
+
+
+@dataclass
+class Mention:
+    # one matched phrase: text[start:end] == quote
+    hpo_id: str
+    status: Status
+    quote: str
+    start: int
+    end: int
+    sentence: tuple[int, int]
+    section: str = ""
+    cue: tuple[str, int, int] | None = None   # status cue word and its offsets
+    link: tuple[str, str] = ("exact_label", "")   # (method, matched label or synonym)
+    grounding: str = "strong"
+
+
+GROUNDING = {"exact_label": "strong", "synonym:exact": "strong"}
+
+
 class Extractor:
-    # offline HPO matcher with negation, family and uncertainty rules
+    # offline HPO matcher with negation, family and uncertainty rules; every mention keeps its offsets
 
     def __init__(self, ont: Ontology):
+        self.ont = ont
         self.index, self.vocab = defaultdict(list), set()
         for t in ont.terms.values():
             if t.obsolete or not ont.is_phenotype(t.id):
                 continue
-            for label in (t.name, *t.synonyms):
+            for label, method in ((t.name, "exact_label"), *((s, "synonym:exact") for s in t.synonyms)):
                 toks = tuple(tokens(label))
                 if toks and len(" ".join(toks)) >= 4:
                     self.vocab.update(toks)
-                    self.index[toks[0]].append((toks, t.id))
+                    self.index[toks[0]].append((toks, t.id, method, label))
         for v in self.index.values():
             v.sort(key=lambda x: -len(x[0]))
         self.neg, self.neg_after, self.hedge = ([tuple(tokens(p)) for p in ps] for ps in (NEG, NEG_AFTER, HEDGE))
 
-    def findings(self, text: str, source="note") -> list[Finding]:
-        best, order = {}, {Status.PRESENT: 3, Status.ABSENT: 2, Status.UNCERTAIN: 1, Status.FAMILY: 0}
+    def mentions(self, text: str) -> list[Mention]:
+        out = []
         heads = [(m.start(), m.end(), m.group(1).lower()) for m in HEADING.finditer(text)]
         bounds = [(0, 0, "")] + heads + [(len(text), len(text), "")]
         for (_, start, sec), (nxt, _, _) in zip(bounds, bounds[1:]):
             if sec.startswith(SKIP_SECTIONS):
                 continue
-            for sent in re.split(r"(?<=[.;!?])\s+|\n\s*\n", text[start:nxt]):
-                toks, i = tokens(sent), 0
-                while i < len(toks):
-                    hit = next(((c, h) for c, h in self.index.get(toks[i], ()) if tuple(toks[i:i + len(c)]) == c), None)
-                    if not hit:
-                        i += 1
-                        continue
-                    pre = toks[max(0, i - 6):i]
-                    for k in range(len(pre) - 1, -1, -1):
-                        if pre[k] in STOP_SCOPE:
-                            pre = pre[k + 1:]
-                            break
-                    if sec.startswith("family") or FAMILY & set(toks):
-                        st = Status.FAMILY
-                    elif _has(pre, self.hedge):
-                        st = Status.UNCERTAIN
-                    elif _has(pre, self.neg) or _has(toks[i + len(hit[0]):i + len(hit[0]) + 4], self.neg_after):
-                        st = Status.ABSENT
-                    else:
-                        st = Status.PRESENT
-                    if hit[1] not in best or order[st] > order[best[hit[1]].status]:
-                        best[hit[1]] = Finding(hit[1], st, source, sent.strip()[:300])
-                    i += len(hit[0])
-        return list(best.values())
+            for s, e in sentence_spans(text, start, nxt):
+                out += self._sentence(text, s, e, sec)
+        return out
+
+    def _sentence(self, text: str, s: int, e: int, sec: str) -> list[Mention]:
+        toks = [(_norm(m.group()), m.start(), m.end()) for m in WORD.finditer(text, s, e)]
+        norms, out, i = [t[0] for t in toks], [], 0
+        while i < len(toks):
+            hit = next((x for x in self.index.get(norms[i], ()) if tuple(norms[i:i + len(x[0])]) == x[0]), None)
+            if not hit:
+                i += 1
+                continue
+            n = len(hit[0])
+            st = self._status(norms, i, n, sec)
+            a, b = toks[i][1], toks[i + n - 1][2]
+            out.append(Mention(hit[1], st, text[a:b], a, b, (s, e), sec, None, (hit[2], hit[3]), GROUNDING[hit[2]]))
+            i += n
+        return out
+
+    def _status(self, norms: list[str], i: int, n: int, sec: str) -> Status:
+        pre = norms[max(0, i - 6):i]
+        for k in range(len(pre) - 1, -1, -1):
+            if pre[k] in STOP_SCOPE:
+                pre = pre[k + 1:]
+                break
+        if sec.startswith("family") or FAMILY & set(norms):
+            return Status.FAMILY
+        if _has(pre, self.hedge):
+            return Status.UNCERTAIN
+        if _has(pre, self.neg) or _has(norms[i + n:i + n + 4], self.neg_after):
+            return Status.ABSENT
+        return Status.PRESENT
+
+    def findings(self, text: str, source="note") -> list[Finding]:
+        # one finding per term for the patient (present > absent > uncertain) and, separately, one for the family
+        best = {}
+        for m in self.mentions(text):
+            key = (m.hpo_id, m.status == Status.FAMILY)
+            if key not in best or ORDER[m.status] > ORDER[best[key].status]:
+                best[key] = m
+        return [Finding(m.hpo_id, m.status, source, text[m.sentence[0]:m.sentence[1]][:300]) for m in best.values()]
 
 
 def delabel(text: str, names, genes, vocab) -> tuple[str, dict]:
