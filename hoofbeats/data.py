@@ -274,6 +274,9 @@ def _lemmas(words, lmap) -> tuple[str, ...]:
     return tuple(lmap[a][1] if a in lmap and lmap[a][0] == b else _norm(w) for w, a, b in words)
 
 
+LIST_DELIM = re.compile(r"[,;]|\b(?:and|or)\b", re.I)
+
+
 def grounding_of(method: str) -> str:
     return GROUNDING.get(method) or ("supported" if method.startswith("abbreviation:") else "weak")
 
@@ -282,25 +285,41 @@ class Abbreviations:
     # resources/abbreviations.tsv: whole-token matches, optional context words in the same sentence
     def __init__(self, rows):
         self.table = {True: defaultdict(list), False: defaultdict(list)}    # case-sensitive? -> abbr -> rows
+        self.ambiguous = {True: set(), False: set()}       # several rows, or other common meanings
         for r in rows:
             abbr, cs = r["abbr"].strip(), any(ch.isupper() for ch in r["abbr"])
+            key = abbr if cs else abbr.lower()
             ctx = [c for c in (r.get("context") or "").lower().split("|") if c]
-            self.table[cs][abbr if cs else abbr.lower()].append((r["expansion"].strip(), ctx))
+            self.table[cs][key].append((r["expansion"].strip(), ctx))
+            if (r.get("other_meanings") or "").strip() or len(self.table[cs][key]) > 1:
+                self.ambiguous[cs].add(key)
         # capitalised abbreviations may take a plural "s" (AMLs, LFTs)
         self.rx = {cs: re.compile(r"(?<![A-Za-z0-9])(" + "|".join(sorted(map(re.escape, t), key=len, reverse=True))
                                   + (r")s?(?![A-Za-z0-9])" if cs else r")(?![A-Za-z0-9])"), 0 if cs else re.I)
                    for cs, t in self.table.items() if t}
 
-    def find(self, text: str, s: int, e: int, words: set[str]) -> list[tuple[int, int, str]]:
-        # (start, end, expansion) in text[s:e], longest first, no overlaps
-        fits = lambda ctx: any(w == c or (c.endswith("*") and w.startswith(c[:-1])) for c in ctx for w in words)
+    def find(self, text: str, s: int, e: int, words: set[str]) -> list[tuple[int, int, str, bool]]:
+        # (start, end, expansion, weak) in text[s:e], longest first, no overlaps; weak = a best guess:
+        # contexts of several expansions match, or an ambiguous abbreviation sits alone in a comma-separated list
+        # ("IVH, CP, MR, congenital cardiac defects") with no context word in its own list item
+        fits = lambda ctx, ws: any(w == c or (c.endswith("*") and w.startswith(c[:-1])) for c in ctx for w in ws)
         hits = []
         for cs, rx in self.rx.items():
             for m in rx.finditer(text, s, e):
-                rows = self.table[cs][m.group(1) if cs else m.group(1).lower()]
-                exp = next((x for x, ctx in rows if ctx and fits(ctx)), None) or next((x for x, ctx in rows if not ctx), None)
-                if exp:
-                    hits.append((m.start(), m.end(), exp))
+                key = m.group(1) if cs else m.group(1).lower()
+                rows = self.table[cs][key]
+                matched = [(x, ctx) for x, ctx in rows if ctx and fits(ctx, words)]
+                row = (matched or [(x, ctx) for x, ctx in rows if not ctx] or [None])[0]
+                if not row:
+                    continue
+                weak = len(matched) > 1
+                if key in self.ambiguous[cs] and not weak:
+                    left = max([s] + [d.end() for d in LIST_DELIM.finditer(text, s, m.start())])
+                    right = next((d.start() for d in LIST_DELIM.finditer(text, m.end(), e)), e)
+                    in_list = any(d.group().strip() in ",;" for d in LIST_DELIM.finditer(text, max(s, left - 1), min(e, right + 1)))
+                    own = {w.lower() for w in WORD.findall(text[left:right])}
+                    weak = in_list and not (row[1] and fits(row[1], own))
+                hits.append((m.start(), m.end(), row[0], weak))
         out, last = [], -1
         for h in sorted(hits, key=lambda h: (h[0], h[0] - h[1])):
             if h[0] >= last:
@@ -395,7 +414,7 @@ class Extractor:
         return hit, (hit[2], hit[3]) if hit else None
 
     def _words(self, text: str, s: int, e: int):
-        # (word, start, end, expansion or None); an abbreviation becomes its expansion's words, all with its span
+        # (word, start, end, expansion or None, weak guess); an abbreviation becomes its expansion's words, all with its span
         words = [(m.group(), m.start(), m.end()) for m in WORD.finditer(text, s, e)]
         found = self.abbr.find(text, s, e, {w.lower() for w, _, _ in words}) if self.abbr else []
         out, j, done = [], 0, set()
@@ -405,16 +424,16 @@ class Extractor:
             if j < len(found) and found[j][0] <= a < found[j][1]:
                 if j not in done:
                     done.add(j)
-                    out += [(x, found[j][0], found[j][1], found[j][2]) for x in WORD.findall(found[j][2])]
+                    out += [(x, found[j][0], found[j][1], found[j][2], found[j][3]) for x in WORD.findall(found[j][2])]
                 continue
-            out.append((w, a, b, None))
+            out.append((w, a, b, None, False))
         return out
 
     def _sentence(self, text: str, s: int, e: int, sec: str, head, lmap=None, diseases=None):
         words = self._words(text, s, e)
-        toks = [(_norm(w), a, b) for w, a, b, _ in words]
-        lems = tuple(_norm(w) if x else l for (w, _, _, x), l in zip(words, _lemmas([w[:3] for w in words], lmap or {})))
-        raws, expanded = [w.lower() for w, _, _, _ in words], [x for *_, x in words]
+        toks = [(_norm(w[0]), w[1], w[2]) for w in words]
+        lems = tuple(_norm(w[0]) if w[3] else l for w, l in zip(words, _lemmas([w[:3] for w in words], lmap or {})))
+        raws, expanded, guessed = [w[0].lower() for w in words], [w[3] for w in words], [w[4] for w in words]
         norms, out, i = [t[0] for t in toks], [], 0
         clause, c = [], 0    # family words only reach their own clause (split at , ; but while "and pt")
         for k, (w, a, _) in enumerate(toks):
@@ -456,8 +475,10 @@ class Extractor:
             elif st is not None:
                 inside = [x for x in dspans if x[0] <= a and b <= x[1]]
                 if not inside or any(x[2] for x in inside):     # dropped inside a disease name unless it is also HPO
-                    # the weaker of the label kind (a RELATED synonym is weak) and the way it matched (lemma, abbreviation)
-                    level = min(GROUNDING[hit[2]], grounding_of(link[0]), key=LEVEL.get)
+                    # the weaker of the label kind (a RELATED synonym is weak) and the way it matched (lemma, abbreviation;
+                    # an abbreviation read as a best guess is weak)
+                    level = min(GROUNDING[hit[2]], grounding_of(link[0]), "weak" if any(guessed[i:i + n]) else "strong",
+                                key=LEVEL.get)
                     out.append(Mention(hit[1], st, text[a:b], a, b, (s, e), sec, cue, link, level, bool(inside)))
             i += n
         return out, dm

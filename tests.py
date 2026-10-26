@@ -928,12 +928,24 @@ class TestExtractorRules(unittest.TestCase):
                                ("HP:0001653", Status.PRESENT, "MR", "abbreviation:mitral regurgitation")})
         for m in self.ext.mentions(text):
             self.assertEqual(text[m.start:m.end], m.quote)
-            self.assertEqual(m.grounding, "supported")
+            self.assertEqual(m.grounding, "weak" if m.quote == "CP" else "supported")   # CP (also cerebral palsy) alone in a list
         self.assertEqual(self.ext.mentions("MR scan of the brain."), [])          # MR needs a cardiac context word
         m = self.ext.mentions("r/o seizure")[0]
         self.assertEqual((m.status, m.cue), (Status.UNCERTAIN, ("r/o", 0, 3)))     # expansion feeds the hedge cue
         self.assertEqual(self.st("Fever w/o seizures"), {("HP:0001945", Status.PRESENT), ("HP:0001250", Status.ABSENT)})
         self.assertEqual(Extractor(self.ont, abbreviations=False).mentions("Denies CP."), [])
+
+    def test_ambiguous_abbreviation_guesses_are_weak(self):
+        level = lambda t: {m.quote: m.grounding for m in self.ext.mentions(t)}
+        got = level("Hx of IVH, CP, MR, congenital cardiac defects.")       # CP/MR alone in a list of conditions
+        self.assertEqual((got["CP"], got["MR"]), ("weak", "weak"))
+        self.assertEqual(level("Echo showed mild MR.")["MR"], "supported")    # context word, not a list
+        self.assertEqual(level("Echo showed trace TR, MR.")["MR"], "weak")      # in a list, own item has no context
+        self.assertEqual(level("Pt has dislocated lens, echo with MR.")["MR"], "supported")   # context in its own item
+        self.assertEqual(level("Chest pain since am.")["Chest pain"], "strong")
+        found = self.ext.abbr.find("AMLs on renal US; leukemia hx.", 0, 30, {"amls", "on", "renal", "us", "leukemia", "hx"})
+        self.assertEqual([x[2:] for x in found if x[2] in ("angiomyolipoma", "acute myeloid leukemia")],
+                         [("angiomyolipoma", True)])                          # contexts of two expansions match
 
     def test_ambiguous_abbreviations_need_general_context(self):
         ambiguous = {"mitral regurgitation", "angiomyolipoma", "ultrasound"}
@@ -1031,7 +1043,7 @@ class TestGrounding(unittest.TestCase):
         cp = c.meta["provenance"]["HP:0100749"][0]
         self.assertEqual((note[cp["start"]:cp["end"]], cp["quote"], cp["field"], cp["status"]), ("CP", "CP", "note_text", "absent"))
         self.assertEqual(cp["link"], {"method": "abbreviation:chest pain", "matched_string": "Chest pain"})
-        self.assertEqual((cp["grounding"], cp["readers"], cp["section"]), ("supported", ["rules"], None))
+        self.assertEqual((cp["grounding"], cp["readers"], cp["section"]), ("weak", ["rules"], None))   # CP alone in a list
         self.assertEqual(cp["status_cue"], {"word": "denies", "start": 3, "end": 9})
         sz = c.meta["provenance"]["HP:0001250"][0]
         self.assertEqual((sz["quote"], sz["status"], sz["status_cue"]["word"], sz["section"]), ("szs", "family", "FHx", "family"))

@@ -2,8 +2,10 @@
 # abbr: matched as a whole token; case-sensitive if it contains a capital letter, otherwise case-insensitive.
 # context: optional; "|"-separated words that must appear in the same sentence (a trailing * means prefix).
 # When an abbreviation has several rows, rows with a matching context win; a row without context is the default.
-abbr	expansion	context
-CP	chest pain
+# other_meanings: common other readings (not expanded); such an abbreviation alone in a comma-separated list,
+#   with no context word in its own list item, is linked with grounding "weak".
+abbr	expansion	context	other_meanings
+CP	chest pain		cerebral palsy
 SOB	shortness of breath
 SOBOE	shortness of breath on exertion
 DOE	dyspnea on exertion
@@ -13,7 +15,7 @@ N/V/D	nausea, vomiting and diarrhea
 abd	abdominal
 HA	headache
 H/A	headache
-LOC	loss of consciousness
+LOC	loss of consciousness		level of consciousness
 AMS	altered mental status
 LBP	low back pain
 BRBPR	bright red blood per rectum
@@ -22,10 +24,10 @@ UGIB	upper gastrointestinal bleeding
 LGIB	lower gastrointestinal bleeding
 FTT	failure to thrive
 GDD	global developmental delay
-DD	developmental delay	developmental|delay*|milestone*|speech|motor|autis*|walk*|talk*
-ID	intellectual disability	developmental|delay*|iq|school|learning|cognitive|autis*|intellectual|special
+DD	developmental delay	developmental|delay*|milestone*|speech|motor|autis*|walk*|talk*	differential diagnosis
+ID	intellectual disability	developmental|delay*|iq|school|learning|cognitive|autis*|intellectual|special	infectious disease
 HSM	hepatosplenomegaly
-LAD	lymphadenopathy	lymph*|node*|cervical|axillary|inguinal|neck|supraclavicular
+LAD	lymphadenopathy	lymph*|node*|cervical|axillary|inguinal|neck|supraclavicular	left anterior descending artery
 JVD	jugular venous distension
 LE	lower extremity
 LEs	lower extremities
@@ -38,7 +40,7 @@ LUE	left upper extremity
 RUE	right upper extremity
 LEE	lower extremity edema
 HTN	hypertension
-DM	diabetes mellitus
+DM	diabetes mellitus		dermatomyositis
 T1DM	type 1 diabetes mellitus
 T2DM	type 2 diabetes mellitus
 CKD	chronic kidney disease
@@ -46,22 +48,22 @@ ESRD	end stage renal disease
 AKI	acute kidney injury
 CHF	congestive heart failure
 CAD	coronary artery disease
-MI	myocardial infarction
-CVA	stroke
+MI	myocardial infarction		mitral insufficiency
+CVA	stroke		costovertebral angle
 TIA	transient ischemic attack
 DVT	deep vein thrombosis
-PE	pulmonary embolism	embol*|clot*|anticoag*|dvt|cta|thromb*|heparin|saddle
+PE	pulmonary embolism	embol*|clot*|anticoag*|dvt|cta|thromb*|heparin|saddle	physical exam; pleural effusion
 AFib	atrial fibrillation
 A-fib	atrial fibrillation
 afib	atrial fibrillation
 SVT	supraventricular tachycardia
-VT	ventricular tachycardia	ekg|ecg|tele*|rhythm|arrhythm*|tachy*
+VT	ventricular tachycardia	ekg|ecg|tele*|rhythm|arrhythm*|tachy*	venous thrombosis
 MVP	mitral valve prolapse
-MR	mitral regurgitation	echo*|murmur*|valv*|mitral|cardi*|tte|tee|ef|lvef
-AR	aortic regurgitation	echo*|murmur*|valv*|aort*|cardi*|tte|tee|ef|lvef
-AS	aortic stenosis	echo*|murmur*|valv*|aort*|cardi*|tte|tee|ef|lvef
+MR	mitral regurgitation	echo*|murmur*|valv*|mitral|cardi*|tte|tee|ef|lvef	mental retardation; magnetic resonance
+AR	aortic regurgitation	echo*|murmur*|valv*|aort*|cardi*|tte|tee|ef|lvef	allergic rhinitis; autosomal recessive
+AS	aortic stenosis	echo*|murmur*|valv*|aort*|cardi*|tte|tee|ef|lvef	ankylosing spondylitis
 TR	tricuspid regurgitation	echo*|murmur*|valv*|tricusp*|cardi*|tte|tee|ef|lvef
-MS	mitral stenosis	echo*|murmur*|valv*|mitral|cardi*|tte|tee
+MS	mitral stenosis	echo*|murmur*|valv*|mitral|cardi*|tte|tee	multiple sclerosis; mental status
 ASD	atrial septal defect	echo*|murmur*|shunt*|cardi*|septal|heart|tte|tee
 ASD	autism spectrum disorder	autis*|behavio*|developmental|social|speech|stimming
 VSD	ventricular septal defect
@@ -132,7 +134,7 @@ CMP	comprehensive metabolic panel
 UA	urinalysis
 UDS	urine drug screen
 CXR	chest x ray
-US	ultrasound	renal|abd*|pelvi*|doppler|kidney*|liver|imaging|scan|thyroid
+US	ultrasound	renal|abd*|pelvi*|doppler|kidney*|liver|imaging|scan|thyroid	United States
 ECG	electrocardiogram
 EKG	electrocardiogram
 EEG	electroencephalogram
@@ -174,8 +176,8 @@ AML	acute myeloid leukemia	leuk*|marrow|blast*|chemo*|heme*|onc*
 bilat	bilateral
 b/l	bilateral
 OU	both eyes
-OD	right eye	eye*|vision|visual|lens*|pupil*|cornea*|retina*|acuity|ophth*|optic
-OS	left eye	eye*|vision|visual|lens*|pupil*|cornea*|retina*|acuity|ophth*|optic
+OD	right eye	eye*|vision|visual|lens*|pupil*|cornea*|retina*|acuity|ophth*|optic	overdose
+OS	left eye	eye*|vision|visual|lens*|pupil*|cornea*|retina*|acuity|ophth*|optic	overall survival
 R	right
 L	left
 R/L	right and left
@@ -188,7 +190,7 @@ nl	normal
 abnl	abnormal
 NT	nontender
 ND	nondistended
-BS	bowel sounds	abd*|bowel*|soft
+BS	bowel sounds	abd*|bowel*|soft	breath sounds; blood sugar
 RRR	regular rate and rhythm
 CTAB	clear to auscultation bilaterally
 DTR	deep tendon reflexes
@@ -212,7 +214,7 @@ LLQ	left lower quadrant
 BMI	body mass index
 HR	heart rate
 BP	blood pressure
-RR	respiratory rate	vital*|bp|hr|temp*|spo2|sat*|breath*
+RR	respiratory rate	vital*|bp|hr|temp*|spo2|sat*|breath*	regular rhythm; relative risk
 SpO2	oxygen saturation
 O2	oxygen
 temp	temperature
@@ -226,11 +228,11 @@ sx	symptoms
 rx	prescription
 OTC	over the counter
 PCP	primary care physician
-ED	emergency department	er|visit*|present*|seen|triage|admit*|transfer*|went|brought
+ED	emergency department	er|visit*|present*|seen|triage|admit*|transfer*|went|brought	erectile dysfunction
 ER	emergency room
 ICU	intensive care unit
 SNF	skilled nursing facility
-PT	physical therapy	therap*|rehab*|session*|strength*|gait|exercis*
+PT	physical therapy	therap*|rehab*|session*|strength*|gait|exercis*	prothrombin time; patient
 OT	occupational therapy	therap*|rehab*|session*|fine|adl*
 SLP	speech language pathology
 IM	intramuscular
@@ -264,7 +266,7 @@ TB	tuberculosis
 VS	vital signs
 VSS	vital signs stable
 ADLs	activities of daily living
-GA	gestational age	week*|wk*|preterm|term|born|delivery|nicu|gestation*
+GA	gestational age	week*|wk*|preterm|term|born|delivery|nicu|gestation*	general anesthesia
 FT	full term	born|delivery|birth|gestation*|baby|infant
 NSVD	normal spontaneous vaginal delivery
 C/S	cesarean section
