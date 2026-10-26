@@ -838,7 +838,8 @@ EXTRA_TERMS = "".join(f"[Term]\nid: {i}\nname: {n}\n{s}is_a: HP:0000118\n\n" for
     ("HP:0001653", "Mitral regurgitation", ""), ("HP:0030828", "Wheezing", ""),
     ("HP:0030212", "Collectionism", 'synonym: "Collecting" EXACT []\n'), ("HP:0012115", "Hepatitis", ""),
     ("HP:0002666", "Pheochromocytoma", ""), ("HP:9000001", "Jumping", 'synonym: "Hopping" EXACT []\n'),
-    ("HP:9000002", "Atypical sorting", 'synonym: "Ordering" EXACT []\n')))
+    ("HP:9000002", "Atypical sorting", 'synonym: "Ordering" EXACT []\n'),
+    ("HP:0033106", "Elevated circulating D-dimer concentration", 'synonym: "Elevated D dimer" EXACT []\n')))
 
 
 class TestExtractorRules(unittest.TestCase):
@@ -952,6 +953,12 @@ class TestExtractorRules(unittest.TestCase):
         self.assertEqual(self.st("Has dislocated lens, no seizures."),
                          {("HP:0001083", Status.PRESENT), ("HP:0001250", Status.ABSENT)})   # whole tokens only
         self.assertEqual(self.ext.mentions("Shows unseizureable lens."), [])
+
+    def test_test_names_with_a_result_are_kept(self):
+        self.assertEqual(self.st("Elevated D dimer test."), {("HP:0033106", Status.PRESENT)})   # result word in the term
+        self.assertEqual(self.st("Hepatitis panel negative."), set())                           # no result word: a test
+        self.assertEqual(self.st("Hepatitis panel positive."), {("HP:0012115", Status.PRESENT)})
+        self.assertEqual(self.st("Abnormal hepatitis serology."), {("HP:0012115", Status.PRESENT)})
 
     def test_grounding_of_synonym_kinds(self):
         root = Path(tempfile.mkdtemp())

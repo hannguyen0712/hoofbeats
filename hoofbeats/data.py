@@ -128,6 +128,7 @@ CLAUSE_WORDS = {"but", "while"}
 TEST_WORDS = {"panel", "panels", "test", "tests", "testing", "screen", "screening", "level", "levels", "titer", "titers",
               "titre", "titres", "serology", "serologies", "culture", "cultures", "study", "studies", "assay", "assays",
               "workup", "antibody", "antibodies", "pcr", "swab"}   # "hepatitis panel" names a test, not a finding
+RESULT_WORDS = {"elevated", "increased", "decreased", "low", "high", "positive", "abnormal", "raised"}   # ... unless a result is given
 
 
 def section_type(heading: str) -> str:
@@ -437,7 +438,10 @@ class Extractor:
                 i += 1
                 continue
             n = len((hit or neg)[0])
-            if hit and i + n < len(raws) and raws[i + n] in TEST_WORDS:    # names a test ("hepatitis panel")
+            # names a test ("hepatitis panel"), unless a result word is near: up to 2 words before, inside the term,
+            # or up to 2 words after the test word ("elevated D dimer test", "hepatitis panel positive")
+            if (hit and i + n < len(raws) and raws[i + n] in TEST_WORDS
+                    and not RESULT_WORDS & set(raws[max(0, i - 2):i + n] + raws[i + n + 1:i + n + 3])):
                 i += n
                 continue
             a, b = toks[i][1], toks[i + n - 1][2]
