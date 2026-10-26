@@ -1087,6 +1087,15 @@ class TestGrounding(unittest.TestCase):
         self.assertFalse([w for w in c.meta["intake_warnings"] if w.startswith("provenance")])
         self.assertIn("HP:0001945", {f.hpo_id for f in self.parse({"note_text": "Has familial Mediterranean fever."}).findings})
 
+    def test_disease_core_names_skip_ordinary_words(self):
+        names = {"OMIM:20": "Cousin syndrome", "OMIM:21": "Marfan syndrome", "OMIM:22": "Weaver syndrome",
+                 "OMIM:23": "Turner syndrome"}
+        c = self.parse({"note_text": "Parents are 2nd cousins. Hx of Marfan. Works as a weaver. Known Turner."},
+                       disease_names=names)
+        self.assertEqual([d["quote"] for d in c.meta["disease_mentions"]], ["Marfan", "Turner"])
+        c = self.parse({"note_text": "Father had Cousin syndrome."}, disease_names=names)
+        self.assertEqual([(d["quote"], d["status"]) for d in c.meta["disease_mentions"]], [("Cousin syndrome", "family")])
+
     def test_grounding_levels_and_merge(self):
         from hoofbeats.grounding import level_of
         from hoofbeats.intake import intake_summary

@@ -531,6 +531,9 @@ class Extractor:
 
 NAME_TAIL = {"syndrome", "disease", "disorder", "type"}
 ROMAN_TAIL = {"i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x"}
+RELATIONSHIP = {"wife", "husband", "spouse", "partner", "friend", "roommate", "boyfriend", "girlfriend", "caregiver",
+                "guardian", "parents", "cousins", "kids", "grandchild", "fiance"}
+CORE_STOP = {r["word"] for r in resource("disease_name_stoplist.tsv")} | FAMILY | RELATIONSHIP
 
 
 class DiseaseNames:
@@ -545,7 +548,7 @@ class DiseaseNames:
             while core and (core[-1] in NAME_TAIL or core[-1].isdigit() or core[-1] in ROMAN_TAIL or len(core[-1]) == 1):
                 core.pop()
             keys = [full] + ([tuple(core)] if len(core) == 1 and tuple(core) != full and len(core[0]) >= 5
-                             and core[0] not in ext.vocab else [])
+                             and core[0] not in ext.vocab and core[0] not in CORE_STOP else [])
             for k in keys:
                 if k:
                     found.setdefault(k, [name, []])[1].append(did)
