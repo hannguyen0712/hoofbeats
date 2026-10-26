@@ -57,7 +57,7 @@ afib	atrial fibrillation
 SVT	supraventricular tachycardia
 VT	ventricular tachycardia	ekg|ecg|tele*|rhythm|arrhythm*|tachy*
 MVP	mitral valve prolapse
-MR	mitral regurgitation	echo*|murmur*|valv*|mitral|cardi*|mvp|tte|tee|ef|lvef
+MR	mitral regurgitation	echo*|murmur*|valv*|mitral|cardi*|tte|tee|ef|lvef
 AR	aortic regurgitation	echo*|murmur*|valv*|aort*|cardi*|tte|tee|ef|lvef
 AS	aortic stenosis	echo*|murmur*|valv*|aort*|cardi*|tte|tee|ef|lvef
 TR	tricuspid regurgitation	echo*|murmur*|valv*|tricusp*|cardi*|tte|tee|ef|lvef
@@ -132,7 +132,7 @@ CMP	comprehensive metabolic panel
 UA	urinalysis
 UDS	urine drug screen
 CXR	chest x ray
-US	ultrasound	renal|abd*|pelvi*|doppler|echogenic|kidney*|liver|imaging|scan|thyroid
+US	ultrasound	renal|abd*|pelvi*|doppler|kidney*|liver|imaging|scan|thyroid
 ECG	electrocardiogram
 EKG	electrocardiogram
 EEG	electroencephalogram
@@ -169,7 +169,7 @@ pts	patients
 prn	as needed
 EtOH	alcohol
 IVDU	intravenous drug use
-AML	angiomyolipoma	renal|kidney*|fat*|echogenic|angio*|tuberous|tsc
+AML	angiomyolipoma	renal|kidney*|angio*|tuberous|tsc
 AML	acute myeloid leukemia	leuk*|marrow|blast*|chemo*|heme*|onc*
 bilat	bilateral
 b/l	bilateral

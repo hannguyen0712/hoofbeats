@@ -2,6 +2,7 @@
 import csv
 import json
 import math
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -929,6 +930,17 @@ class TestExtractorRules(unittest.TestCase):
         self.assertEqual((m.status, m.cue), (Status.UNCERTAIN, ("r/o", 0, 3)))     # expansion feeds the hedge cue
         self.assertEqual(self.st("Fever w/o seizures"), {("HP:0001945", Status.PRESENT), ("HP:0001250", Status.ABSENT)})
         self.assertEqual(Extractor(self.ont, abbreviations=False).mentions("Denies CP."), [])
+
+    def test_ambiguous_abbreviations_need_general_context(self):
+        ambiguous = {"mitral regurgitation", "angiomyolipoma", "ultrasound"}
+        exp = lambda s: [x[2] for x in self.ext.abbr.find(s, 0, len(s), {w.lower() for w in re.findall(r"[A-Za-z0-9]+", s)})
+                         if x[2] in ambiguous]
+        self.assertEqual(exp("Mild MVP, trace MR."), [])                      # "mvp" is not a context word
+        self.assertEqual(exp("Echo: mild MVP, trace MR."), ["mitral regurgitation"])
+        self.assertEqual(exp("Echogenic fat-containing AMLs."), [])           # nor "echogenic" or "fat"
+        self.assertEqual(exp("Both kidneys with AMLs."), ["angiomyolipoma"])
+        self.assertEqual(exp("Echogenic foci on US."), [])
+        self.assertEqual(exp("Renal US normal."), ["ultrasound"])
 
     def test_blocklist_and_test_names(self):
         self.assertEqual(self.ext.mentions("No collecting system dilation."), [])     # blocklisted EXACT synonym
