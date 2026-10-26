@@ -930,6 +930,14 @@ class TestExtractorRules(unittest.TestCase):
         self.assertEqual(self.st("Fever w/o seizures"), {("HP:0001945", Status.PRESENT), ("HP:0001250", Status.ABSENT)})
         self.assertEqual(Extractor(self.ont, abbreviations=False).mentions("Denies CP."), [])
 
+    def test_blocklist_and_test_names(self):
+        self.assertEqual(self.ext.mentions("No collecting system dilation."), [])     # blocklisted EXACT synonym
+        self.assertEqual(self.ext.mentions("Normal hepatitis panel and CBC."), [])    # a test, not a finding
+        self.assertEqual(self.st("Hepatitis noted, seizure level unknown."), {("HP:0012115", Status.PRESENT)})
+        self.assertEqual(self.st("Has dislocated lens, no seizures."),
+                         {("HP:0001083", Status.PRESENT), ("HP:0001250", Status.ABSENT)})   # whole tokens only
+        self.assertEqual(self.ext.mentions("Shows unseizureable lens."), [])
+
     def test_negated_words(self):
         text = "Pt afebrile, tall."
         m = self.ext.mentions(text)[0]

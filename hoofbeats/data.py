@@ -125,6 +125,9 @@ SECTION_TYPES = {   # heading -> section type (case-insensitive; a heading may c
 }
 LINE_HEADING = re.compile(r"^[ \t]*([A-Za-z][A-Za-z /&\-]{1,40}):", re.M)
 CLAUSE_WORDS = {"but", "while"}
+TEST_WORDS = {"panel", "panels", "test", "tests", "testing", "screen", "screening", "level", "levels", "titer", "titers",
+              "titre", "titres", "serology", "serologies", "culture", "cultures", "study", "studies", "assay", "assays",
+              "workup", "antibody", "antibodies", "pcr", "swab"}   # "hepatitis panel" names a test, not a finding
 
 
 def section_type(heading: str) -> str:
@@ -333,6 +336,7 @@ class Extractor:
         # abbreviations: expand resources/abbreviations.tsv before matching (spans stay on the original text)
         self.ont = ont
         self.abbr = Abbreviations(resource("abbreviations.tsv")) if abbreviations else None
+        block = {(r["hpo_id"].strip(), r["phrase"].strip().lower()) for r in resource("blocklist.tsv")}
         self.index, self.vocab = defaultdict(list), set()
         for t in ont.terms.values():
             if t.obsolete or not ont.is_phenotype(t.id):
@@ -343,7 +347,8 @@ class Extractor:
                 if toks and len(" ".join(toks)) >= 4:
                     if method in ("exact_label", "synonym:exact"):   # de-labelling never masks these words
                         self.vocab.update(toks)
-                    self.index[toks[0]].append((toks, t.id, method, label))
+                    if not {(t.id, label.lower()), (t.id, "*"), ("*", label.lower())} & block:
+                        self.index[toks[0]].append((toks, t.id, method, label))
         for v in self.index.values():   # longest first; for the same words, exact labels and EXACT synonyms first
             v.sort(key=lambda x: (-len(x[0]), GROUNDING[x[2]] != "strong"))
         self.negated = defaultdict(list)    # "afebrile" -> Fever absent
@@ -412,6 +417,9 @@ class Extractor:
                 i += 1
                 continue
             n = len((hit or neg)[0])
+            if hit and i + n < len(raws) and raws[i + n] in TEST_WORDS:    # names a test ("hepatitis panel")
+                i += n
+                continue
             a, b = toks[i][1], toks[i + n - 1][2]
             exp = next((x for x in expanded[i:i + n] if x), None)
             if hit and exp:

@@ -1,0 +1,8 @@
+# Labels or synonyms that the text reader must not match, because in clinical text the words usually mean
+# something else. hpo_id: the term (or * for any term); phrase: the label/synonym, case-insensitive (or * for all).
+hpo_id	phrase	reason
+HP:0030212	collecting	"collecting system" / "collecting duct" are kidney anatomy, not hoarding
+HP:0031473	furious	common English word, rarely a recorded finding
+HP:0001259	trance	RELATED synonym of Coma; not used for coma in notes
+HP:0002664	oncology	department name ("oncology clinic"), not a neoplasm
+HP:0002172	imbalance	usually "electrolyte imbalance", not postural instability
