@@ -132,6 +132,15 @@ VITAL_RX = [
     ("pr_ms", re.compile(r"\b(?P<label>PR)(?:\s*interval)?" + V + r"(?P<v>\d{2,3})\s*(?P<unit>ms|msec)?\b")),
     ("qtc_ms", re.compile(r"\b(?P<label>QTc)(?:\s*interval)?" + V + r"(?P<v>\d{3})\s*(?P<unit>ms|msec)?\b", re.I)),
 ]
+PLAUSIBLE = {"heart_rate": (20, 300), "respiratory_rate": (4, 80), "spo2": (50, 100), "pr_ms": (40, 800),
+             "qtc_ms": (200, 800), "systolic": (50, 300), "diastolic": (20, 200)}    # outside: a typo, skipped
+
+
+def plausible(measure: str, value: float) -> bool:
+    lo, hi = PLAUSIBLE.get(measure, (float("-inf"), float("inf")))
+    return lo <= value <= hi
+
+
 VITALS_CONTEXT = re.compile(r"\b(?:BP|HR|RR|vitals?|VS|temp|pulse|SpO2|sats?)\b", re.I)
 MEASURE = (r"(?P<measure>aortic\s+root|aorta|sinus(?:es)?\s+of\s+valsalva|height|stature|length|"
            r"head\s+circumference|occipitofrontal\s+circumference|OFC|HC)")
@@ -240,6 +249,9 @@ def threshold_findings(measure: str, value: float, ctx: _Ctx, quote, start, end,
 def _bp(sys_, dia, ctx, quote, start, end, grounding):
     # hypertension: SBP >= 140 or DBP >= 90 (one finding); hypotension: SBP < 90
     out = []
+    if not (plausible("systolic", sys_) and plausible("diastolic", dia) and sys_ > dia):
+        ctx.warn(f"numbers: blood pressure {quote!r} is not plausible; skipped")
+        return out
     if ctx.child:
         ctx.skip_child("vital-sign and ECG thresholds")
         return out
@@ -327,7 +339,8 @@ def read_numbers(text: str | None, source: str, field: str, age: float | None, w
                         found = _temperature(float(m.group("v")), m.group("unit"), ctx, text[a:b], a, b, weak_label)
                     else:
                         v = float(m.group("v"))
-                        if kind in ("pr_ms", "qtc_ms") and not (40 <= v <= 800):
+                        if not plausible(kind, v):
+                            warn(f"numbers: {kind} {v:g} is not plausible; skipped ({text[a:b]!r})")
                             continue
                         has_unit = bool(m.groupdict().get("unit"))
                         g = "weak" if weak_label or (kind in ("pr_ms", "qtc_ms") and not has_unit) else "supported"
@@ -416,6 +429,9 @@ def read_structured_vitals(vitals, warn, age: float | None = None) -> list[Groun
                                  ("spo2", "spo2", "%")):
         v = getattr(vitals, field)
         if v is None:
+            continue
+        if not plausible(measure, float(v)) or (field == "temp_c" and not 25 <= v <= 45):
+            warn(f"vitals: {field}={v:g} is not plausible; skipped")
             continue
         ctx = _Ctx(f"vitals:{field}", None, age, warn, reader="vitals")
         out += threshold_findings(measure, float(v), ctx, f"{field}={v:g}", None, None, "supported", unit=unit)

@@ -1191,6 +1191,9 @@ class TestNumbers(unittest.TestCase):
         got, _, _ = self.read("BP 142/88.")
         self.assertIn(("HP:0000822", Status.PRESENT), got)
         self.assertEqual(self.read("Tested for P 85 deficiency.")[0], set())      # "P" only counts among vitals
+        got, _, w = self.read("Vitals: HR 88, O2 sat 995 on RA, BP 70/120")       # typos: skipped with a warning
+        self.assertEqual({h for h, _ in got}, {"HP:0001649", "HP:0001662"})
+        self.assertEqual(len([x for x in w if "not plausible" in x]), 2)
 
     def test_ecg_zscores_centiles_arm_span(self):
         got, found, _ = self.read("ECG: PR 236 ms. QTc 480 ms. Echo: aortic root 4.1 cm (Z +3.2). Arm span > height. "
