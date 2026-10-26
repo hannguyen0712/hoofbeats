@@ -244,10 +244,7 @@
     "hpo_id": "HP:0001061",
     "label": "Acne",
     "status": "present",
-    "quote": "pimples on face and back",
-    "alternatives": [
-     "HP:0200039"
-    ]
+    "quote": "pimples on face and back"
    },
    {
     "hpo_id": "HP:0002027",

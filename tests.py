@@ -945,6 +945,35 @@ class TestExtractorRules(unittest.TestCase):
         self.assertEqual(text[m.start:m.end], "afebrile")
 
 
+class TestGoldFiles(unittest.TestCase):
+    # the evaluation gold must match its case files, and accepted alternatives only change on purpose
+    ALTERNATIVES = {
+        "examples": {("wilson_labs.json", "HP:0000952", "HP:0032106"), ("marfan_note.json", "HP:0001962", "HP:0001649")},
+        "examples/heldout": {("fabry_note_labs.json", "HP:0000504", "HP:0000505"), ("fabry_note_labs.json", "HP:0010741", "HP:0000969"),
+                             ("fabry_note_labs.json", "HP:0003774", "HP:0000083"), ("dm1_note.json", "HP:0000276", "HP:0000275"),
+                             ("dm1_note.json", "HP:0200101", "HP:0001265"), ("dm1_note.json", "HP:0200101", "HP:0002600"),
+                             ("dm1_note.json", "HP:0001324", "HP:0007340"), ("hht_imaging.json", "HP:0001009", "HP:0000214"),
+                             ("hht_imaging.json", "HP:0001009", "HP:0007428"), ("hht_imaging.json", "HP:0006576", "HP:0006574")}}
+    FIELDS = {"note": "note_text", "image_context": "image_context"}
+
+    def test_gold_quotes_and_alternatives(self):
+        root = Path(__file__).parent
+        for folder, approved in self.ALTERNATIVES.items():
+            gold = json.loads((root / folder / "intended_findings.json").read_text())
+            alts = set()
+            for fn, readers in gold.items():
+                if fn.startswith("_"):
+                    continue
+                case = json.loads((root / folder / fn).read_text())
+                for reader, items in readers.items():
+                    for it in items:
+                        self.assertIn(it["status"], {"present", "absent", "uncertain", "family"})
+                        if reader in self.FIELDS and it["quote"]:
+                            self.assertIn(it["quote"], case[self.FIELDS[reader]], (fn, it["quote"]))
+                        alts |= {(fn, it["hpo_id"], a) for a in it.get("alternatives", [])}
+            self.assertEqual(alts, approved, folder)
+
+
 class TestGrounding(unittest.TestCase):
     # spans, cues, links and grounding levels in provenance; disease mentions
     @classmethod
