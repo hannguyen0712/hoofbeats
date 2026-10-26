@@ -1,0 +1,21 @@
+{
+  "case_id": "example-tsc-imaging",
+  "image_context": "MRI BRAIN W/WO CONTRAST\nIndication: 7 y/o M w/ staring spells and episodes of jerking of the R arm, eval for structural cause.\nFindings: Multiple wedge-shaped T2/FLAIR bright lesions involving the cortex and subjacent white matter of both frontal lobes and the R parietal lobe. Several small nodules along the walls of the lateral ventricles, some calcified on prior CT. No enhancing mass at the foramen of Monro. Ventricles normal in size. Incidental mild leftward bowing of the nasal septum.\n\nRENAL US\nMultiple echogenic foci in both kidneys, largest 1.2 cm in the L lower pole, c/w fat-containing lesions (AMLs). No collecting system dilation.",
+  "image_findings": [
+    {"image_id": "MR-FLAIR-ax-12", "finding": "multiple wedge-shaped cortical/subcortical FLAIR lesions", "status": "present", "evidence": "R parietal and bilat frontal lesions"},
+    {"image_id": "CT-head-3", "hpo_id": "HP:0002514", "status": "present", "evidence": "punctate periventricular calcifications"},
+    {"image_id": "US-kidney-L", "finding": "bilateral renal AMLs", "status": "present"},
+    {"image_id": "MR-FLAIR-ax-12", "finding": "ventricular enlargement", "status": "absent"}
+  ],
+  "hpo_terms": [
+    {"id": "HP:0009719", "status": "present"},
+    {"id": "HP:0010615", "status": "present"},
+    {"id": "HP:0000729", "status": "uncertain"},
+    {"id": "HP:0001249", "status": "absent"},
+    {"id": "HP:0001250", "status": "family"}
+  ],
+  "age": 7,
+  "sex": "male",
+  "truth": ["OMIM:191100"],
+  "policy": "open"
+}

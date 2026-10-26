@@ -1,0 +1,21 @@
+{
+  "case_id": "example-wilson-labs",
+  "note_text": "Hepatology consult\n\nHPI: 19 y/o F college student brought in by roommate. Per roommate, pt's handwriting has gotten 'shaky and messy' over the past 3 mo and she keeps dropping things. Speech sounds thick and mushy at times. Pt reports being tired all the time and thinks her eyes look yellow. Mood swings and crying spells, quit the soccer team. Denies abd pain, N/V. No EtOH, no IVDU, no new meds besides OTC acetaminophen 500 mg rarely. On topical tretinoin for pimples on face and back.\n\nFHx: older brother had 'liver problems' as a teen, never worked up. Parents are 2nd cousins.\n\nExam: afebrile. Yellow-tinged sclerae. Fine shaking of both hands, worse with arms held out. Abd: liver edge 3 cm below costal margin, spleen tip palpable. Trace pitting at both ankles. Slit lamp: golden-brown ring at the limbus OU.",
+  "labs": [
+    {"name": "Ceruloplasmin", "value": 8, "unit": "mg/dL", "ref_low": 20, "ref_high": 60},
+    {"name": "ALT", "value": 145, "unit": "U/L", "ref_low": 7, "ref_high": 35},
+    {"name": "AST", "value": 188, "unit": "U/L", "ref_low": 10, "ref_high": 35},
+    {"name": "Bilirubin, Total", "value": 3.4, "unit": "mg/dL", "ref_low": 0.1, "ref_high": 1.2},
+    {"name": "Albumin", "value": 3.0, "unit": "g/dL", "ref_low": 3.5, "ref_high": 5.0},
+    {"name": "Hemoglobin", "value": 10.1, "unit": "g/dL", "ref_low": 12.0, "ref_high": 15.5},
+    {"name": "Platelet Count", "value": 98, "unit": "K/uL", "ref_low": 150, "ref_high": 400},
+    {"name": "Sodium", "value": 139, "unit": "mmol/L", "ref_low": 135, "ref_high": 145},
+    {"name": "Copper, 24h urine", "value": 310, "unit": "ug/24h", "ref_low": 3, "ref_high": 50}
+  ],
+  "vitals": {"bp": "112/70", "temp_c": 36.8, "hr": 88, "rr": 16, "spo2": 98},
+  "age": 19,
+  "sex": "female",
+  "genes": ["ATP7B"],
+  "truth": ["OMIM:277900"],
+  "policy": "open"
+}

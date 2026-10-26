@@ -1,0 +1,8 @@
+{
+  "case_id": "example-marfan-note",
+  "note_text": "Genetics Clinic - New Pt\n\nCC: referred by optometry for 'wobbly' lenses.\n\nHPI: 17 y/o M, much taller than rest of family (6'6\"). Pt c/o blurry vision x 6 mo despite new glasses. Optometry saw lens displaced upward OU. No CP, no racing heart, no passing out. Denies joint aches. Seasonal allergies, uses loratadine prn. Hx of R ankle sprain (soccer) 2 yrs ago, healed.\n\nPMH: s/p Nuss bar for sunken chest age 12. Collapsed R lung out of nowhere last yr, needed chest tube.\n\nFHx: father died suddenly at 41, autopsy showed a tear in the aorta. Paternal aunt also v. tall and 'double-jointed'. Mother healthy.\n\nDev: met milestones on time, good grades.\n\nExam: arm span > height. Long skinny fingers, + thumb and wrist signs. Very high-arched roof of mouth, crowded teeth. Flat feet bilat. Stretch marks across low back w/o wt change. Abd soft, no organomegaly. Neuro nonfocal.\n\nEcho (outside, 3/2026): aortic root 4.1 cm (Z +3.2), mild MVP, trace MR.",
+  "age": 17,
+  "sex": "male",
+  "truth": ["OMIM:154700"],
+  "policy": "open"
+}
