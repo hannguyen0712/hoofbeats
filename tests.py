@@ -839,7 +839,8 @@ EXTRA_TERMS = "".join(f"[Term]\nid: {i}\nname: {n}\n{s}is_a: HP:0000118\n\n" for
     ("HP:0030212", "Collectionism", 'synonym: "Collecting" EXACT []\n'), ("HP:0012115", "Hepatitis", ""),
     ("HP:0002666", "Pheochromocytoma", ""), ("HP:9000001", "Jumping", 'synonym: "Hopping" EXACT []\n'),
     ("HP:9000002", "Atypical sorting", 'synonym: "Ordering" EXACT []\n'),
-    ("HP:0033106", "Elevated circulating D-dimer concentration", 'synonym: "Elevated D dimer" EXACT []\n')))
+    ("HP:0033106", "Elevated circulating D-dimer concentration", 'synonym: "Elevated D dimer" EXACT []\n'),
+    ("HP:0011705", "First degree atrioventricular block", "")))
 
 
 class TestExtractorRules(unittest.TestCase):
@@ -986,6 +987,13 @@ class TestExtractorRules(unittest.TestCase):
         self.assertEqual(level["HP:0000969"], ("synonym:layperson", "supported"))   # non-EXACT layperson
         sob = ext.mentions("Pt reports SOB.")[0]                                    # abbreviation onto a RELATED synonym
         self.assertEqual((sob.hpo_id, sob.link[0], sob.grounding), ("HP:0002094", "abbreviation:shortness of breath", "weak"))
+
+    def test_ordinals_and_av(self):
+        text = "ECG: sinus rhythm, PR 236 ms (1st degree AV block)."
+        m = next(m for m in self.ext.mentions(text) if m.hpo_id == "HP:0011705")
+        self.assertEqual((m.status, m.quote, text[m.start:m.end]), (Status.PRESENT, "1st degree AV block", "1st degree AV block"))
+        self.assertEqual(m.link[0], "abbreviation:atrioventricular")
+        self.assertEqual(self.st("First degree atrioventricular block."), {("HP:0011705", Status.PRESENT)})
 
     def test_negation_stops_at_a_new_label(self):
         self.assertEqual(self.st("Gen: no fever    NEURO: seizures today"),

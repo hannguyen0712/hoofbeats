@@ -275,6 +275,7 @@ def _lemmas(words, lmap) -> tuple[str, ...]:
 
 
 LIST_DELIM = re.compile(r"[,;]|\b(?:and|or)\b", re.I)
+ORDINALS = {"1st": "first", "2nd": "second", "3rd": "third", "4th": "fourth"}   # matched as words ("1st degree AV block")
 INLINE_LABEL = re.compile(r"(?<![A-Za-z0-9/])([A-Z][A-Za-z/&\-]*(?: [A-Za-z][A-Za-z/&\-]*){0,2}):(?!\d)")   # "LUNGS:", "Heart:"
 
 
@@ -427,13 +428,14 @@ class Extractor:
                     done.add(j)
                     out += [(x, found[j][0], found[j][1], found[j][2], found[j][3]) for x in WORD.findall(found[j][2])]
                 continue
-            out.append((w, a, b, None, False))
+            out.append((ORDINALS.get(w.lower(), w), a, b, None, False))
         return out
 
     def _sentence(self, text: str, s: int, e: int, sec: str, head, lmap=None, diseases=None):
         words = self._words(text, s, e)
         toks = [(_norm(w[0]), w[1], w[2]) for w in words]
-        lems = tuple(_norm(w[0]) if w[3] else l for w, l in zip(words, _lemmas([w[:3] for w in words], lmap or {})))
+        lems = tuple(_norm(w[0]) if w[3] or w[0] in ORDINALS.values() else l
+                     for w, l in zip(words, _lemmas([w[:3] for w in words], lmap or {})))
         raws, expanded, guessed = [w[0].lower() for w in words], [w[3] for w in words], [w[4] for w in words]
         norms, out, i = [t[0] for t in toks], [], 0
         # a "LABEL:" inside the sentence starts a new segment ("no JVD/HJR    LUNGS: rhales, wheezes")
