@@ -4,11 +4,13 @@ from __future__ import annotations
 import csv
 import json
 import re
+import sys
 import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
 from collections import defaultdict
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
@@ -238,13 +240,61 @@ class Mention:
 
 
 GROUNDING = {"exact_label": "strong", "synonym:exact": "strong", "synonym:related": "supported",
-             "synonym:layperson": "supported", "negated_word": "supported"}
+             "synonym:layperson": "supported", "negated_word": "supported", "lemma": "supported"}
+SPACY_MODEL = "en_core_web_sm"
+
+
+@lru_cache(maxsize=1)
+def _spacy():
+    # spaCy lemmatizer, loaded once; None (lemma matching off) if spaCy or the model is missing
+    try:
+        import spacy
+        return spacy.load(SPACY_MODEL, exclude=["parser", "ner"])
+    except (ImportError, OSError) as e:
+        print(f"[extract] lemma matching off ({type(e).__name__}: {e})", file=sys.stderr)
+        return None
+
+
+def _lemma_map(doc) -> dict[int, tuple[int, str]]:
+    # character start -> (end, lemma) for every spaCy token
+    return {t.idx: (t.idx + len(t.text), t.lemma_.lower()) for t in doc}
+
+
+def _lemmas(words, lmap) -> tuple[str, ...]:
+    # one lemma per WORD token; a token spaCy splits differently keeps its normal form
+    return tuple(lmap[a][1] if a in lmap and lmap[a][0] == b else _norm(w) for w, a, b in words)
+
+
+class LemmaIndex:
+    # HPO labels by lemma sequence; label lemmas are cached next to hp.obo (.cache/)
+    def __init__(self, nlp, entries, ont: Ontology):
+        self.nlp, self.index = nlp, defaultdict(list)
+        cache = Path(getattr(ont, "path", ".")).parent / ".cache" / re.sub(
+            r"[^A-Za-z0-9.]+", "-", f"lemmas-{ont.version}-{nlp.meta['name']}-{nlp.meta['version']}.json")
+        known = json.loads(cache.read_text()) if cache.exists() else {}
+        todo = sorted({e[3] for e in entries} - known.keys())
+        for label, doc in zip(todo, nlp.pipe(todo, batch_size=2000)):
+            words = [(m.group(), m.start(), m.end()) for m in WORD.finditer(label)]
+            known[label] = list(_lemmas(words, _lemma_map(doc)))
+        if todo:
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            cache.write_text(json.dumps(known))
+        for toks, h, method, label in entries:
+            lem = tuple(known[label])
+            if lem and lem != toks:
+                self.index[lem[0]].append((lem, h, method, label))
+        for v in self.index.values():
+            v.sort(key=lambda x: (-len(x[0]), GROUNDING[x[2]] != "strong"))
+
+    def text_lemmas(self, text: str) -> dict[int, tuple[int, str]]:
+        return _lemma_map(self.nlp(text))
 
 
 class Extractor:
     # offline HPO matcher with negation, family and uncertainty rules; every mention keeps its offsets
 
-    def __init__(self, ont: Ontology):
+    def __init__(self, ont: Ontology, lemmas: bool = True):
+        # lemmas: also match on spaCy lemmas (wheezes ~ wheezing); off if spaCy is not installed
         self.ont = ont
         self.index, self.vocab = defaultdict(list), set()
         for t in ont.terms.values():
@@ -265,18 +315,34 @@ class Extractor:
             t = tuple(tokens(row["phrase"]))
             if ids and t:
                 self.negated[t[0]].append((t, ids, row["phrase"]))
+        nlp = _spacy() if lemmas else None
+        self.lemma = LemmaIndex(nlp, [x for v in self.index.values() for x in v], ont) if nlp else None
 
     def mentions(self, text: str) -> list[Mention]:
         out = []
+        lmap = self.lemma.text_lemmas(text) if self.lemma and text.strip() else {}
         for start, end, name, typ, head in sections(text):
             if name.startswith(SKIP_SECTIONS):
                 continue
             for s, e in sentence_spans(text, start, end):
-                out += self._sentence(text, s, e, typ, head)
+                out += self._sentence(text, s, e, typ, head, lmap)
         return out
 
-    def _sentence(self, text: str, s: int, e: int, sec: str, head) -> list[Mention]:
-        toks = [(_norm(m.group()), m.start(), m.end()) for m in WORD.finditer(text, s, e)]
+    def _match(self, norms, lems, raws, i):
+        # longest label at token i: surface words first, lemmas only if they match more words;
+        # a one-word label needs an inflected text word ("wheezes" ~ Wheezing, but a bare "tear" is not Tearing)
+        hit = next((x for x in self.index.get(norms[i], ()) if tuple(norms[i:i + len(x[0])]) == x[0]), None)
+        if self.lemma:
+            lhit = next((x for x in self.lemma.index.get(lems[i], ()) if tuple(lems[i:i + len(x[0])]) == x[0]
+                         and (len(x[0]) > 1 or raws[i] != lems[i])), None)
+            if lhit and (not hit or len(lhit[0]) > len(hit[0])):
+                return lhit, ("lemma", lhit[3])
+        return hit, (hit[2], hit[3]) if hit else None
+
+    def _sentence(self, text: str, s: int, e: int, sec: str, head, lmap=None) -> list[Mention]:
+        words = [(m.group(), m.start(), m.end()) for m in WORD.finditer(text, s, e)]
+        toks = [(_norm(w), a, b) for w, a, b in words]
+        lems, raws = _lemmas(words, lmap or {}), [w.lower() for w, _, _ in words]
         norms, out, i = [t[0] for t in toks], [], 0
         clause, c = [], 0    # family words only reach their own clause (split at , ; but while "and pt")
         for k, (w, a, _) in enumerate(toks):
@@ -286,7 +352,7 @@ class Extractor:
             clause.append(c)
         cues = self._cues(norms)
         while i < len(toks):
-            hit = next((x for x in self.index.get(norms[i], ()) if tuple(norms[i:i + len(x[0])]) == x[0]), None)
+            hit, link = self._match(norms, lems, raws, i)
             neg = None if hit else next((x for x in self.negated.get(norms[i], ()) if tuple(norms[i:i + len(x[0])]) == x[0]), None)
             if not hit and not neg:
                 i += 1
@@ -299,7 +365,7 @@ class Extractor:
                     out += [Mention(h, Status.ABSENT, text[a:b], a, b, (s, e), sec, (text[a:b], a, b),
                                     ("negated_word", neg[2]), GROUNDING["negated_word"]) for h in neg[1]]
             elif st is not None:
-                out.append(Mention(hit[1], st, text[a:b], a, b, (s, e), sec, cue, (hit[2], hit[3]), GROUNDING[hit[2]]))
+                out.append(Mention(hit[1], st, text[a:b], a, b, (s, e), sec, cue, link, GROUNDING[link[0]]))
             i += n
         return out
 

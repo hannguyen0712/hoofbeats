@@ -894,6 +894,20 @@ class TestExtractorRules(unittest.TestCase):
         self.assertEqual(exact_only.mentions("He has fits at night."), [])
         self.assertEqual(exact_only.vocab, self.ext.vocab)                        # de-labelling vocabulary unchanged
 
+    def test_lemma_matching(self):
+        from hoofbeats.data import _spacy
+        if _spacy() is None:
+            self.skipTest("spaCy model not installed")
+        root = Path(tempfile.mkdtemp())
+        (root / "hp.obo").write_text(OBO.replace("[Typedef]", "[Term]\nid: HP:0030828\nname: Wheezing\nis_a: HP:0000118\n\n[Typedef]"))
+        ont = Ontology(root / "hp.obo")
+        text = "He wheezes at night."
+        m = Extractor(ont).mentions(text)[0]
+        self.assertEqual((m.hpo_id, m.quote, text[m.start:m.end], m.link, m.grounding),
+                         ("HP:0030828", "wheezes", "wheezes", ("lemma", "Wheezing"), "supported"))
+        self.assertEqual(Extractor(ont, lemmas=False).mentions(text), [])
+        self.assertTrue(list((root / ".cache").glob("lemmas-*.json")))           # label lemmas cached
+
     def test_negated_words(self):
         text = "Pt afebrile, tall."
         m = self.ext.mentions(text)[0]
