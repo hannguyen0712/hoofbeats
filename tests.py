@@ -832,5 +832,132 @@ def image_prompt_of(case):
     return image_prompt(case.meta["images"][0])
 
 
+F = lambda h, st, src="x", ev="": Finding(h, st, src, ev or f"{src}: {h}")
+
+
+class TestIntake(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.root = Path(tempfile.mkdtemp())
+        kb = build(cls.root)
+        cls.kb = kb
+        cls.ont = Ontology(kb / "hp.obo")
+        cls.ext = Extractor(cls.ont)
+
+    def parse(self, obj, **kw):
+        from hoofbeats.intake import parse_case
+        return parse_case(obj, self.ont, self.ext, **kw)
+
+    # schema and bad input
+    def test_bad_input_is_skipped_and_reported(self):
+        from hoofbeats.intake import IntakeError, load_case
+        c = self.parse({"labs": [{"name": "Ammonia", "value": "high"}, {"name": "Ammonia", "value": 40, "ref_high": 32}],
+                        "vitals": {"bp": "120/80", "hr": "fast"}, "sex": "Robot", "hpo_terms": "HP:0001250",
+                        "image_findings": [{"status": "present"}], "foo": 1}, path="cases/pt9.json")
+        w = " | ".join(c.meta["intake_warnings"])
+        self.assertEqual(c.case_id, "pt9")                                      # missing case_id: file name
+        for part in ("labs[0] skipped", "vitals.hr skipped", "sex skipped", "hpo_terms skipped",
+                     "image_findings[0] skipped", "unknown field 'foo'", "case_id missing"):
+            self.assertIn(part, w)
+        self.assertEqual(c.meta["vitals"], {"bp": "120/80"})                    # good vitals kept
+        self.assertEqual([(f.hpo_id, f.status) for f in c.findings], [("HP:0001987", Status.PRESENT)])   # good lab kept
+        self.assertEqual((c.meta["policy"], c.meta["images"], c.meta["sex"]), ("local_only", [], None))
+        bad = self.root / "bad.json"
+        bad.write_text("{not json")
+        with self.assertRaises(IntakeError):
+            load_case(bad, self.ont, self.ext)
+        with self.assertRaises(IntakeError):
+            self.parse([1, 2])
+
+    def test_each_source_is_tagged(self):
+        c = self.parse({"case_id": "p1", "policy": "open", "age": 34, "sex": "Female", "genes": ["FBN1", "FBN1"],
+                        "vitals": {"temp_c": 38.2}, "truth": ["OMIM:1"],
+                        "hpo_terms": [{"id": "HP:0099999", "status": "absent"}, {"id": "HP:1234567"}],
+                        "note_text": "Exam shows dislocated lens.",
+                        "image_context": "Global developmental delay noted on referral.",
+                        "image_findings": [{"finding": "tall stature", "image_id": "xr1"},
+                                           {"hpo_id": "HP:0001166", "image_id": "xr2", "evidence": "long fingers"}],
+                        "labs": [{"name": "alkaline phosphatase", "value": 20, "unit": "U/L", "ref_low": 35, "ref_high": 105},
+                                 {"name": "Troponin", "value": 1, "ref_high": 0.04}]}, drop_ancestors=False)
+        got = {f.hpo_id: (f.status, f.source, f.evidence) for f in c.findings}
+        self.assertEqual(got["HP:0001250"], (Status.ABSENT, "input:hpo", "HP:0099999"))        # alt id resolved
+        self.assertEqual(got["HP:0001083"][:2], (Status.PRESENT, "note"))
+        self.assertEqual(got["HP:0001263"][:2], (Status.PRESENT, "image_context"))
+        self.assertEqual(got["HP:0000098"], (Status.PRESENT, "image:xr1", "tall stature"))
+        self.assertEqual(got["HP:0001166"], (Status.PRESENT, "image:xr2", "long fingers"))
+        self.assertEqual(got["HP:0003282"], (Status.PRESENT, "lab:Alkaline Phosphatase", "alkaline phosphatase=20 U/L (ref 35-105)"))
+        self.assertEqual(got["HP:0003155"][:2], (Status.ABSENT, "lab:Alkaline Phosphatase"))
+        self.assertEqual((c.case_id, c.truth, c.genes, c.meta["age"], c.meta["sex"], c.meta["vitals"], c.meta["policy"]),
+                         ("p1", ["OMIM:1"], ["FBN1"], 34, "female", {"temp_c": 38.2}, "open"))
+        w = " | ".join(c.meta["intake_warnings"])
+        self.assertIn("HP:1234567 is not a current HPO phenotype term", w)
+        self.assertIn("'Troponin' is not in the lab map", w)
+        self.assertEqual(c.meta["provenance"]["HP:0001250"], [{"source": "input:hpo", "evidence": "HP:0099999", "status": "absent"}])
+
+    # fusion
+    def test_fusion_status_priority_and_family(self):
+        from hoofbeats.fusion import fuse
+        fs, prov = fuse([[F("HP:0001083", Status.ABSENT, "note"), F("HP:0001083", Status.UNCERTAIN, "note")],
+                         [F("HP:0001083", Status.PRESENT, "image:a"), F("HP:0000098", Status.UNCERTAIN, "note"),
+                          F("HP:0000098", Status.ABSENT, "input:hpo"), F("HP:0000098", Status.FAMILY, "note"),
+                          F("HP:0001083", Status.PRESENT, "input:hpo"), F("HP:7777777", Status.PRESENT)]], self.ont)
+        got = [(f.hpo_id, f.status, f.source) for f in fs]
+        self.assertEqual(got, [("HP:0001083", Status.PRESENT, "image:a;input:hpo"), ("HP:0000098", Status.ABSENT, "input:hpo"),
+                               ("HP:0000098", Status.FAMILY, "note")])         # family kept beside the patient's status
+        self.assertEqual([e["status"] for e in prov["HP:0001083"]], ["absent", "uncertain", "present", "present"])
+        self.assertEqual(prov["conflicts"][0]["hpo_id"], "HP:0001083")         # present vs absent recorded
+        self.assertEqual(prov["unresolved"][0]["hpo_id"], "HP:7777777")
+        fam = Case("x", fs).terms(Status.FAMILY)
+        self.assertEqual(fam, ["HP:0000098"])
+
+    def test_fusion_drops_present_ancestors(self):
+        from hoofbeats.fusion import fuse
+        lists = [[F("HP:0001250", Status.PRESENT, "note")], [F("HP:0007359", Status.PRESENT, "image:a")]]
+        fs, prov = fuse(lists, self.ont)
+        self.assertEqual([f.hpo_id for f in fs], ["HP:0007359"])
+        self.assertEqual(prov["subsumed_by"], {"HP:0001250": ["HP:0007359"]})
+        self.assertEqual(len(prov["HP:0001250"]), 1)                           # dropped term keeps its provenance
+        fs, prov = fuse(lists, self.ont, drop_ancestors=False)
+        self.assertEqual(sorted(f.hpo_id for f in fs), ["HP:0001250", "HP:0007359"])
+        self.assertEqual(prov["subsumed_by"], {})
+
+    def test_fusion_absent_ancestor_of_present_term(self):
+        from hoofbeats.fusion import fuse
+        lists = [[F("HP:0007359", Status.PRESENT, "note"), F("HP:0001250", Status.ABSENT, "input:hpo")]]
+        fs, prov = fuse(lists, self.ont)
+        self.assertEqual([(f.hpo_id, f.status) for f in fs], [("HP:0007359", Status.PRESENT)])
+        self.assertEqual((prov["conflicts"][0]["hpo_id"], prov["conflicts"][0]["contradicted_by"], prov["conflicts"][0]["action"]),
+                         ("HP:0001250", ["HP:0007359"], "dropped"))
+        fs, prov = fuse(lists, self.ont, drop_ancestors=False)
+        self.assertEqual(len(fs), 2)
+        self.assertEqual(prov["conflicts"][0]["action"], "kept")
+        c = self.parse({"case_id": "c", "note_text": "Focal-onset seizure on EEG.", "hpo_terms": [{"id": "HP:0001250", "status": "absent"}]})
+        self.assertTrue(any("absent term is an ancestor of a present term" in w for w in c.meta["intake_warnings"]))
+
+    def test_fusion_keeps_most_general_absent_term(self):
+        from hoofbeats.fusion import fuse
+        lists = [[F("HP:0007359", Status.ABSENT, "note")], [F("HP:0001250", Status.ABSENT, "input:hpo")]]
+        fs, prov = fuse(lists, self.ont)
+        self.assertEqual([(f.hpo_id, f.status) for f in fs], [("HP:0001250", Status.ABSENT)])
+        self.assertEqual(prov["subsumed_by"], {"HP:0007359": ["HP:0001250"]})
+        fs, _ = fuse(lists, self.ont, drop_ancestors=False)
+        self.assertEqual(len(fs), 2)
+
+    # diagnose
+    def test_diagnose_reads_case_file(self):
+        import contextlib, io
+        from hoofbeats.__main__ import main
+        path = self.root / "intake_case.json"
+        path.write_text(json.dumps({"case_id": "dx1", "note_text": "Tall, with dislocated lens. No seizures.",
+                                    "hpo_terms": [{"id": "HP:0001166"}], "truth": ["OMIM:1"], "policy": "open"}))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            main(["--kb", str(self.kb), "--common", "none", "diagnose", str(path), "--out", str(self.root / "res")])
+        text = out.getvalue()
+        self.assertIn("[intake] dx1: 3 findings", text)
+        self.assertIn("dx1: truth ['OMIM:1'], rank 1", text)
+        self.assertIn("1. Disease Alpha (OMIM:1)", text)
+
+
 if __name__ == "__main__":
     unittest.main()
