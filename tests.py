@@ -943,6 +943,25 @@ class TestIntake(unittest.TestCase):
         fs, _ = fuse(lists, self.ont, drop_ancestors=False)
         self.assertEqual(len(fs), 2)
 
+    def test_extract_eval_scoring(self):
+        from hoofbeats.extract_eval import evaluate, summarize
+        cases = self.root / "eval_cases"
+        cases.mkdir(exist_ok=True)
+        (cases / "c.json").write_text(json.dumps({"case_id": "c", "note_text": "Exam shows dislocated lens. Focal-onset seizure today. No fever."}))
+        gold = {"c.json": {"note": [
+            {"hpo_id": "HP:0001083", "label": "Ectopia lentis", "status": "present", "quote": "dislocated lens"},
+            {"hpo_id": "HP:0001250", "label": "Seizure", "status": "present", "quote": "Focal-onset seizure"},
+            {"hpo_id": "HP:0000098", "label": "Tall stature", "status": "absent", "quote": "No fever", "alternatives": ["HP:0001945"]},
+            {"hpo_id": "HP:0001263", "label": "Global developmental delay", "status": "present", "quote": "today"}]}}
+        (cases / "gold.json").write_text(json.dumps(gold))
+        rows, problems = evaluate(cases, cases / "gold.json", self.ont, self.ext)
+        r = rows[0]
+        self.assertEqual((r["exact"], r["near"], r["missed"], r["pred"], r["extra"]), (2, 1, 1, 3, 0))   # alternative counts as exact
+        self.assertEqual((r["span_checked"], r["span_overlap"]), (3, 3))
+        s = summarize(rows)
+        self.assertAlmostEqual(s["strict"][1], 2 / 4)
+        self.assertEqual(problems, [])
+
     # diagnose
     def test_diagnose_reads_case_file(self):
         import contextlib, io

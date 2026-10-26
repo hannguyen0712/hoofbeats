@@ -506,6 +506,28 @@ def cmd_mimic(a):
                   f"Top-10 {topk(ranks)['top10']:.3f}")
 
 
+def cmd_extract_eval(a):
+    # reader outputs vs gold findings, per case file and reader
+    from .extract_eval import TEXT_READERS, evaluate, report, summarize
+    ont = Ontology(Path(a.kb) / "hp.obo")
+    RUN["settings"].update({"hpo": ont.version, "cases": a.cases, "gold": a.gold})
+    rows, problems = evaluate(a.cases, a.gold, ont, Extractor(ont))
+    print(f"[extract-eval] {len({r['case'] for r in rows})} cases from {a.cases}, gold {a.gold}\n")
+    print(report(rows, ont, a.details))
+    for p in problems:
+        print("[gold]", p)
+    for name, sel in (("text", [r for r in rows if r["reader"] in TEXT_READERS]), ("all", rows)):
+        s = summarize(sel)
+        note("extract_eval", **{name: {k: v for k, v in s.items()}})
+    items = [{"case": r["case"], "reader": r["reader"], "kind": "gold", "hpo_id": it["hpo_id"], "label": it["label"],
+              "status": it["status"], "result": it["result"], "got": ";".join(it["got"]), "quote": it.get("quote"),
+              "span_overlap": it["span_overlap"]} for r in rows for it in r["items"]]
+    items += [{"case": r["case"], "reader": r["reader"], "kind": "extra", "hpo_id": p["hpo_id"], "label": ont.name(p["hpo_id"]),
+               "status": p["status"], "result": "extra", "quote": p["evidence"]} for r in rows for p in r["extras"]]
+    Path(a.out).mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(items).to_csv(wrote(Path(a.out) / "extract_eval.csv"), index=False)
+
+
 def image_agreement(r: LRRanker, predicted: set[str], reference: set[str]) -> tuple[float | None, float | None]:
     # precision/recall of image findings vs radiologist (ancestor matches count)
     agree = lambda a, b: a in r.ont.ancestors(b) or b in r.ont.ancestors(a)
@@ -678,6 +700,11 @@ def main(argv=None):
     s.add_argument("--limit", type=int, help="first N cases (quick runs)")
     s.add_argument("--cache", help="jsonl of raw image reads (default: <out>/medpix_image_reads_<model>.jsonl)")
     s.add_argument("--out", default="results")
+    s = sub.add_parser("extract-eval", help="score reader outputs on case files against gold findings")
+    s.add_argument("--cases", default="examples", help="folder with the case files named in the gold file")
+    s.add_argument("--gold", default="examples/intended_findings.json")
+    s.add_argument("--details", action="store_true", help="list every gold finding and extra")
+    s.add_argument("--out", default="results/extract_eval")
     s = sub.add_parser("report", help="tables, figures and notes from saved runs")
     s.add_argument("--results", default="results", help="folder searched (recursively) for runs and CSVs")
     s.add_argument("--out", default="reports/report", help="base name; each run writes <base>-1, <base>-2, ...")
@@ -734,7 +761,7 @@ def _logged(a):
     try:
         {"diagnose": cmd_diagnose, "benchmark": cmd_benchmark, "sequential": cmd_sequential,
          "learn-common": cmd_learn_common, "mimic": cmd_mimic, "medpix": cmd_medpix,
-         "llm-bench": cmd_llm_bench}[a.cmd](a)
+         "llm-bench": cmd_llm_bench, "extract-eval": cmd_extract_eval}[a.cmd](a)
     except KeyboardInterrupt:
         status = "stopped (Ctrl-C)"
         raise
