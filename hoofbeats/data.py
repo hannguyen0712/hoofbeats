@@ -102,7 +102,47 @@ NEG_AFTER = ["was ruled out", "is ruled out", "not seen", "is absent", "was abse
 HEDGE = ["possible", "possibly", "probable", "suspected", "rule out", "r o", "concern for", "cannot exclude"]
 STOP_SCOPE = {"but", "however", "although", "except"}
 FAMILY = {"mother", "father", "brother", "sister", "sibling", "aunt", "uncle", "grandmother",
-          "grandfather", "cousin", "maternal", "paternal", "family"}
+          "grandfather", "cousin", "maternal", "paternal", "family", "son", "daughter", "child", "children",
+          "parent", "grandparent", "niece", "nephew", "twin", "relative", "mom", "dad", "sib"}
+SECTION_TYPES = {   # heading -> section type (case-insensitive; a heading may continue, e.g. "Family history of")
+    "family": ("fhx", "fh", "family hx", "family history", "family"),
+    "past": ("pmh", "psh", "hx", "past medical history", "past surgical history", "past history",
+             "medical history", "surgical history"),
+    "social": ("shx", "sh", "social", "social history", "social hx"),
+    "hpi": ("hpi", "history of present illness"),
+    "cc": ("cc", "chief complaint"),
+    "ros": ("ros", "review of systems"),
+    "exam": ("exam", "pe", "physical exam", "physical examination", "examination"),
+    "labs": ("labs", "lab", "laboratory", "laboratory data"),
+    "imaging": ("imaging", "findings", "radiology"),
+    "assessment": ("assessment", "plan", "a/p", "assessment and plan", "impression"),
+}
+LINE_HEADING = re.compile(r"^[ \t]*([A-Za-z][A-Za-z /&\-]{1,40}):", re.M)
+CLAUSE_WORDS = {"but", "while"}
+
+
+def section_type(heading: str) -> str:
+    h = " ".join(heading.lower().split())
+    for typ, names in SECTION_TYPES.items():
+        if any(h == n or h.startswith(n + " ") for n in names):
+            return typ
+    return "other"
+
+
+def sections(text: str) -> list[tuple[int, int, str, str, tuple[int, int] | None]]:
+    # (content start, end, heading, type, heading span); 2-character headings only if known (CC, FH, PE)
+    heads = []
+    for m in LINE_HEADING.finditer(text):
+        name = m.group(1).strip()
+        typ = section_type(name)
+        if len(name) >= 3 or typ != "other":
+            heads.append((m.start(1), m.end(), name.lower(), typ, (m.start(1), m.start(1) + len(name))))
+    out, prev = [], (0, "", "", None)
+    for h0, h1, name, typ, span in heads:
+        out.append((prev[0], h0, prev[1], prev[2], prev[3]))
+        prev = (h1, name, typ, span)
+    out.append((prev[0], len(text), prev[1], prev[2], prev[3]))
+    return [x for x in out if x[1] > x[0]]
 SKIP_SECTIONS = ("allergies", "medications", "discharge medications", "medications on admission",
                  "discharge instructions", "followup instructions", "discharge disposition", "facility")
 DX_SECTIONS = ("discharge diagnos", "final diagnos", "principal diagnos", "primary diagnos",
@@ -192,43 +232,50 @@ class Extractor:
 
     def mentions(self, text: str) -> list[Mention]:
         out = []
-        heads = [(m.start(), m.end(), m.group(1).lower()) for m in HEADING.finditer(text)]
-        bounds = [(0, 0, "")] + heads + [(len(text), len(text), "")]
-        for (_, start, sec), (nxt, _, _) in zip(bounds, bounds[1:]):
-            if sec.startswith(SKIP_SECTIONS):
+        for start, end, name, typ, head in sections(text):
+            if name.startswith(SKIP_SECTIONS):
                 continue
-            for s, e in sentence_spans(text, start, nxt):
-                out += self._sentence(text, s, e, sec)
+            for s, e in sentence_spans(text, start, end):
+                out += self._sentence(text, s, e, typ, head)
         return out
 
-    def _sentence(self, text: str, s: int, e: int, sec: str) -> list[Mention]:
+    def _sentence(self, text: str, s: int, e: int, sec: str, head) -> list[Mention]:
         toks = [(_norm(m.group()), m.start(), m.end()) for m in WORD.finditer(text, s, e)]
         norms, out, i = [t[0] for t in toks], [], 0
+        clause, c = [], 0    # family words only reach their own clause (split at , ; but while "and pt")
+        for k, (w, a, _) in enumerate(toks):
+            if k and (re.search(r"[,;]", text[toks[k - 1][2]:a]) or w in CLAUSE_WORDS
+                      or (w == "and" and k + 1 < len(toks) and toks[k + 1][0] in ("pt", "patient"))):
+                c += 1
+            clause.append(c)
         while i < len(toks):
             hit = next((x for x in self.index.get(norms[i], ()) if tuple(norms[i:i + len(x[0])]) == x[0]), None)
             if not hit:
                 i += 1
                 continue
             n = len(hit[0])
-            st = self._status(norms, i, n, sec)
+            st, cue = self._status(text, toks, norms, clause, i, n, sec, head)
             a, b = toks[i][1], toks[i + n - 1][2]
-            out.append(Mention(hit[1], st, text[a:b], a, b, (s, e), sec, None, (hit[2], hit[3]), GROUNDING[hit[2]]))
+            out.append(Mention(hit[1], st, text[a:b], a, b, (s, e), sec, cue, (hit[2], hit[3]), GROUNDING[hit[2]]))
             i += n
         return out
 
-    def _status(self, norms: list[str], i: int, n: int, sec: str) -> Status:
+    def _status(self, text, toks, norms, clause, i, n, sec, head):
+        if sec == "family":
+            return Status.FAMILY, (text[head[0]:head[1]], *head)
+        fam = next((k for k, w in enumerate(norms) if w in FAMILY and clause[k] == clause[i]), None)
+        if fam is not None:
+            return Status.FAMILY, (text[toks[fam][1]:toks[fam][2]], toks[fam][1], toks[fam][2])
         pre = norms[max(0, i - 6):i]
         for k in range(len(pre) - 1, -1, -1):
             if pre[k] in STOP_SCOPE:
                 pre = pre[k + 1:]
                 break
-        if sec.startswith("family") or FAMILY & set(norms):
-            return Status.FAMILY
         if _has(pre, self.hedge):
-            return Status.UNCERTAIN
+            return Status.UNCERTAIN, None
         if _has(pre, self.neg) or _has(norms[i + n:i + n + 4], self.neg_after):
-            return Status.ABSENT
-        return Status.PRESENT
+            return Status.ABSENT, None
+        return Status.PRESENT, None
 
     def findings(self, text: str, source="note") -> list[Finding]:
         # one finding per term for the patient (present > absent > uncertain) and, separately, one for the family

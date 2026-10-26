@@ -859,6 +859,21 @@ class TestExtractorRules(unittest.TestCase):
         m = self.ext.mentions(text)[0]
         self.assertEqual((m.quote, text[m.start:m.end]), ("dislocated lens", "dislocated lens"))
 
+    def test_section_headings(self):
+        self.assertEqual(self.st("FHx: seizures.\nExam: dislocated lens."),
+                         {("HP:0001250", Status.FAMILY), ("HP:0001083", Status.PRESENT)})
+        self.assertEqual(self.st("FH: seizures"), {("HP:0001250", Status.FAMILY)})        # known 2-letter heading
+        self.assertEqual(self.st("HR: 80, seizures today"), {("HP:0001250", Status.PRESENT)})   # unknown 2-letter: not a heading
+        self.assertEqual(self.st("Medications: seizure prophylaxis\nPMH: dislocated lens"), {("HP:0001083", Status.PRESENT)})
+        m = self.ext.mentions("Family Hx: seizures")[0]
+        self.assertEqual((m.section, m.cue), ("family", ("Family Hx", 0, 9)))
+
+    def test_family_word_reaches_only_its_clause(self):
+        self.assertEqual(self.st("Mother had seizures, pt has dislocated lens."),
+                         {("HP:0001250", Status.FAMILY), ("HP:0001083", Status.PRESENT)})
+        self.assertEqual(self.st("Seizures in her brother but dislocated lens noted."),
+                         {("HP:0001250", Status.FAMILY), ("HP:0001083", Status.PRESENT)})
+
 
 F = lambda h, st, src="x", ev="": Finding(h, st, src, ev or f"{src}: {h}")
 
