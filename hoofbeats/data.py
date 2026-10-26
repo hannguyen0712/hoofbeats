@@ -259,9 +259,12 @@ def _spacy():
         return None
 
 
-def _lemma_map(doc) -> dict[int, tuple[int, str]]:
-    # character start -> (end, lemma) for every spaCy token
-    return {t.idx: (t.idx + len(t.text), t.lemma_.lower()) for t in doc}
+LEMMA_POS = {"NOUN", "ADJ"}    # text words matched by lemma; verbs never ("jumped" is not Jumping)
+
+
+def _lemma_map(doc, pos: set[str] | None = None) -> dict[int, tuple[int, str]]:
+    # character start -> (end, lemma) for every spaCy token (only these parts of speech, if given)
+    return {t.idx: (t.idx + len(t.text), t.lemma_.lower()) for t in doc if pos is None or t.pos_ in pos}
 
 
 def _lemmas(words, lmap) -> tuple[str, ...]:
@@ -326,7 +329,7 @@ class LemmaIndex:
             v.sort(key=lambda x: (-len(x[0]), GROUNDING[x[2]] != "strong"))
 
     def text_lemmas(self, text: str) -> dict[int, tuple[int, str]]:
-        return _lemma_map(self.nlp(text))
+        return _lemma_map(self.nlp(text), LEMMA_POS)
 
 
 class Extractor:

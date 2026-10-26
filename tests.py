@@ -837,7 +837,8 @@ EXTRA_TERMS = "".join(f"[Term]\nid: {i}\nname: {n}\n{s}is_a: HP:0000118\n\n" for
     ("HP:0100749", "Chest pain", ""), ("HP:0002018", "Nausea", ""), ("HP:0002013", "Vomiting", ""),
     ("HP:0001653", "Mitral regurgitation", ""), ("HP:0030828", "Wheezing", ""),
     ("HP:0030212", "Collectionism", 'synonym: "Collecting" EXACT []\n'), ("HP:0012115", "Hepatitis", ""),
-    ("HP:0002666", "Pheochromocytoma", "")))
+    ("HP:0002666", "Pheochromocytoma", ""), ("HP:9000001", "Jumping", 'synonym: "Hopping" EXACT []\n'),
+    ("HP:9000002", "Atypical sorting", 'synonym: "Ordering" EXACT []\n')))
 
 
 class TestExtractorRules(unittest.TestCase):
@@ -908,11 +909,13 @@ class TestExtractorRules(unittest.TestCase):
         from hoofbeats.data import _spacy
         if _spacy() is None:
             self.skipTest("spaCy model not installed")
-        text = "He wheezes at night."
+        text = "There are bilateral wheezes."                 # spaCy: NOUN
         m = self.ext.mentions(text)[0]
         self.assertEqual((m.hpo_id, m.quote, text[m.start:m.end], m.link, m.grounding),
                          ("HP:0030828", "wheezes", "wheezes", ("lemma", "Wheezing"), "supported"))
         self.assertEqual(Extractor(self.ont, lemmas=False).mentions(text), [])
+        for verb in ("He jumped from his vehicle.", "A chest X-ray was ordered.", "She is hoping to gain control."):
+            self.assertEqual(self.ext.mentions(verb), [], verb)                   # verbs never match by lemma
         self.assertTrue(list((self.root / "kb" / ".cache").glob("lemmas-*.json")))     # label lemmas cached
 
     def test_abbreviations_keep_original_offsets(self):
