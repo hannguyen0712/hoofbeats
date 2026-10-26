@@ -237,7 +237,8 @@ class Mention:
     grounding: str = "strong"
 
 
-GROUNDING = {"exact_label": "strong", "synonym:exact": "strong", "negated_word": "supported"}
+GROUNDING = {"exact_label": "strong", "synonym:exact": "strong", "synonym:related": "supported",
+             "synonym:layperson": "supported", "negated_word": "supported"}
 
 
 class Extractor:
@@ -249,13 +250,15 @@ class Extractor:
         for t in ont.terms.values():
             if t.obsolete or not ont.is_phenotype(t.id):
                 continue
-            for label, method in ((t.name, "exact_label"), *((s, "synonym:exact") for s in t.synonyms)):
+            for label, method in ((t.name, "exact_label"), *((s, "synonym:exact") for s in t.synonyms),
+                                  *((s, f"synonym:{kind}") for s, kind in t.extra_synonyms)):
                 toks = tuple(tokens(label))
                 if toks and len(" ".join(toks)) >= 4:
-                    self.vocab.update(toks)
+                    if method in ("exact_label", "synonym:exact"):   # de-labelling never masks these words
+                        self.vocab.update(toks)
                     self.index[toks[0]].append((toks, t.id, method, label))
-        for v in self.index.values():
-            v.sort(key=lambda x: -len(x[0]))
+        for v in self.index.values():   # longest first; for the same words, exact labels and EXACT synonyms first
+            v.sort(key=lambda x: (-len(x[0]), GROUNDING[x[2]] != "strong"))
         self.negated = defaultdict(list)    # "afebrile" -> Fever absent
         for row in resource("negated_words.tsv"):
             ids = [h for h in (ont.resolve(x.strip()) for x in row["hpo_ids"].split(";")) if h]

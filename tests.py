@@ -886,6 +886,14 @@ class TestExtractorRules(unittest.TestCase):
         m = next(m for m in self.ext.mentions("Denies fever, seizures.") if m.hpo_id == "HP:0001250")
         self.assertEqual(m.cue, ("Denies", 0, 6))
 
+    def test_related_synonyms_behind_flag(self):
+        m = self.ext.mentions("He has fits at night.")[0]          # "Fits" is a RELATED synonym of Seizure
+        self.assertEqual((m.hpo_id, m.link, m.grounding), ("HP:0001250", ("synonym:related", "Fits"), "supported"))
+        self.assertNotIn("Fits", self.ont.terms["HP:0001250"].synonyms)          # EXACT list unchanged
+        exact_only = Extractor(Ontology(self.ont.path, extra_synonyms=False))
+        self.assertEqual(exact_only.mentions("He has fits at night."), [])
+        self.assertEqual(exact_only.vocab, self.ext.vocab)                        # de-labelling vocabulary unchanged
+
     def test_negated_words(self):
         text = "Pt afebrile, tall."
         m = self.ext.mentions(text)[0]

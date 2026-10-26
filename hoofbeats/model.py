@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import csv
 import math
+import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
@@ -61,10 +62,16 @@ class Term:
     parents: list[str] = field(default_factory=list)
     obsolete: bool = False
     replaced_by: str | None = None
+    extra_synonyms: list[tuple[str, str]] = field(default_factory=list)   # (text, "related" | "layperson")
+
+
+SYNONYM = re.compile(r'"((?:[^"\\]|\\.)*)"\s+(EXACT|RELATED|BROAD|NARROW)(?:\s+([A-Za-z_]+))?')
 
 
 class Ontology:
-    def __init__(self, path):
+    def __init__(self, path, extra_synonyms: bool = True):
+        # extra_synonyms: also keep RELATED and layperson synonyms (in Term.extra_synonyms) for text matching
+        self.path = Path(path)
         self.terms: dict[str, Term] = {}
         self.alt: dict[str, str] = {}
         self.version = ""
@@ -94,6 +101,10 @@ class Ontology:
                 cur.replaced_by = val
             elif key == "synonym" and " EXACT" in val:
                 cur.synonyms.append(val.split('"')[1])
+            elif key == "synonym" and extra_synonyms:
+                m = SYNONYM.match(val)
+                if m and m.group(3) != "obsolete_synonym" and (m.group(2) == "RELATED" or m.group(3) == "layperson"):
+                    cur.extra_synonyms.append((m.group(1), "layperson" if m.group(3) == "layperson" else "related"))
         self.children = defaultdict(list)
         for t in self.terms.values():
             for p in t.parents:
