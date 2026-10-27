@@ -142,15 +142,88 @@ def plausible(measure: str, value: float) -> bool:
 
 VITALS_CONTEXT = re.compile(r"\b(?:BP|HR|RR|vitals?|VS|temp|pulse|SpO2|sats?)\b", re.I)
 MEASURE = (r"(?P<measure>aortic\s+root|aorta|sinus(?:es)?\s+of\s+valsalva|height|stature|length|"
-           r"head\s+circumference|occipitofrontal\s+circumference|OFC|HC)")
+           r"head\s+circumference|occipito-?frontal\s+circumference|OFC|HC)")
 MEASURE_KEY = {"aortic root": "aortic_root_z", "aorta": "aortic_root_z", "sinus of valsalva": "aortic_root_z",
                "sinuses of valsalva": "aortic_root_z", "height": "height_z", "stature": "height_z", "length": "height_z",
                "head circumference": "head_z", "occipitofrontal circumference": "head_z", "ofc": "head_z", "hc": "head_z"}
 GAP = r"(?:[^.;\n]|\.(?=\d)){0,40}?"      # up to 40 characters within the clause; decimal points allowed ("4.1 cm")
-Z_RX = re.compile(MEASURE + r"\b" + GAP + r"\b(?:z|Z)[- ]?(?:score)?\s*(?:of|=|:)?\s*\(?(?P<z>[+\-−–]?\s*\d+(?:\.\d+)?)", re.I)
-SD_RX = re.compile(MEASURE + r"\b" + GAP + r"(?P<z>[+\-−–]\s*\d+(?:\.\d+)?)\s*(?:SD|SDS|standard deviations?)\b", re.I)
-CENTILE_RX = re.compile(MEASURE + r"\b" + GAP + r"(?P<cmp><|>|below|above|under|over|less than|greater than)?\s*(?:the\s*)?"
-                        r"(?P<c>\d{1,2}(?:\.\d+)?)\s*(?:st|nd|rd|th)?\s*(?:centile|percentile|%ile)", re.I)
+Z_TAIL = r"\b(?:z|Z)[- ]?(?:score)?\s*(?:of|=|:)?\s*\(?(?P<z>[+\-−–]?\s*\d+(?:\.\d+)?)"
+SD_TAIL = r"(?P<z>[+\-−–]\s*\d+(?:\.\d+)?)\s*(?:SD|SDS|standard deviations?)\b"
+ORD = r"\s*(?:st|nd|rd|th)?\s*"
+CENTILE_TAIL = (r"(?P<cmp><|>|below|above|under|over|less than|greater than)?\s*(?:the\s*)?"
+                r"(?:(?P<lo>\d{1,2}(?:\.\d+)?)" + ORD + r"[-–]\s*)?(?P<c>\d{1,2}(?:\.\d+)?)" + ORD + r"(?:centile|percentile|%ile)")
+P_TAIL = r"\bP\s*(?P<cmp><|>)?\s*(?P<lo>\d{1,2})(?:\s*[-–]\s*(?P<c>\d{1,2}))?\b"      # "P<5", "P90", "P25-50"
+Z_RX = re.compile(MEASURE + r"\b" + GAP + Z_TAIL, re.I)
+SD_RX = re.compile(MEASURE + r"\b" + GAP + SD_TAIL, re.I)
+CENTILE_RX = re.compile(MEASURE + r"\b" + GAP + CENTILE_TAIL, re.I)
+# lists of measures: "height, weight and OFC were 77 cm (10th centile), 11 kg and 43 cm (<3rd centile), respectively" is
+# paired by order (the regexes above would give the first value to the last measure); "below the 3rd centile for height
+# and head circumference" gives the centile to each measure in the list
+ITEM = (r"(?:birth\s+)?(?:aortic\s+root|height|stature|length|(?:body\s+)?weight|BMI|body\s+mass\s+index|head\s+circumference|"
+        r"occipito-?frontal\s+circumference|OFC|HC|chest\s+circumference|arm\s+span)(?:\s*[(\[][^)\]\n]{0,40}[)\]])?")
+ITEMS = ITEM + r"(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+|\s*&\s*)" + ITEM + r")*"
+LIST_RX = re.compile(ITEM + r"(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+|\s*&\s*)" + ITEM + r")+(?!\w)", re.I)
+ITEM_RX = re.compile(ITEM, re.I)
+RESPECTIVELY = re.compile(r"\brespectively\b", re.I)
+CENTILE_FIRST_RX = re.compile(r"(?P<cmp>below|under|less than|above|over|greater than|<|>)\s*(?:the\s+)?(?:[a-z]+\s+){0,3}?"
+                              r"(?P<c>\d{1,2})" + ORD + r"(?:centiles?|percentiles?)\s+(?:for|at|in|of)\s+(?:the\s+|his\s+|her\s+)?"
+                              r"(?P<list>" + ITEMS + r")(?!\w)", re.I)
+VALUE_Z = [(re.compile(Z_TAIL, re.I), "z"), (re.compile(SD_TAIL, re.I), "z"), (re.compile(CENTILE_TAIL, re.I), "centile"),
+           (re.compile(P_TAIL), "centile")]
+
+
+def measure_key(name: str) -> str | None:
+    k = re.sub(r"\s+", " ", name.lower()).replace("-", "")
+    return MEASURE_KEY.get(re.sub(r"\s*[(\[].*$", "", re.sub(r"^birth ", "", k)))
+
+
+def centile_z(c: float, cmp: str = "", lo: float | None = None) -> float:
+    # below the 3rd or above the 97th centile counts as -2.5 / +2.5 SD; a range ("10-25th") must be wholly outside
+    cmp = (cmp or "").lower()
+    low_side, high_side = cmp in ("<", "below", "under", "less than"), cmp in (">", "above", "over", "greater than")
+    return -2.5 if (c < 3 or (low_side and c <= 3)) else 2.5 if ((c if lo is None else lo) > 97 or (high_side and c >= 97)) else 0.0
+
+
+def value_z(item: str) -> float | None:
+    # z from one value in a list ("43.4 cm (5-10th percentile)", "-2.5 SD", "11 kg (P90)"), or None
+    for rx, how in VALUE_Z:
+        m = rx.search(item)
+        if not m:
+            continue
+        if how == "z":
+            return float(re.sub(r"\s+", "", m.group("z")).replace("−", "-").replace("–", "-"))
+        if m.group("c") is None:        # "P90"
+            return centile_z(float(m.group("lo")), m.group("cmp"))
+        return centile_z(float(m.group("c")), m.group("cmp"), float(m.group("lo")) if m.group("lo") else None)
+    return None
+
+
+def split_values(text: str, a: int, b: int) -> list[tuple[int, int]]:
+    # the values between a measure list and "respectively", split at top-level ", " / " and " (not inside brackets,
+    # not "14,600"); each span starts at its first number or sign
+    parts, depth, start, i = [], 0, a, a
+    while i < b:
+        ch = text[i]
+        depth += ch in "([" and 1 or ch in ")]" and -1 or 0
+        sep = 0
+        if depth == 0:
+            m = re.match(r",\s*(?:and\s+)?|\s+and\s+", text[i:b])
+            if m and (text[i] != "," or m.end() > 1):
+                sep = m.end()
+        if sep:
+            parts.append((start, i))
+            start = i = i + sep
+        else:
+            i += 1
+    parts.append((start, b))
+    out = []
+    for s, e in parts:
+        m = re.search(r"[<>+\-−–~]\s*\d|\d", text[s:e])
+        if m:
+            while e > s and text[e - 1] in " ,":
+                e -= 1
+            out.append((s + m.start(), e))
+    return out
 ARMSPAN_RX = [re.compile(r"\barm\s*span\s*(?:is\s*)?(?:>|greater than|exceeds|exceeding|more than)\s*(?:the\s*)?height\b", re.I),
               re.compile(r"\barm\s*span\s*(?:/|to)\s*height(?:\s*ratio)?\s*(?:of|=|:|is)?\s*(?P<r>\d\.\d+)", re.I)]
 
@@ -304,6 +377,38 @@ def _temperature(value, unit, ctx, quote, start, end, label_weak):
     return threshold_findings("temperature_c", round(c, 2), ctx, quote, start, end, grounding, unit=u, extra={"value_as_given": value})
 
 
+def measure_lists(text: str, s: int, e: int, ctx: _Ctx, used: list, taken) -> list[GroundedFinding]:
+    # one sentence: "X, Y and Z were a, b and c, respectively" and "below the 3rd centile for X and Z"; their spans are
+    # added to used so the single-measure regexes do not read them again
+    out = []
+    r = RESPECTIVELY.search(text, s, e)
+    lst = LIST_RX.search(text, s, r.start()) if r else None
+    if lst and not taken(lst.start(), r.end()):
+        names = [m.group(0) for m in ITEM_RX.finditer(lst.group(0))]
+        values = split_values(text, lst.end(), r.start())
+        used.append((lst.start(), r.end()))
+        if len(values) != len(names):
+            ctx.warn(f"numbers: {len(names)} measures but {len(values)} values before 'respectively'; skipped "
+                     f"({text[lst.start():r.end()]!r})")
+        else:
+            for name, (a, b) in zip(names, values):
+                key, z = measure_key(name), value_z(text[a:b])
+                if key and z is not None and key != "aortic_root_z":
+                    out += threshold_findings(key, z, ctx, text[a:b], a, b, "supported",
+                                              extra={"as_written": f"{name}: {text[a:b]}", "paired": "respectively"})
+    for m in CENTILE_FIRST_RX.finditer(text, s, e):
+        if taken(m.start(), m.end()):
+            continue
+        z = centile_z(float(m.group("c")), m.group("cmp"))
+        for it in ITEM_RX.finditer(text, m.start("list"), m.end("list")):
+            key = measure_key(it.group(0))
+            if key and key != "aortic_root_z":
+                out += threshold_findings(key, z, ctx, text[m.start():it.end()], m.start(), it.end(), "supported",
+                                          extra={"as_written": text[m.start():it.end()]})
+        used.append((m.start(), m.end()))
+    return out
+
+
 def read_numbers(text: str | None, source: str, field: str, age: float | None, warn, emit_normal_vitals: bool = False,
                  normals: list | None = None) -> list[GroundedFinding]:
     # free text: labs (with "(ref a-b)" and H/L flags, also unlabelled lists), vitals, PR/QTc, z-scores, centiles, arm span
@@ -370,21 +475,19 @@ def read_numbers(text: str | None, source: str, field: str, age: float | None, w
                     if found or ctx.left_out > before:
                         used.append((a, b))
                         out += found
+            out += measure_lists(text, s, e, ctx, used, taken)
             for rx, how in ((Z_RX, "z"), (SD_RX, "z"), (CENTILE_RX, "centile")):
                 for m in rx.finditer(text, s, e):
                     a, b = trim(m.start(), m.end())
                     if taken(a, b):
                         continue
-                    key = MEASURE_KEY[re.sub(r"\s+", " ", m.group("measure").lower())]
+                    key = measure_key(m.group("measure"))
                     if how == "z":
                         z = float(re.sub(r"\s+", "", m.group("z")).replace("−", "-").replace("–", "-"))
                     else:
                         if key == "aortic_root_z":
                             continue
-                        c, cmp = float(m.group("c")), (m.group("cmp") or "").lower()
-                        low_side = cmp in ("<", "below", "under", "less than")
-                        high_side = cmp in (">", "above", "over", "greater than")
-                        z = -2.5 if (c < 3 or (low_side and c <= 3)) else 2.5 if (c > 97 or (high_side and c >= 97)) else 0.0
+                        z = centile_z(float(m.group("c")), m.group("cmp"), float(m.group("lo")) if m.group("lo") else None)
                     found = threshold_findings(key, z, ctx, text[a:b], a, b, "supported", extra={"as_written": text[a:b]})
                     if found:
                         used.append((a, b))

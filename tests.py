@@ -1239,6 +1239,37 @@ class TestNumbers(unittest.TestCase):
         z = next(f for f in found if f.hpo_id == "HP:0002616")
         self.assertEqual(z.quote, "aortic root 4.1 cm (Z +3.2")
 
+    def test_measure_lists_respectively(self):
+        text = ("His height, weight, and head circumference were 131.7 cm (<3rd percentile), 48.6 kg (75-90th percentile), "
+                "and 55.5 cm (95-97th percentile), respectively.")
+        got, found, w = self.read(text)
+        self.assertEqual(got, {("HP:0004322", Status.PRESENT), ("HP:0000098", Status.ABSENT),
+                               ("HP:0000252", Status.ABSENT), ("HP:0000256", Status.ABSENT)})
+        self.assertEqual({f.quote for f in found}, {"131.7 cm (<3rd percentile)", "55.5 cm (95-97th percentile)"})
+        self.assertEqual(dict(next(f for f in found if f.hpo_id == "HP:0004322").lab)["as_written"],
+                         "height: 131.7 cm (<3rd percentile)")
+        got, _, _ = self.read("Height and OFC were −2.8 SD and −3.1 SD, respectively.")
+        self.assertTrue({("HP:0004322", Status.PRESENT), ("HP:0000252", Status.PRESENT)} <= got)
+        got, _, _ = self.read("The weight and height of this patient are 11 kg (P90) and 84 cm (P2), respectively.")
+        self.assertIn(("HP:0004322", Status.PRESENT), got)
+        got, _, _ = self.read("Birth weight and length were 3.35 kg and 51 cm, respectively.")     # no centile: nothing
+        self.assertEqual(got, set())
+        got, _, w = self.read("Height, weight and OFC were 120 cm (<3rd centile) and 20 kg, respectively.")
+        self.assertEqual(got, set())                                     # 3 measures, 2 values: not paired, not misread
+        self.assertTrue(any("3 measures but 2 values" in x for x in w))
+
+    def test_centile_before_measure_list(self):
+        got, found, _ = self.read("Growth was below the 3rd centile for height, weight and head circumference.")
+        self.assertTrue({("HP:0004322", Status.PRESENT), ("HP:0000252", Status.PRESENT)} <= got)
+        self.assertEqual(next(f for f in found if f.hpo_id == "HP:0004322").quote, "below the 3rd centile for height")
+        got, _, _ = self.read("OFC was above the 97th centile, and below the 3rd percentile for length.")
+        self.assertIn(("HP:0004322", Status.PRESENT), got)
+        self.assertNotIn(("HP:0000252", Status.PRESENT), got)
+
+    def test_centile_ranges(self):
+        got, _, _ = self.read("Head circumference 55.5 cm (95-97th percentile); occipito-frontal circumference 29 cm (1-2nd centile).")
+        self.assertEqual(got, {("HP:0000252", Status.ABSENT), ("HP:0000256", Status.ABSENT), ("HP:0000252", Status.PRESENT)})
+
     def test_children_get_no_adult_defaults(self):
         got, _, w = self.read("Na 128, HR 150, Na 128 mmol/L (ref 133-146), OFC below the 3rd centile", age=6)
         self.assertIn(("HP:0002902", Status.PRESENT), got)                # input range: still used
