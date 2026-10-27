@@ -251,7 +251,7 @@ Diseases with low ferritin or anemia profiles then move above HHT1. This is a kn
 |---|---|---|---|
 | Recall, all gold | 1,225 | 22.0% | 27.5% |
 | Recall, vocabulary-visible gold | 293 | 90.4% | 93.2% |
-| Recall, hand-checked | — | pending task B | |
+| Recall, hand-checked (task B, dev terms expressed in the text) | 69 | 55.1% | 62.3% |
 | Precision (extras not adjudicated) | 706 | 38.1% | 46.3% |
 | Recall, present gold | 678 | 36.9% | 45.1% |
 | Recall, absent gold | 547 | 3.5% | 5.7% |
@@ -277,7 +277,26 @@ Diseases with low ferritin or anemia profiles then move above HHT1. This is a kn
 | `task_b_second_annotator.csv` | 183 rows (10 of those cases) | same, by a second annotator → Cohen's kappa |
 | `task_c_extras.csv` | 100 random dev extras | `verdict` correct_not_in_gold / wrong_term / wrong_status / not_this_patient / unsure |
 
-Answers for A and C are copied to `pmc_eval/checks_v1_task_a.csv` and `checks_v1_task_c.csv` (ids, answers, notes; no article text).
+Answers are copied to `pmc_eval/checks_v1_task_a.csv`, `checks_v1_task_b.csv` and `checks_v1_task_c.csv` (ids, answers, notes, and task B quotes; no case text).
+
+**Task B, gold terms in the text (554 terms in 30 cases: 10 dev, 20 test; single annotator).** The second-annotator sheet was not filled, so there is no kappa; this is a limitation.
+- Expressed in the located text: **223 of 554 (40%)**; 309 not, 22 unsure. Present gold 201 of 337 (60%); absent gold 22 of 217 (10%). Dev 69 of 166, test 154 of 388.
+- Where expressed, the text's status matches the gold in 219 of 223. The 4 that differ are gold errors against the text (e.g. Enlarged cisterna magna and Seizure recorded absent but stated present); they stay in the denominators.
+- Hand-checked recall uses the 69 expressed dev terms; the 154 test terms are scored only after a test run.
+
+| Hand-checked recall (dev) | n | Strict | Lenient |
+|---|---|---|---|
+| All | 69 | **55.1%** (95% CI 43–66) | **62.3%** (51–73) |
+| Present | 59 | 61.0% | 69.5% |
+| Absent | 10 | 20.0% | 20.0% |
+| Single-patient | 55 | 56.4% | 63.6% |
+| Multi-patient | 14 | 50.0% | 57.1% |
+
+- By reader: the text rules find 43 of the 69 (exact or parent/child); the numbers reader 1, also found by the rules.
+- Of the 69, 42 are vocabulary-visible and the reader finds 39 of them; of the 27 that are not, it finds 4 (as parent/child). The misses are mostly paraphrase ("testes were not palpable", "dilatation of the ventricles", "an elongated face", "walked after two and a half years") and statements needing inference ("blood pressure was normal", "cognitive development is normal", "head circumference p50").
+- Multi-patient recall on expressed terms (50%) is close to single-patient (56%): the low all-gold multi-patient recall (7.6%) comes from gold that is not in the located text, not from the reader.
+
+**Precision with task C verdicts** on the current dev run (717 predictions): **79.9% strict, 88.0% lenient** (37.5% / 45.6% unadjudicated). The 78% correct share comes from the 706-prediction run's sample.
 
 **Task A, locator (40 cases).** 27 yes, 10 partly, 3 no. Single-patient: 17 / 2 / 1. Multi-patient: 10 / 8 / 2. By rule: case_section 13 / 2 / 0; case_heading 4 / 0 / 1; id_start 5 / 2 / 0; id_only with id_start 2 / 2 / 0; id_only alone 3 / 4 / 2. "Partly" is mostly literature reviews, lab or animal experiments, or findings stated for the whole cohort; id_only keeps any paragraph that mentions the id. The 3 dev non-yes rows are all "partly", so the rules stay at v1: a fix would be informed by test rows.
 
@@ -326,5 +345,5 @@ The 12 status and 3 term errors are kept as a regression set for the LLM step (`
 - **Gold edits.** One example alternative (Pustule) was added after seeing output and has since been removed. Gold files are no longer edited without an explicit request, and `TestGoldFiles` enforces this. The gold contains no vitals and no numeric findings beyond the dev labs, so correct numeric findings outside the gold count as extras.
 - **Tuning came from dev mistakes.** The one-word lemma rule, the "N/V." sentence-split fix and the plausibility check were each motivated by a specific observed error.
 - **The six cases are synthetic, written by the developer.** The PMC test set (section 3) is the independent check; the test split has not been run. The measure-list fix was prompted by task C notes on dev cases.
-- **PMC gold is the curators' record, not the text.** All-gold recall understates the reader; vocabulary-visible recall uses the reader's own vocabulary and overstates it. Hand-checked recall (task B) is the number to quote once filled in. If no second annotator is found, agreement is reported as a limitation.
+- **PMC gold is the curators' record, not the text.** All-gold recall understates the reader; vocabulary-visible recall uses the reader's own vocabulary and overstates it. Hand-checked recall (task B) is the number to quote: 55.1% strict on dev, from 69 terms in 10 cases (wide interval). Task B has a single annotator; no agreement was measured.
 - **PMC dev and test differ in mix:** dev has 40 single- and 24 multi-patient cases, test 96 and 76.
