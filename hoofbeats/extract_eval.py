@@ -82,7 +82,7 @@ def score_reader(ont: Ontology, gold: list[dict], preds: list[dict], text: str |
         res[kind] += 1
         for p in hit + near:
             used[(p["hpo_id"], p["status"])].add(kind)
-        for m in {m for p in (hit or near) for m in methods[(p["hpo_id"], p["status"])]}:   # which methods found it
+        for m in {m for p in (hit or near) for m in methods[(p["hpo_id"], p["status"])]}:
             res["by_method"][m][kind] += 1
         overlap = None
         q = g.get("quote")

@@ -190,7 +190,6 @@ def read_labs(items: list[Lab], warn, age: float | None = None) -> list[Finding]
     return read_structured_labs(items, warn, age)
 
 
-# case
 def original_texts(d: IntakeCase, pos: dict) -> dict[str, str]:
     # every input string a provenance span can point into, by field name
     texts = {"note_text": d.note_text or "", "image_context": d.image_context or ""}

@@ -73,7 +73,6 @@ def convert(an: Analyte, value: float, unit: str | None) -> tuple[float | None, 
     return None, "unknown"
 
 
-# age
 def age_years(x) -> float | None:
     # years from a number or a string ("3 months", "10 mo", "2 wk", "P3Y11M", "38"); None if unknown
     if x is None or isinstance(x, bool):
@@ -169,6 +168,8 @@ class _Ctx:
     # where findings go and how to report problems
     def __init__(self, source, field, age, warn, reader="numbers"):
         self.source, self.field, self.age, self.warn, self.reader = source, field, age, warn, reader
+        # normal heart rate, blood pressure and many lab values (ALP, creatinine) depend on age in children, so adult
+        # defaults would give false findings; only a range from the input is used for them
         self.child = age is not None and age < 18
         self.child_warned = False
 
