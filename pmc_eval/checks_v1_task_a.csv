@@ -1,0 +1,41 @@
+row_id,case_id,split,pmid,pmcid,paper_kind,subject_id,rules,is_this_patient,notes
+A001,PMID30855487_infant_girl,test,30855487,PMC6417543,single,infant girl,case_section,partly,Passage 1 is this patient; passage 4 is a literature genotype-phenotype review of 25 other reported cases (alobar/semilobar/lobar forms).
+A002,PMID24969041_neonate,test,24969041,PMC4096538,single,neonate,case_section,yes,All about this neonate; passage 3 is his genetic testing (relatives only as unaffected carriers/non-carriers).
+A003,PMID38982897_Case_report,test,38982897,PMC11631276,single,Case report,case_section,yes,Clinical and genetic description of this patient only.
+A004,PMID20371544_patient,dev,20371544,PMC2876883,single,patient,case_heading,yes,
+A005,PMID20461149_index,test,20461149,PMC2866573,single,index,case_heading,no,Consent/recruitment methods only; no clinical description of the patient.
+A006,PMID19830075_Case_presentation,dev,19830075,PMC2740248,single,Case presentation,case_section,partly,"Passage 1 is this patient; passages 2-5 add general Omenn syndrome features and literature (Villa et al., Corneo et al.); brief mention of affected sisters."
+A007,PMID29801479_proband,dev,29801479,PMC5970456,single,proband,case_section,yes,Passage 1 is the clinical description; passages 3-6 are lab methods for this patient. Brief mention of an affected fetus (no phenotype).
+A008,PMID27648472_Clinical_data,test,27648472,PMC5017540,single,Clinical data,case_heading,yes,
+A009,PMID21949523_Case_report,test,21949523,PMC3174364,single,Case report,case_section,yes,"Also compares with typical Marfan/LDS features, but all findings stated are this patient's."
+A010,PMID26915616_case_report,dev,26915616,PMC4773268,single,case report,case_section,yes,Brief family history (relatives with same symptoms); rest is this patient and WES methods.
+A011,PMID39170644_Case_presentation,test,39170644,PMC11336513,single,Case presentation,case_section,yes,
+A012,PMID37025455_proband,test,37025455,PMC10072282,single,proband,case_heading,yes,
+A013,PMID34189097_Case_presentation,test,34189097,PMC8192999,single,Case presentation,case_section,yes,Last passage is an ethics statement.
+A014,PMID36147795_Case_Presentation,dev,36147795,PMC9486266,single,Case Presentation,case_section,yes,
+A015,PMID28611345_case_report,test,28611345,PMC5470381,single,case report,case_section,yes,Brief mention of two siblings who died of hepatomegaly/jaundice.
+A016,PMID39289723_Case_presentation,test,39289723,PMC11409485,single,Case presentation,case_section,yes,"Text once says ""the girl"" though the patient is a boy (likely an error in the paper)."
+A017,PMID34746378_Case_Presentation,dev,34746378,PMC8569615,single,Case Presentation,case_section,yes,Brief family history (father with hearing loss).
+A018,PMID30936877_8_year_old_girl,dev,30936877,PMC6431612,single,8-year-old girl,case_heading,yes,
+A019,PMID30249237_proband,test,30249237,PMC6154888,single,proband,case_section,yes,
+A020,PMID30046498_proband,dev,30046498,PMC6036836,single,proband,case_section,yes,
+A021,PMID29297947_29297947_P1,test,29297947,PMC5839994,multi,29297947_P1,id_only;id_start,partly,"Only passage 1 is a clinical description of Subject 1; the rest are fibroblast studies, ISCA2 knockdown cell lines, an ABAT-deficient comparison, and literature on hyperglycinemia in other disorders."
+A022,PMID39088281_IV_2,test,39088281,PMC11385091,multi,IV-2,id_only,yes,Proband of family 1 = IV-2 (per the figure reference).
+A023,PMID34805998_Proband_1_2,test,34805998,PMC8599064,multi,Proband 1.2,id_start,yes,
+A024,PMID37349293_Patient_1,test,37349293,PMC10287756,multi,Patient 1,id_only;id_start,yes,"Passage 1 is the clinical description; the rest are lab studies and methods on P1 cells (brief mention of two ARPC1B-deficient patients, no phenotypes)."
+A025,PMID38708366_Patient_2,test,38708366,PMC11068512,multi,Patient 2,id_only,yes,"Very little clinical detail (refractory epilepsy, severe developmental delay); also mentions the cohort and the unaffected father."
+A026,PMID29385733_Proband_32666,test,29385733,PMC5852564,multi,Proband 32666,id_start,yes,
+A027,PMID29217778_P7_SC054,dev,29217778,PMC5830370,multi,P7-SC054,id_start,partly,Mostly genetics; only patient-specific finding is transient monosomy 7. Also refers to other families with ataxia-pancytopenia and MDS.
+A028,PMID36395340_Pedigree_A_II_1,test,36395340,PMC10644051,multi,Pedigree A. II.1,id_only,partly,Mainly a finding shared by all probands (giant/grey platelets); only one sentence is specific to A.II.1 (erythroblasts after splenectomy).
+A029,PMID24932600_Patient_1,test,24932600,PMC4141580,multi,Patient 1,id_only;id_start,yes,"Passage 3 is about the mother's later pregnancy (normal baby), not a phenotype of the patient."
+A030,PMID34421895_P1,test,34421895,PMC8375263,multi,P1,id_only,partly,"Group-level immunophenotype of ""SOCS1 +/- patients""; nothing clinical specific to P1."
+A031,PMID37962958_Individual_3,dev,37962958,PMC10760965,multi,Individual 3,id_only,partly,Mostly Drosophila experiments; only patient-specific info is P3's increased head circumference and tall stature (assumes P3 = Individual 3). Also group statements about motor deficits/autism.
+A032,PMID36736301_P1,test,36736301,PMC9907019,multi,P1,id_only;id_start,partly,"Passage 3 is P1's clinical history; passages 1-2 report findings for ""both patients"" (P1 and P2) together; passage 4 is methods, incl. a STAT1-deficient patient."
+A033,PMID39233737_Patient_1,test,39233737,PMC11372846,multi,Patient 1,id_start,yes,Molecular passage mentions another family's variant briefly.
+A034,PMID27861123_Patient_3,test,27861123,PMC5167130,multi,Patient 3,id_start,partly,"First half is Patient 3; second half describes affected siblings and relatives (exertional arrhythmias, sudden cardiac deaths)."
+A035,PMID29297947_29297947_P2,test,29297947,PMC5839994,multi,29297947_P2,id_start,yes,Brief family history (siblings who died in infancy); one sentence compares with previously reported subjects.
+A036,PMID37973953_Individual_10,test,37973953,PMC10703691,multi,Individual 10,id_only,no,Recruitment methods only (neonatal diabetes inclusion criterion); no clinical description of this individual.
+A037,PMID36067010_Family_2_Patient_4,test,36067010,PMC9896472,multi,Family 2 Patient 4,id_only,no,"Segregation and variant classification only; no clinical description of Patient 4 (only ""skin biopsy supportive of mTOR disorder"")."
+A038,PMID35166435_second_pregnancy_IV_6,test,35166435,PMC9306924,multi,second pregnancy IV:6,id_only,yes,Fetal case; description is of this fetus.
+A039,PMID28851325_Case_3,test,28851325,PMC5575846,multi,Case 3,id_start,yes,
+A040,PMID34421895_P3,test,34421895,PMC8375263,multi,P3,id_only,partly,"Mostly group-level (""SOCS1 +/- patients"", ""one patient"") and healthy-donor experiments; only the T-cell count change is specific to P3."

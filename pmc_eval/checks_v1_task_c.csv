@@ -1,0 +1,101 @@
+row_id,case_id,hpo_id,label,predicted_status,method,verdict,notes
+C001,PMID30891318_case,HP:0001397,Hepatic steatosis,absent,rules,correct_not_in_gold,
+C002,PMID27099744_Family_27,HP:0002280,Enlarged cisterna magna,uncertain,rules,wrong_status,"stated as present, not hedged"
+C003,PMID30538526_patient,HP:0002181,Cerebral edema,present,rules,correct_not_in_gold,
+C004,PMID30012084_older_sister,HP:0000010,Recurrent urinary tract infections,present,rules,correct_not_in_gold,
+C005,PMID35479066_index,HP:0001945,Fever,present,rules,correct_not_in_gold,
+C006,PMID26739615_individual_3,HP:0000737,Irritability,present,rules,correct_not_in_gold,
+C007,PMID30936877_8_year_old_girl,HP:0002121,Generalized non-motor (absence) seizure,present,rules,correct_not_in_gold,
+C008,PMID36941667_Proband_M035,HP:0004322,Short stature,absent,numbers,unsure,birth length at the 3rd centile is borderline; birth length is not stature
+C009,PMID39135939_patient,HP:0001510,Growth delay,present,rules,correct_not_in_gold,
+C010,PMID38622837_Case_presentation,HP:0002329,Drowsiness,family,rules,wrong_status,"patient's own drowsiness; should be present, not family"
+C011,PMID27099744_Family_27,HP:0001321,Cerebellar hypoplasia,uncertain,rules,wrong_status,"""small cerebellum"" is stated, should be present"
+C012,PMID31774634_XH601,HP:0000286,Epicanthus,present,rules,correct_not_in_gold,
+C013,PMID32309624_case_report,HP:0004322,Short stature,absent,numbers,correct_not_in_gold,
+C014,PMID31774634_XH601,HP:0001704,Tricuspid valve prolapse,present,rules,not_this_patient,from a literature description of another MFS individual
+C015,PMID31774634_XH601,HP:0001374,Congenital hip dislocation,present,rules,correct_not_in_gold,
+C016,PMID35479066_index,HP:0012735,Cough,present,rules,correct_not_in_gold,
+C017,PMID28841907_boy,HP:0000541,Retinal detachment,absent,rules,correct_not_in_gold,
+C018,PMID20371544_patient,HP:0000961,Cyanosis,present,rules,correct_not_in_gold,
+C019,PMID37734847_Patient_1,HP:0006688,Paroxysmal tachycardia,present,rules,correct_not_in_gold,
+C020,PMID31774634_XH601,HP:0001187,Hyperextensibility of the finger joints,present,rules,not_this_patient,"cohort-level description (""in all subjects"")"
+C021,PMID33595912_Patient_1,HP:0001901,Polycythemia,absent,numbers,correct_not_in_gold,
+C022,PMID24019847_patient,HP:0000256,Macrocephaly,absent,numbers,correct_not_in_gold,"conclusion right, but the quote parsed the height (77.4 cm) as head circumference"
+C023,PMID19830075_Case_presentation,HP:0010783,Erythema,family,rules,correct_not_in_gold,
+C024,PMID37875108_Patient_5,HP:0001945,Fever,present,rules,wrong_status,the uncle's fever; should be family
+C025,PMID30891318_case,HP:0002621,Atherosclerosis,absent,rules,correct_not_in_gold,
+C026,PMID30012084_older_sister,HP:0002020,Gastroesophageal reflux,present,rules,correct_not_in_gold,
+C027,PMID31597564_Case_presentation,HP:0025066,Decreased mean corpuscular volume,present,numbers,correct_not_in_gold,
+C028,PMID36595822_Case_presentation,HP:0001946,Ketosis,present,rules,correct_not_in_gold,
+C029,PMID37962958_Individual_3,HP:0040194,Increased head circumference,present,rules,correct_not_in_gold,
+C030,PMID36941667_Proband_M035,HP:0010819,Atonic seizure,present,rules,correct_not_in_gold,
+C031,PMID30538526_patient,HP:0002970,Genu varum,absent,rules,wrong_status,genu varum is present in the patient
+C032,PMID30847374_V_1,HP:0002312,Clumsiness,present,rules,correct_not_in_gold,
+C033,PMID27275012_Patient_2,HP:0034677,Ankle contracture,present,rules,correct_not_in_gold,
+C034,PMID20371544_patient,HP:0001643,Patent ductus arteriosus,present,rules,correct_not_in_gold,
+C035,PMID30538526_patient,HP:0000098,Tall stature,absent,numbers,correct_not_in_gold,
+C036,PMID37875108_Patient_3,HP:0031485,Subperiosteal bone formation,present,rules,correct_not_in_gold,
+C037,PMID23304577_Case_Report,HP:0000256,Macrocephaly,absent,numbers,correct_not_in_gold,"true, though the OFC indicates microcephaly, which was not extracted"
+C038,PMID30034812_patient,HP:0003202,Skeletal muscle atrophy,present,rules,correct_not_in_gold,
+C039,PMID36147795_Case_Presentation,HP:0000733,Motor stereotypy,uncertain,rules,wrong_status,listed as signs present in the patient; should be present
+C040,PMID31774634_XH601,HP:0002943,Thoracic scoliosis,present,rules,correct_not_in_gold,
+C041,PMID31597564_Case_presentation,HP:0002360,Sleep disturbance,present,rules,correct_not_in_gold,
+C042,PMID27099744_Family_27,HP:0001176,Large hands,present,rules,correct_not_in_gold,
+C043,PMID30891318_case,HP:0001956,Truncal obesity,present,rules,correct_not_in_gold,
+C044,PMID31597564_Case_presentation,HP:0032067,Elevated serum bicarbonate concentration,absent,numbers,correct_not_in_gold,
+C045,PMID38622837_Case_presentation,HP:0001942,Metabolic acidosis,present,rules,correct_not_in_gold,
+C046,PMID36147795_Case_Presentation,HP:0000729,Autistic behavior,uncertain,rules,wrong_status,listed as signs present in the patient; should be present
+C047,PMID19830075_Case_presentation,HP:0002783,Recurrent lower respiratory tract infections,family,rules,correct_not_in_gold,
+C048,PMID30012084_older_sister,HP:0002198,Dilated fourth ventricle,family,rules,correct_not_in_gold,
+C049,PMID30012084_older_sister,HP:0001252,Hypotonia,absent,rules,wrong_status,patient had hypotonia; should be present
+C050,PMID28821231_Family_I_patient_I,HP:0008947,Floppy infant,present,rules,correct_not_in_gold,
+C051,PMID28821231_Family_I_patient_I,HP:0000246,Sinusitis,present,rules,correct_not_in_gold,
+C052,PMID29801479_proband,HP:0000365,Hearing impairment,present,rules,wrong_status,"""have not been observed""; should be absent"
+C053,PMID38622837_Case_presentation,HP:0100790,Hernia,family,rules,correct_not_in_gold,
+C054,PMID29801479_proband,HP:0000098,Tall stature,absent,numbers,correct_not_in_gold,
+C055,PMID30936877_8_year_old_girl,HP:0005681,Juvenile idiopathic arthritis,present,rules,correct_not_in_gold,
+C056,PMID29217778_P7_SC054,HP:0001876,Pancytopenia,family,rules,not_this_patient,refers to another family in the literature
+C057,PMID38622837_Case_presentation,HP:0100790,Hernia,present,rules,correct_not_in_gold,
+C058,PMID26915616_case_report,HP:0009830,Peripheral neuropathy,present,rules,correct_not_in_gold,
+C059,PMID28821231_Family_I_patient_I,HP:0001433,Hepatosplenomegaly,absent,rules,correct_not_in_gold,
+C060,PMID30538526_patient,HP:0001298,Encephalopathy,present,rules,correct_not_in_gold,
+C061,PMID30538526_patient,HP:0009829,Phocomelia,present,rules,correct_not_in_gold,
+C062,PMID39101447_case_presentation,HP:0001263,Global developmental delay,present,rules,correct_not_in_gold,
+C063,PMID36316122_case_presentation,HP:0006695,Atrioventricular canal defect,present,rules,correct_not_in_gold,
+C064,PMID30012084_older_sister,HP:0000260,Wide anterior fontanel,present,rules,correct_not_in_gold,
+C065,PMID32309624_case_report,HP:0001999,Abnormal facial shape,present,rules,correct_not_in_gold,
+C066,PMID38622837_Case_presentation,HP:0002910,Elevated circulating hepatic transaminase concentration,present,rules,wrong_term,"""abnormal liver function"" is broader than elevated transaminases"
+C067,PMID21165303_case_report,HP:0001658,Myocardial infarction,present,rules,wrong_term,"""MI"" is Michigan in an address"
+C068,PMID26739615_individual_3,HP:0001250,Seizure,family,rules,correct_not_in_gold,
+C069,PMID36136249_II_3_of_family_A,HP:0007267,Chronic axonal neuropathy,present,rules,correct_not_in_gold,
+C070,PMID27099744_Family_27,HP:0002015,Dysphagia,present,rules,not_this_patient,literature summary of previously reported cases
+C071,PMID30538526_patient,HP:0002020,Gastroesophageal reflux,present,rules,correct_not_in_gold,
+C072,PMID39135939_patient,HP:0001941,Acidosis,present,rules,correct_not_in_gold,
+C073,PMID26739615_individual_3,HP:0001769,Broad foot,present,rules,correct_not_in_gold,
+C074,PMID41488893_Case_report,HP:0001662,Bradycardia,present,rules,correct_not_in_gold,
+C075,PMID34746378_Case_Presentation,HP:0000365,Hearing impairment,family,rules,correct_not_in_gold,
+C076,PMID30538526_patient,HP:0011604,Aortopulmonary window,present,rules,correct_not_in_gold,
+C077,PMID30891318_case,HP:0001618,Dysphonia,present,rules,wrong_status,the brother's voice changes; should be family
+C078,PMID31213928_patient,HP:0025406,Asthenia,present,rules,wrong_term,"""weakness in limbs"" is limb muscle weakness, not generalized asthenia"
+C079,PMID31774634_XH601,HP:0001533,Slender build,present,rules,correct_not_in_gold,
+C080,PMID30012084_older_sister,HP:0000076,Vesicoureteral reflux,present,rules,correct_not_in_gold,
+C081,PMID32600459_proband,HP:0001251,Ataxia,family,rules,wrong_status,negated: no family member had ataxia
+C082,PMID27099744_Family_27,HP:0009836,Broad distal phalanx of finger,present,rules,correct_not_in_gold,
+C083,PMID34746378_Case_Presentation,HP:0009830,Peripheral neuropathy,present,rules,correct_not_in_gold,
+C084,PMID29801479_proband,HP:0000256,Macrocephaly,absent,numbers,correct_not_in_gold,
+C085,PMID31597564_Case_presentation,HP:0002789,Tachypnea,present,rules,correct_not_in_gold,
+C086,PMID31597564_Case_presentation,HP:0005518,Increased mean corpuscular volume,absent,numbers,correct_not_in_gold,
+C087,PMID30681580_proband,HP:0000098,Tall stature,absent,numbers,correct_not_in_gold,
+C088,PMID27099744_Family_27,HP:0000430,Underdeveloped nasal alae,present,rules,correct_not_in_gold,
+C089,PMID33595912_Patient_1,HP:0025066,Decreased mean corpuscular volume,absent,numbers,correct_not_in_gold,
+C090,PMID30538526_patient,HP:0001028,Hemangioma,present,rules,correct_not_in_gold,
+C091,PMID38622837_Case_presentation,HP:0001941,Acidosis,present,rules,correct_not_in_gold,
+C092,PMID31774634_XH601,HP:0001622,Premature birth,present,rules,not_this_patient,"cohort-level description (""in all subjects"")"
+C093,PMID24019847_patient,HP:0000988,Skin rash,absent,rules,not_this_patient,about the mother during pregnancy
+C094,PMID38622837_Case_presentation,HP:0002013,Vomiting,present,rules,correct_not_in_gold,
+C095,PMID30891318_case,HP:0012125,Prostate cancer,family,rules,correct_not_in_gold,
+C096,PMID30891318_case,HP:0000822,Hypertension,absent,rules,correct_not_in_gold,
+C097,PMID32309624_case_report,HP:0000733,Motor stereotypy,present,rules,correct_not_in_gold,
+C098,PMID26040326_eldest_sister_III_1,HP:0001254,Lethargy,family,rules,wrong_status,"""both siblings"" includes the patient; should be present"
+C099,PMID29742735_proband,HP:0001010,Hypopigmentation of the skin,present,rules,correct_not_in_gold,
+C100,PMID30046498_proband,HP:0025116,Fetal distress,present,rules,correct_not_in_gold,
