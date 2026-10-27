@@ -300,12 +300,12 @@ def build_manifest(store, ont=None, log=print, do_fetch: bool = True) -> tuple[d
             found = {group[0]["phenopacket_id"]: single_patient_paragraphs(doc)}
         else:
             keys = {p["phenopacket_id"]: subject_keys(p["subject_id"]) for p in group}
-            found = multi_patient_paragraphs(doc, keys)
+            found = dict(multi_patient_paragraphs(doc, keys))
             for p in group:
                 if not keys[p["phenopacket_id"]]:
                     found[p["phenopacket_id"]] = None
         for p in group:
-            paras = found.get(p["phenopacket_id"])
+            paras = found.get(p["phenopacket_id"], [])
             if paras is None:
                 excluded.append({**_ex(p, pmid, kind), "reason": "subject id not parsed"})
                 continue
