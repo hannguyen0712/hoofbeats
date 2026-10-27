@@ -4,7 +4,7 @@ Branch `stage1-intake`. Snapshot of 2026-10-26.
 
 **Data:** HPO 2026-09-01, `phenotype.hpoa` 2026-09-02, MedPix 2.0 (`d3bc431`).
 
-**Tests:** all 81 pass except the 4 PubMed tests. Those fail because `hoofbeats/pubmed.py` is missing, as they did before this branch.
+**Tests:** all 88 pass except the 4 PubMed tests. Those fail because `hoofbeats/pubmed.py` is missing, as they did before this branch.
 
 Read the caveats (section 5) before quoting any number from this file.
 
@@ -66,6 +66,8 @@ One core for structured labs, structured vitals, and free text (note text, image
 
 Implausible values (typos such as "O2 sat 995") are skipped with a warning.
 
+**Normal vital signs (`emit_normal_vitals`, default off).** A normal temperature, heart rate, respiratory rate, SpO2 or blood pressure gives no absent finding; abnormal values still give present findings. The value stays in `meta["vitals"]` (structured) and in `meta["provenance"]["normal_vitals"]` (span-checked). With the option on, the earlier behaviour returns. Labs (input or default ranges), PR/QTc, z-scores and centiles are unchanged.
+
 **Units**
 - Only these conversions are supported: glucose, BUN/urea, calcium (mmol/L ↔ mg/dL); creatinine, bilirubin (µmol/L ↔ mg/dL); g/L ↔ g/dL; cell counts per µL or mm³ ↔ K/µL; and identities such as mEq/L = mmol/L for monovalent ions.
 - Any other unit is skipped with a warning.
@@ -74,7 +76,7 @@ Implausible values (typos such as "O2 sat 995") are skipped with a warning.
 **Children.** When the age is known and below 18, no finding comes from the adult default ranges or the adult thresholds, unless the input gives a range. Z-scores and centiles are used. Age bands are future work.
 
 **Status**
-- Out of range in a direction → that direction's term is present. In range → absent.
+- Out of range in a direction → that direction's term is present. In range → absent (for vital signs only with `emit_normal_vitals`).
 - A lab's own H/L flag decides when it is given.
 - If the text and a number disagree ("known hypertension" vs "BP 118/76"), fusion records a conflict and present wins.
 
@@ -105,6 +107,7 @@ Provenance records value, unit, converted value, the range or threshold and its 
 - It reports per case and reader, strict and lenient P/R/F1, span overlap, and a per-method breakdown (rules, numbers, labs, vitals, input).
 - Gold sets: `examples/` (dev) and `examples/heldout/` (now "seen").
 - `TestGoldFiles` fixes the accepted alternatives.
+- **PMC test set** (`hoofbeats/pmc.py`, `hoofbeats/pmc_checks.py`, `pmc_eval/`): real case-report text with Phenopacket Store gold; see section 3.
 
 ## 2. How to run
 
@@ -113,7 +116,16 @@ python -m hoofbeats extract-eval --cases examples --gold examples/intended_findi
 python -m hoofbeats extract-eval --cases examples/heldout --gold examples/heldout/intended_findings.json --out results/extract_eval_heldout
 python -m hoofbeats --common none diagnose examples/marfan_note.json      # case file or phenopacket
 python -m unittest tests
+
+# PMC test set
+python -m hoofbeats pmc-build                      # fetch (cached), locate, freeze pmc_eval/manifest_v<N>.json
+python -m hoofbeats extract-eval --pmc pmc_eval/manifest_v1.json --split dev --out results/pmc_dev
+python -m hoofbeats pmc-checks                     # task A and B sheets -> data/pmc/checks/
+python -m hoofbeats pmc-checks --items results/pmc_dev/pmc_dev_items.csv     # task C sheet
+python -m hoofbeats pmc-score --items results/pmc_dev/pmc_dev_items.csv --summary results/pmc_dev/pmc_dev_summary.json
 ```
+
+The test split needs `--allow-test`. Every PMC run is appended to `pmc_eval/runs.jsonl` with its commit.
 
 `extract-eval` writes `extract_eval.csv` (one row per gold finding or extra) and a run log in `<out>/runs/`.
 - **Strict scoring:** same HPO id (or an accepted alternative) and same status.
@@ -135,10 +147,11 @@ The first `Extractor` build on a new HPO version lemmatises the vocabulary (abou
 | Held-out | baseline | 0.57 | 0.15 | 0.24 | 0.30 | 4 | 8/10 |
 | Held-out | after Steps 1–3 (first and only blind run) | 0.65 | 0.28 | **0.39** | 0.47 | 5 | 13/16 |
 | Held-out, "seen" | after the A fixes | 0.67 | 0.30 | 0.42 | 0.49 | 5 | 15/17 |
-| Held-out, "seen" | **current** (+ numbers reader) | 0.62 | 0.30 | 0.41 | 0.48 | 7 | 15/17 |
+| Held-out, "seen" | + numbers reader | 0.62 | 0.30 | 0.41 | 0.48 | 7 | 15/17 |
+| Held-out, "seen" | **current** (normal vitals off) | 0.64 | 0.30 | 0.41 | 0.49 | 6 | 15/17 |
 
 - **Why held-out dropped from 0.42 to 0.41:** Fabry's "BP 142/88" now gives Hypertension present (correct, but not in the gold) plus Hypotension absent.
-- **All-reader scores fall as well:** structured vitals now produce findings, almost all absent (normal values), and the gold contains no vitals. Each one counts as an extra.
+- **Normal vitals off (current default).** Dev text scores are unchanged. Held-out text loses one extra ("BP 142/88" → Hypotension absent). All readers, dev: strict P 0.69 → 0.86, F1 0.54 → 0.59, extras 12 → 3. Held-out: strict P 0.50 → 0.64, F1 0.43 → 0.48, extras 20 → 10. Recall is unchanged, since the gold has no vitals.
 
 **Per-method breakdown, current dev** (gold findings matched, then extras)
 
@@ -147,7 +160,7 @@ The first `Extractor` build on a new HPO version lemmatises the vocabulary (abou
 | note / rules | 12 | 3 | 1 |
 | note / numbers | 2 (aortic root Z, arm span) | 0 | 0 |
 | labs / labs | 9 | 0 | 1 ("Polycythemia absent", not in gold) |
-| vitals / vitals | 0 | 0 | 9 (all absent, no gold) |
+| vitals / vitals | 0 | 0 | 0 (9 absent extras before normal vitals were turned off) |
 | image context / rules | 1 | 0 | 1 |
 
 ### Overfitting audit and ablations
@@ -170,7 +183,8 @@ Of the 63 MedPix findings that come through an abbreviation, 54 come from rows t
 | Baseline | 1,300 | 0.026 | 0.088 |
 | After Steps 1–3 | 1,430 | 0.026 | 0.098 |
 | After the audit fixes and abbreviation/label/stoplist items | 1,423 | 0.026 | 0.103 |
-| **Current** (+ numbers reader) | **1,715** | 0.026 | 0.103 |
+| + numbers reader | 1,715 | 0.026 | 0.103 |
+| **Current** (normal vitals off) | **1,621** | 0.026 | 0.103 |
 
 The numbers reader adds 292 MedPix findings in 64 cases:
 - **Status:** 85 present, 207 absent.
@@ -191,20 +205,75 @@ The 20-item sample also exposed "O2 sat 995", which led to the plausibility chec
 
 ### `diagnose` truth rank (case files, `--common none`)
 
-| Case | Before Step 1 | After Steps 1–3 | After the A fixes | **Current** (+ numbers) |
-|---|---|---|---|---|
-| Marfan | 14 | 1 | 1 | 1 |
-| Wilson | 1 | 1 | 1 | 1 |
-| TSC | 1 | 1 | 1 | 1 |
-| Fabry | 131 | 32 | 32 | **18** (BP 142/88 → hypertension) |
-| DM1 | 932 | 1047 | **107** ("1st degree AV block" now found) | 103 |
-| HHT1 | 64 | 12 | 12 | **82** |
+| Case | Before Step 1 | After Steps 1–3 | After the A fixes | + numbers | **Current** (normal vitals off) |
+|---|---|---|---|---|---|
+| Marfan | 14 | 1 | 1 | 1 | 1 |
+| Wilson | 1 | 1 | 1 | 1 | 1 |
+| TSC | 1 | 1 | 1 | 1 | 1 |
+| Fabry | 131 | 32 | 32 | **18** (BP 142/88 → hypertension) | 19 |
+| DM1 | 932 | 1047 | **107** ("1st degree AV block" now found) | 103 | 107 |
+| HHT1 | 64 | 12 | 12 | **82** | 82 |
+
+Turning normal vitals off removes absent findings such as Tachycardia, Bradycardia and Hypotension absent. Fabry and DM1 lose 4 such findings each and move down slightly: these absent findings counted slightly against competing diseases. HHT1 has no vitals.
 
 **Why HHT1 fell to 82.** Two correct new lab findings:
 - Ferritin 6 (range 15–150) gives "Decreased circulating ferritin concentration" present. HHT1 is not annotated with it, so it takes the floor penalty (−3.0).
 - Hemoglobin's new high direction gives "Polycythemia" absent. HHT1 is annotated with polycythemia, so it costs −0.69.
 
 Diseases with low ferritin or anemia profiles then move above HHT1. This is a knowledge-base and ranker effect, not an extraction error.
+
+### PMC test set (independent, real text)
+
+**Source and gold.** Phenopacket Store patients whose paper is in the PMC Open Access subset with a Creative Commons licence (author manuscripts, "NO-CC CODE" and "TDM" licences excluded). Only PMIDs and PMCIDs are sent (NCBI ID converter, BioC API, `tool=hoofbeats`). Gold = the phenopacket's features; excluded features are absent.
+
+| Step | Papers / patients |
+|---|---|
+| Phenopacket Store | 1,733 papers, 10,376 phenopackets |
+| With a PMCID | 1,024 papers |
+| BioC full text | 735 papers |
+| Creative Commons | 623 papers |
+| Located (all rules, before caps) | 491 patients |
+| **Manifest v1** | **236 cases from 203 papers**: 136 single-patient, 100 multi-patient; **dev 64, test 172**; 4,400 gold features (median 14 per case); median 350 words of text per case |
+
+**Locator rules, v1** (`hoofbeats/pmc.py`, committed in `979ecff` before any extractor run on PMC text):
+- Never: introduction, discussion, abstract, figures, tables, references, supplementary material, back matter, or headings like "Patients and methods", ethics or consent.
+- Single-patient papers: paragraphs in a BioC CASE section (101 cases), or under a case-description heading in Results, Methods or an unlabelled section (36).
+- Multi-patient papers: the subject id is parsed into the ways a paper names a patient ("Individual 3" → Patient 3 / P3 / Case 3 ...; pedigree II-3; codes like KBG3). A paragraph is kept if it starts with this patient's id and its first sentence names no other patient (45), names this patient and no other (67), or sits under a heading that names only this patient (11). A shared id (two families with a "Patient 1") never counts.
+- Cases under 40 words or with no observed gold term are dropped; at most 3 cases per paper, 2 per disease; selection in md5 order; split by `md5(PMID) % 10 < 3` → dev.
+- Excluded with reasons (`pmc_eval/excluded_v1.csv`): 2,610 patients with no located paragraph and 935 whose subject id could not be parsed, mostly in multi-patient papers whose patients are described only in tables. The multi-patient target (100) was reached; single-patient papers ran out at 136 of 200.
+- The manifest stores BioC passage indexes and a text hash, never the text; a rebuild after a rule fix must bump `LOCATOR_VERSION`, use dev cases only, and re-freeze. One reporting bug (exclusion reason labels) was fixed before the manifest was first used; the selected cases were identical.
+
+**Dev run (64 cases, first and only extractor runs on PMC text; test not run)**
+
+| Measure | n | Strict | Lenient |
+|---|---|---|---|
+| Recall, all gold | 1,225 | 22.0% | 27.5% |
+| Recall, vocabulary-visible gold | 293 | 90.4% | 93.2% |
+| Recall, hand-checked | — | pending task B | |
+| Precision (extras not adjudicated) | 706 | 38.1% | 46.3% |
+| Recall, present gold | 678 | 36.9% | 45.1% |
+| Recall, absent gold | 547 | 3.5% | 5.7% |
+| Recall, single-patient cases | 617 | 36.1% | 45.1% |
+| Recall, multi-patient cases | 608 | 7.6% | 9.7% |
+
+| Method | Gold found exact | Parent/child | Predictions | Extras |
+|---|---|---|---|---|
+| rules | 265 | 66 | 663 | 342 |
+| numbers | 7 | 2 | 48 | 39 |
+
+- Only 24% of gold terms have their label or a synonym in the located text; on those the reader finds 90%. The gap to all-gold recall is paraphrase, and gold that is not in the located text at all (tables, figures, other sections, curators' inferences). Task B separates the two.
+- Absent gold is mostly not stated in the text (32 of 547 are vocabulary-visible); curators record excluded features from tables.
+- Multi-patient recall is low: located text per patient is short and their features are mostly in tables.
+- Extras: 379 (274 present, 62 absent, 33 family, 10 uncertain). Many are correct findings the curators did not record; task C adjudicates 100 of them. Frequent extras include Tall stature (10), Microcephaly (9), Macrocephaly (7) and Asthenia (7).
+
+**Hand checks** (pre-filled CSVs in `data/pmc/checks/`, read back by `pmc-score`)
+
+| Sheet | Rows | Fill in |
+|---|---|---|
+| `task_a_locator.csv` | 40 cases (20 single, 20 multi; 10 dev, 30 test) | `is_this_patient` yes / no / partly |
+| `task_b_gold_in_text.csv` | 554 gold terms in 30 cases (166 dev, 388 test) | `expressed` yes / no / unsure, optional `quote`, `status_matches` yes / no |
+| `task_b_second_annotator.csv` | 183 rows (10 of those cases) | same, by a second annotator → Cohen's kappa |
+| `task_c_extras.csv` | 100 random dev extras | `verdict` correct_not_in_gold / wrong_term / wrong_status / not_this_patient / unsure |
 
 ## 4. Remaining misses and known issues
 
@@ -220,7 +289,6 @@ Diseases with low ferritin or anemia profiles then move above HHT1. This is a kn
 - **Numbers reader:**
   - The specimen is only seen within the sentence or section, not in the previous sentence.
   - Values without a separator ("Cr1.35", "GLU-109WBC-13.4") and "fishbone" shorthand ("140/4.4/99/29") are not read.
-  - In-range structured vitals produce many absent findings.
   - Age bands for children are not implemented.
 - **Other:** spaCy tags "wheezes" as a verb in contexts such as "No wheezes or crackles", so those miss lemma matching. "Denies CP, N/V" marks CP weak, because CP also means cerebral palsy.
 
@@ -231,4 +299,6 @@ Diseases with low ferritin or anemia profiles then move above HHT1. This is a kn
 - **"son"** was added to the family-word list knowing the DM1 held-out note uses it.
 - **Gold edits.** One example alternative (Pustule) was added after seeing output and has since been removed. Gold files are no longer edited without an explicit request, and `TestGoldFiles` enforces this. The gold contains no vitals and no numeric findings beyond the dev labs, so correct numeric findings outside the gold count as extras.
 - **Tuning came from dev mistakes.** The one-word lemma rule, the "N/V." sentence-split fix and the plausibility check were each motivated by a specific observed error.
-- **The six cases are synthetic, written by the developer.** An independent test set from PubMed Central case reports with Phenopacket Store gold is planned; the availability pilot is done. Of 100 papers, 66 have a PMCID, 47 have BioC full text, and 41 carry a Creative Commons licence.
+- **The six cases are synthetic, written by the developer.** The PMC test set (section 3) is the independent check; its dev numbers are from the first runs on PMC text, and the test split has not been run.
+- **PMC gold is the curators' record, not the text.** All-gold recall understates the reader; vocabulary-visible recall uses the reader's own vocabulary and overstates it. Hand-checked recall (task B) is the number to quote once filled in. If no second annotator is found, agreement is reported as a limitation.
+- **PMC dev and test differ in mix:** dev has 40 single- and 24 multi-patient cases, test 96 and 76.
