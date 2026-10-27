@@ -546,7 +546,8 @@ def pmc_extract_eval(a, ont, names):
     print(pmc_report(summ))
     note("extract_eval_pmc", **summ)
     items = [{"case": r["case"], "kind": "gold", "hpo_id": it["hpo_id"], "label": it["label"], "status": it["status"],
-              "result": it["result"], "got": ";".join(it["got"]), "vocab_visible": it["vocab_visible"], "method": "",
+              "result": it["result"], "got": ";".join(it["got"]), "vocab_visible": it["vocab_visible"],
+              "method": ";".join(it["found_by"]),
               "quote": "", "evidence": ""} for r in rows for it in r["items"]]
     items += [{"case": r["case"], "kind": "extra", "hpo_id": p["hpo_id"], "label": ont.name(p["hpo_id"]), "status": p["status"],
                "result": "extra", "got": "", "vocab_visible": "", "method": p["method"], "quote": p.get("quote", ""),
@@ -596,7 +597,7 @@ def cmd_pmc_checks(a):
 
 def cmd_pmc_score(a):
     from .pmc_checks import score
-    res = score(Path(a.checks), a.items, a.summary)
+    res = score(Path(a.checks), a.items, a.summary, a.manifest)
     print(json.dumps(res, indent=1))
     note("pmc_score", **res)
 
@@ -793,6 +794,7 @@ def main(argv=None):
     s.add_argument("--checks", default="data/pmc/checks")
     s.add_argument("--items", help="extract-eval pmc_<split>_items.csv, for hand-checked recall")
     s.add_argument("--summary", help="extract-eval pmc_<split>_summary.json, for precision with adjudicated extras")
+    s.add_argument("--manifest", default="pmc_eval/manifest_v1.json", help="for recall by single/multi-patient paper")
     s.add_argument("--out", default="results")
     s = sub.add_parser("report", help="tables, figures and notes from saved runs")
     s.add_argument("--results", default="results", help="folder searched (recursively) for runs and CSVs")

@@ -82,7 +82,8 @@ def score_reader(ont: Ontology, gold: list[dict], preds: list[dict], text: str |
         res[kind] += 1
         for p in hit + near:
             used[(p["hpo_id"], p["status"])].add(kind)
-        for m in {m for p in (hit or near) for m in methods[(p["hpo_id"], p["status"])]}:
+        found_by = sorted({m for p in (hit or near) for m in methods[(p["hpo_id"], p["status"])]})
+        for m in found_by:
             res["by_method"][m][kind] += 1
         overlap = None
         q = g.get("quote")
@@ -92,7 +93,8 @@ def score_reader(ont: Ontology, gold: list[dict], preds: list[dict], text: str |
             overlap = qs is not None and any(s < qs + len(q) and qs < e for s, e in spans)
             res["span_checked"] += 1
             res["span_overlap"] += overlap
-        res["items"].append({**g, "result": kind, "got": [p["hpo_id"] for p in hit + near], "span_overlap": overlap})
+        res["items"].append({**g, "result": kind, "got": [p["hpo_id"] for p in hit + near], "found_by": found_by,
+                             "span_overlap": overlap})
     for p in preds:
         k = used.get((p["hpo_id"], p["status"]), set())
         for m in methods[(p["hpo_id"], p["status"])]:

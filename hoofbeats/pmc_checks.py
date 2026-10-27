@@ -90,10 +90,20 @@ def kappa(a: list[str], b: list[str]) -> float | None:
     return (po - pe) / (1 - pe) if pe < 1 else None
 
 
-def score(checks: Path, items_csv=None, run_summary=None) -> dict:
+def _hand_recall(rows: list[dict], res: dict) -> dict:
+    # recall over gold terms the annotator found expressed in the text, among those the run covers
+    run = [res[(r["case_id"], r["hpo_id"], r["gold_status"])] for r in rows if (r["case_id"], r["hpo_id"], r["gold_status"]) in res]
+    ex = sum(x["result"] == "exact" for x in run)
+    near = sum(x["result"] == "near" for x in run)
+    return {"n_in_run": len(run), "n_not_in_run": len(rows) - len(run), "strict": ex / len(run) if run else None,
+            "lenient": (ex + near) / len(run) if run else None}
+
+
+def score(checks: Path, items_csv=None, run_summary=None, manifest=None) -> dict:
     # answers -> locator accuracy, hand-checked recall, agreement, precision with adjudicated extras;
     # problems lists unanswered rows and values outside the allowed answers
     out, problems = {}, []
+    kind_of = {c["case_id"]: c["paper_kind"] for c in json.loads(Path(manifest).read_text())["cases"]} if manifest else {}
 
     def answered(rows, col):
         good = []
@@ -120,18 +130,24 @@ def score(checks: Path, items_csv=None, run_summary=None) -> dict:
         b = answered(_read(pb), "expressed")
         res = {}
         if items_csv:
-            res = {(r["case"], r["hpo_id"], r["status"]): r["result"] for r in _read(items_csv) if r["kind"] == "gold"}
+            res = {(r["case"], r["hpo_id"], r["status"]): r for r in _read(items_csv) if r["kind"] == "gold"}
         yes = [r for r in b if r["expressed"] == "yes"]
-        run = [r for r in yes if (r["case_id"], r["hpo_id"], r["gold_status"]) in res]
-        ex = sum(res[(r["case_id"], r["hpo_id"], r["gold_status"])] == "exact" for r in run)
-        near = sum(res[(r["case_id"], r["hpo_id"], r["gold_status"])] == "near" for r in run)
         sm = [r["status_matches"].lower() for r in yes if r["status_matches"]]
+        found_by = lambda r: set(filter(None, res[(r["case_id"], r["hpo_id"], r["gold_status"])].get("method", "").split(";")))
+        in_run = [r for r in yes if (r["case_id"], r["hpo_id"], r["gold_status"]) in res]
         out["task_b"] = {"answered": len(b), "expressed": dict(Counter(r["expressed"] for r in b)),
                          "expressed_share": len(yes) / len(b) if b else None,
+                         "expressed_by_split": {s: dict(Counter(r["expressed"] for r in b if r["split"] == s)) for s in ("dev", "test")},
+                         "expressed_by_status": {s: dict(Counter(r["expressed"] for r in b if r["gold_status"] == s))
+                                                 for s in ("present", "absent")},
                          "status_matches_yes": sm.count("yes") / len(sm) if sm else None,
-                         "hand_checked_recall": {"n_in_run": len(run), "n_not_in_run": len(yes) - len(run),
-                                                 "strict": ex / len(run) if run else None,
-                                                 "lenient": (ex + near) / len(run) if run else None}}
+                         "hand_checked_recall": _hand_recall(yes, res),
+                         "hand_checked_recall_by_status": {s: _hand_recall([r for r in yes if r["gold_status"] == s], res)
+                                                           for s in ("present", "absent")},
+                         "hand_checked_recall_by_paper_kind": {k: _hand_recall([r for r in yes if kind_of.get(r["case_id"]) == k], res)
+                                                               for k in ("single", "multi")} if kind_of else None,
+                         "hand_checked_found_by_method": {m: sum(m in found_by(r) for r in in_run)
+                                                          for m in sorted({m for r in in_run for m in found_by(r)})}}
         p2 = checks / "task_b_second_annotator.csv"
         if p2.exists():
             second = {r["row_id"]: r for r in answered(_read(p2), "expressed")}

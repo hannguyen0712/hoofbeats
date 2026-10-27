@@ -1360,11 +1360,15 @@ class TestPmcLocator(unittest.TestCase):
         put("task_b_gold_in_text.csv", [b(1, "HP:1", "yes", "yes"), b(2, "HP:2", "yes", "yes"), b(3, "HP:3", "no"), b(4, "HP:4", "maybe")])
         put("task_b_second_annotator.csv", [b(1, "HP:1", "yes"), b(2, "HP:2", "no"), b(3, "HP:3", "no")])
         put("task_c_extras.csv", [{"row_id": "C1", "verdict": "correct_not_in_gold"}, {"row_id": "C2", "verdict": "wrong_term"}])
-        it = lambda h, r: {"case": "c1", "kind": "gold", "hpo_id": h, "status": "present", "result": r}
-        put("items.csv", [it("HP:1", "exact"), it("HP:2", "missed"), it("HP:3", "missed")])
+        it = lambda h, r, m="": {"case": "c1", "kind": "gold", "hpo_id": h, "status": "present", "result": r, "method": m}
+        put("items.csv", [it("HP:1", "exact", "numbers;rules"), it("HP:2", "missed"), it("HP:3", "missed")])
         (d / "summary.json").write_text(json.dumps({"pred": 10, "extra": 4, "precision": {"strict": 0.5, "lenient": 0.6}}))
-        res = score(d, d / "items.csv", d / "summary.json")
+        (d / "manifest.json").write_text(json.dumps({"cases": [{"case_id": "c1", "paper_kind": "multi"}]}))
+        res = score(d, d / "items.csv", d / "summary.json", d / "manifest.json")
         self.assertEqual(res["task_b"]["hand_checked_recall"]["strict"], 0.5)
+        self.assertEqual(res["task_b"]["hand_checked_recall_by_paper_kind"]["multi"]["n_in_run"], 2)
+        self.assertEqual(res["task_b"]["hand_checked_recall_by_status"]["absent"]["n_in_run"], 0)
+        self.assertEqual(res["task_b"]["hand_checked_found_by_method"], {"numbers": 1, "rules": 1})
         self.assertEqual(res["task_b"]["agreement"]["rows"], 3)
         self.assertAlmostEqual(res["task_c"]["precision_adjusted"]["strict"], 0.7)
         self.assertTrue(any("maybe" in x for x in res["problems"]))
