@@ -1119,7 +1119,8 @@ class TestGrounding(unittest.TestCase):
                                                  "[Term]\nid: HP:0002615\nname: Hypotension\nis_a: HP:0000118\n\n[Typedef]"))
         from hoofbeats.intake import parse_case
         ont = Ontology(root / "hp.obo")
-        c = parse_case({"case_id": "n", "note_text": "Known hypertension. BP 118/76 today.", "vitals": {"bp": "150/95"}}, ont, Extractor(ont))
+        c = parse_case({"case_id": "n", "note_text": "Known hypertension. BP 118/76 today.", "vitals": {"bp": "150/95"}}, ont, Extractor(ont),
+                       emit_normal_vitals=True)
         prov = c.meta["provenance"]["HP:0000822"]
         self.assertEqual(sorted((e["source"], e["status"], e["readers"][0]) for e in prov),
                          [("note", "absent", "numbers"), ("note", "present", "rules"), ("vitals:bp", "present", "vitals")])
@@ -1145,10 +1146,10 @@ class TestGrounding(unittest.TestCase):
 
 class TestNumbers(unittest.TestCase):
     # numbers reader: outputs before fusion, with the real HPO ids from resources/lab_reference.tsv and vital_thresholds.tsv
-    def read(self, text, age=None):
+    def read(self, text, age=None, **kw):
         from hoofbeats.numbers import read_numbers
         warnings = []
-        found = read_numbers(text, "note", "note_text", age, warnings.append)
+        found = read_numbers(text, "note", "note_text", age, warnings.append, **kw)
         for f in found:
             self.assertEqual(text[f.start:f.end], f.quote)            # spans point at the original characters
         return {(f.hpo_id, f.status) for f in found}, found, warnings
@@ -1181,19 +1182,53 @@ class TestNumbers(unittest.TestCase):
         self.assertEqual(got, set())
 
     def test_vitals(self):
-        got, found, _ = self.read("Vitals: T 101.0F, HR 112, BP 120/95, RR 16, SpO2 88%")
+        got, found, _ = self.read("Vitals: T 101.0F, HR 112, BP 120/95, RR 16, SpO2 88%", emit_normal_vitals=True)
         self.assertTrue({("HP:0001945", Status.PRESENT), ("HP:0001649", Status.PRESENT), ("HP:0000822", Status.PRESENT),
                          ("HP:0002615", Status.ABSENT), ("HP:0002789", Status.ABSENT), ("HP:0012418", Status.PRESENT)} <= got)
         t = next(f for f in found if f.hpo_id == "HP:0001945")
         self.assertEqual((t.grounding, dict(t.lab)["value"]), ("weak", 38.33))   # "T" is a one-letter label
-        got, _, _ = self.read("BP 85/50 on arrival.")
+        got, _, _ = self.read("BP 85/50 on arrival.", emit_normal_vitals=True)
         self.assertTrue({("HP:0002615", Status.PRESENT), ("HP:0000822", Status.ABSENT)} <= got)
         got, _, _ = self.read("BP 142/88.")
         self.assertIn(("HP:0000822", Status.PRESENT), got)
         self.assertEqual(self.read("Tested for P 85 deficiency.")[0], set())      # "P" only counts among vitals
-        got, _, w = self.read("Vitals: HR 88, O2 sat 995 on RA, BP 70/120")       # typos: skipped with a warning
+        got, _, w = self.read("Vitals: HR 88, O2 sat 995 on RA, BP 70/120", emit_normal_vitals=True)   # typos: skipped with a warning
         self.assertEqual({h for h, _ in got}, {"HP:0001649", "HP:0001662"})
         self.assertEqual(len([x for x in w if "not plausible" in x]), 2)
+
+    def test_normal_vitals_give_no_absent_findings_by_default(self):
+        text = "Vitals: T 101.0F, HR 72, BP 120/95, RR 16, SpO2 98%. Na 140 mmol/L (ref 135-145). PR 160 ms."
+        normals = []
+        got, _, _ = self.read(text, normals=normals)
+        self.assertEqual({h for h, st in got if st == Status.PRESENT}, {"HP:0001945", "HP:0000822"})
+        self.assertFalse([h for h, st in got if st == Status.ABSENT and h in ("HP:0001649", "HP:0001662", "HP:0002615",
+                                                                            "HP:0002789", "HP:0002793", "HP:0012418")])
+        self.assertIn(("HP:0002902", Status.ABSENT), got)              # lab with an input range: normal -> absent
+        self.assertIn(("HP:0011705", Status.ABSENT), got)              # PR interval is not a vital sign
+        self.assertEqual({e["measure"] for e in normals}, {"heart_rate", "respiratory_rate", "spo2", "blood_pressure",
+                                                          "temperature_c"})
+        hr = next(e for e in normals if e["measure"] == "heart_rate")
+        self.assertEqual((text[hr["start"]:hr["end"]], hr["value"], hr["status"]), ("HR 72", 72.0, "absent"))
+        on, _, _ = self.read(text, emit_normal_vitals=True)
+        self.assertTrue({("HP:0001649", Status.ABSENT), ("HP:0002615", Status.ABSENT)} <= on)
+
+    def test_normal_vitals_in_case_provenance(self):
+        from hoofbeats.intake import parse_case
+        root = Path(tempfile.mkdtemp())
+        extra = "".join(f"[Term]\nid: {i}\nname: {n}\nis_a: HP:0000118\n\n" for i, n in (
+            ("HP:0000822", "Hypertension"), ("HP:0002615", "Hypotension"), ("HP:0001649", "Tachycardia"),
+            ("HP:0001662", "Bradycardia"), ("HP:0012418", "Hypoxemia")) if f"id: {i}\n" not in OBO)
+        (root / "hp.obo").write_text(OBO.replace("[Typedef]", extra + "[Typedef]"))
+        ont = Ontology(root / "hp.obo")
+        obj = {"case_id": "v", "note_text": "HR 72, BP 118/76.", "vitals": {"bp": "150/95", "hr": 70, "spo2": 97}}
+        c = parse_case(obj, ont, Extractor(ont))
+        self.assertEqual({(f.hpo_id, f.status) for f in c.findings}, {("HP:0000822", Status.PRESENT)})
+        self.assertEqual(len(c.meta["provenance"]["normal_vitals"]), 8)   # HR and BP each give two
+        self.assertEqual(c.meta["vitals"], {"bp": "150/95", "hr": 70.0, "spo2": 97.0})
+        self.assertFalse([x for x in c.meta["intake_warnings"] if x.startswith("provenance")])
+        on = parse_case(obj, ont, Extractor(ont), emit_normal_vitals=True)
+        self.assertIn(("HP:0001649", Status.ABSENT), {(f.hpo_id, f.status) for f in on.findings})
+        self.assertEqual(on.meta["provenance"]["normal_vitals"], [])
 
     def test_ecg_zscores_centiles_arm_span(self):
         got, found, _ = self.read("ECG: PR 236 ms. QTc 480 ms. Echo: aortic root 4.1 cm (Z +3.2). Arm span > height. "

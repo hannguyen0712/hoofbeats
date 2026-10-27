@@ -63,6 +63,9 @@ def verify_provenance(case: Case, texts: dict[str, str]) -> list[str]:
             if e.get("status_cue"):
                 c = e["status_cue"]
                 check(f"{h} status cue", e["field"], c["start"], c["end"], c["word"])
+    for e in case.meta.get("provenance", {}).get("normal_vitals", []):
+        if e.get("field") is not None and e.get("start") is not None:
+            check(f"normal {e['measure']} quote", e["field"], e["start"], e["end"], e["quote"])
     for d in case.meta.get("disease_mentions", []):
         check(f"disease mention {d['name']}", d["field"], d["start"], d["end"], d["quote"])
     return bad

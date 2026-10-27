@@ -202,8 +202,10 @@ def original_texts(d: IntakeCase, pos: dict) -> dict[str, str]:
 
 
 def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancestors: bool = True, path=None,
-               disease_names: dict[str, str] | None = None) -> Case:
-    # disease_names: knowledge-base names (id -> name); their mentions are recorded, never turned into findings
+               disease_names: dict[str, str] | None = None, emit_normal_vitals: bool = False) -> Case:
+    # disease_names: knowledge-base names (id -> name); their mentions are recorded, never turned into findings.
+    # emit_normal_vitals: normal vital signs also give absent findings; when off they are only recorded in
+    # meta["provenance"]["normal_vitals"]
     if not isinstance(obj, dict):
         raise IntakeError("a case must be a JSON object")
     warnings: list[str] = []
@@ -214,13 +216,16 @@ def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancesto
     mentions: list[dict] = []
     age = age_years(d.age) if d.age is not None else age_from_text(d.note_text)
     w = warnings.append
+    normals: list[dict] = []
+    nv = {"emit_normal_vitals": emit_normal_vitals, "normals": normals}
     findings, prov = fuse([read_hpo_terms(d.hpo_terms, ont, w, pos.get("hpo_terms")),
                            read_text(d.note_text, ext, "note", "note_text", diseases, mentions),
-                           read_numbers(d.note_text, "note", "note_text", age, w),
+                           read_numbers(d.note_text, "note", "note_text", age, w, **nv),
                            read_text(d.image_context, ext, "image_context", "image_context", diseases, mentions),
-                           read_numbers(d.image_context, "image_context", "image_context", age, w),
+                           read_numbers(d.image_context, "image_context", "image_context", age, w, **nv),
                            read_image_findings(d.image_findings, ont, ext, w, pos.get("image_findings")),
-                           read_labs(d.labs, w, age), read_structured_vitals(d.vitals, w, age)], ont, drop_ancestors)
+                           read_labs(d.labs, w, age), read_structured_vitals(d.vitals, w, age, **nv)], ont, drop_ancestors)
+    prov["normal_vitals"] = normals
     warnings += [f"{c['hpo_id']} {ont.name(c['hpo_id'])}: {c['reason']} "
                  f"({', '.join(c['contradicted_by'])}); absent {c['action']}" for c in prov["conflicts"]]
     meta = {"input_format": FORMAT, "policy": d.policy, "images": [], "age": d.age, "sex": d.sex,
@@ -235,12 +240,13 @@ def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancesto
 
 
 def load_case(path, ont: Ontology, ext: Extractor | None = None, *, drop_ancestors: bool = True,
-              disease_names: dict[str, str] | None = None) -> Case:
+              disease_names: dict[str, str] | None = None, emit_normal_vitals: bool = False) -> Case:
     try:
         obj = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as e:
         raise IntakeError(f"{path}: cannot read case file ({e})") from None
-    return parse_case(obj, ont, ext, drop_ancestors=drop_ancestors, path=path, disease_names=disease_names)
+    return parse_case(obj, ont, ext, drop_ancestors=drop_ancestors, path=path, disease_names=disease_names,
+                      emit_normal_vitals=emit_normal_vitals)
 
 
 def intake_summary(c: Case, ont: Ontology) -> str:

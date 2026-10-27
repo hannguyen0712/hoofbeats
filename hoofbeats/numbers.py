@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 
 from .data import SKIP_SECTIONS, resource, sections, sentence_spans
-from .grounding import GroundedFinding
+from .grounding import GroundedFinding, provenance_entry
 from .model import Status
 
 
@@ -164,10 +164,14 @@ def _finding(hpo, status, source, field, quote, start, end, link, grounding, rea
                            link=link, grounding=grounding, reader=reader, lab=tuple(numeric.items()))
 
 
+VITAL_SIGNS = {"temperature_c", "heart_rate", "respiratory_rate", "spo2", "blood_pressure"}
+
+
 class _Ctx:
-    # where findings go and how to report problems
-    def __init__(self, source, field, age, warn, reader="numbers"):
+    # where findings go and how to report problems; normals (if given) receives normal vital signs that are not emitted
+    def __init__(self, source, field, age, warn, reader="numbers", emit_normal_vitals=False, normals=None):
         self.source, self.field, self.age, self.warn, self.reader = source, field, age, warn, reader
+        self.emit_normal_vitals, self.normals, self.left_out = emit_normal_vitals, normals, 0
         # normal heart rate, blood pressure and many lab values (ALP, creatinine) depend on age in children, so adult
         # defaults would give false findings; only a range from the input is used for them
         self.child = age is not None and age < 18
@@ -178,6 +182,21 @@ class _Ctx:
             self.warn("numbers: patient younger than 18; adult default lab ranges and vital/ECG thresholds not applied "
                       "(age bands are future work)")
             self.child_warned = True
+
+    def keep(self, found: list[GroundedFinding]) -> list[GroundedFinding]:
+        # an absent finding from a vital sign is left out by default (a normal pulse is not evidence against a disease
+        # in the way a normal lab can be); the value is still recorded in normals
+        if self.emit_normal_vitals:
+            return found
+        out = []
+        for f in found:
+            if f.status == Status.ABSENT and dict(f.lab)["measure"] in VITAL_SIGNS:
+                self.left_out += 1
+                if self.normals is not None:
+                    self.normals.append(provenance_entry(f))
+            else:
+                out.append(f)
+        return out
 
 
 def lab_findings(an: Analyte, value: float, cmp: str | None, unit: str | None, ref: tuple | None, flag: str | None,
@@ -244,7 +263,7 @@ def threshold_findings(measure: str, value: float, ctx: _Ctx, quote, start, end,
                    "threshold_source": src, **(extra or {})}
         out.append(_finding(hpo, status, ctx.source, ctx.field, quote, start, end, ("numeric:threshold", measure), grounding,
                             ctx.reader, numeric))
-    return out
+    return ctx.keep(out)
 
 
 def _bp(sys_, dia, ctx, quote, start, end, grounding):
@@ -267,7 +286,7 @@ def _bp(sys_, dia, ctx, quote, start, end, grounding):
     out.append(_finding("HP:0002615", Status.PRESENT if _meets(sys_, hypo[0], hypo[1]) else Status.ABSENT, ctx.source, ctx.field,
                         quote, start, end, ("numeric:threshold", "blood_pressure"), grounding, ctx.reader,
                         {**base, "threshold": "SBP < 90", "threshold_source": hypo[4]}))
-    return out
+    return ctx.keep(out)
 
 
 def _temperature(value, unit, ctx, quote, start, end, label_weak):
@@ -285,11 +304,12 @@ def _temperature(value, unit, ctx, quote, start, end, label_weak):
     return threshold_findings("temperature_c", round(c, 2), ctx, quote, start, end, grounding, unit=u, extra={"value_as_given": value})
 
 
-def read_numbers(text: str | None, source: str, field: str, age: float | None, warn) -> list[GroundedFinding]:
+def read_numbers(text: str | None, source: str, field: str, age: float | None, warn, emit_normal_vitals: bool = False,
+                 normals: list | None = None) -> list[GroundedFinding]:
     # free text: labs (with "(ref a-b)" and H/L flags, also unlabelled lists), vitals, PR/QTc, z-scores, centiles, arm span
     if not text or not text.strip():
         return []
-    ctx = _Ctx(source, field, age, warn)
+    ctx = _Ctx(source, field, age, warn, emit_normal_vitals=emit_normal_vitals, normals=normals)
     out, used = [], []
     taken = lambda a, b: any(a < y and x < b for x, y in used)
 
@@ -334,6 +354,7 @@ def read_numbers(text: str | None, source: str, field: str, age: float | None, w
                     if label in ("P", "T") and not vital_ctx:
                         continue
                     weak_label = label in ("P", "T")
+                    before = ctx.left_out
                     if kind == "bp":
                         found = _bp(float(m.group("sys")), float(m.group("dia")), ctx, text[a:b], a, b, "supported")
                     elif kind == "temperature":
@@ -346,7 +367,7 @@ def read_numbers(text: str | None, source: str, field: str, age: float | None, w
                         has_unit = bool(m.groupdict().get("unit"))
                         g = "weak" if weak_label or (kind in ("pr_ms", "qtc_ms") and not has_unit) else "supported"
                         found = threshold_findings(kind, v, ctx, text[a:b], a, b, g, unit=m.groupdict().get("unit"))
-                    if found:
+                    if found or ctx.left_out > before:
                         used.append((a, b))
                         out += found
             for rx, how in ((Z_RX, "z"), (SD_RX, "z"), (CENTILE_RX, "centile")):
@@ -417,14 +438,16 @@ def read_structured_labs(items, warn, age: float | None = None) -> list[Grounded
     return out
 
 
-def read_structured_vitals(vitals, warn, age: float | None = None) -> list[GroundedFinding]:
+def read_structured_vitals(vitals, warn, age: float | None = None, emit_normal_vitals: bool = False,
+                           normals: list | None = None) -> list[GroundedFinding]:
     # vitals from the case file (bp "120/80", temp_c, hr, rr, spo2); the unit is given by the field
     if vitals is None:
         return []
     out = []
+    opts = {"reader": "vitals", "emit_normal_vitals": emit_normal_vitals, "normals": normals}
     if vitals.bp:
         sys_, dia = (float(x) for x in re.findall(r"\d+", vitals.bp)[:2])
-        ctx = _Ctx("vitals:bp", "vitals.bp", age, warn, reader="vitals")
+        ctx = _Ctx("vitals:bp", "vitals.bp", age, warn, **opts)
         out += _bp(sys_, dia, ctx, vitals.bp, 0, len(vitals.bp), "supported")
     for field, measure, unit in (("temp_c", "temperature_c", "C"), ("hr", "heart_rate", "bpm"), ("rr", "respiratory_rate", "/min"),
                                  ("spo2", "spo2", "%")):
@@ -434,6 +457,6 @@ def read_structured_vitals(vitals, warn, age: float | None = None) -> list[Groun
         if not plausible(measure, float(v)) or (field == "temp_c" and not 25 <= v <= 45):
             warn(f"vitals: {field}={v:g} is not plausible; skipped")
             continue
-        ctx = _Ctx(f"vitals:{field}", None, age, warn, reader="vitals")
+        ctx = _Ctx(f"vitals:{field}", None, age, warn, **opts)
         out += threshold_findings(measure, float(v), ctx, f"{field}={v:g}", None, None, "supported", unit=unit)
     return out

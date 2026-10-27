@@ -126,7 +126,7 @@ def summarize(rows: list[dict]) -> dict:
 
 
 def evaluate(cases_dir, gold_path, ont: Ontology, ext: Extractor | None = None,
-             disease_names: dict[str, str] | None = None) -> tuple[list[dict], list[str]]:
+             disease_names: dict[str, str] | None = None, **load_opts) -> tuple[list[dict], list[str]]:
     # one row per (case file, reader); gold readers with no predictions and predicting readers with no gold both count
     gold = json.loads(Path(gold_path).read_text(encoding="utf-8"))
     ext = ext or Extractor(ont)
@@ -139,7 +139,7 @@ def evaluate(cases_dir, gold_path, ont: Ontology, ext: Extractor | None = None,
             problems.append(f"{fn}: case file not found in {cases_dir}")
             continue
         raw = json.loads(path.read_text(encoding="utf-8"))
-        case = load_case(path, ont, ext, disease_names=disease_names)
+        case = load_case(path, ont, ext, disease_names=disease_names, **load_opts)
         preds = predictions(case, raw)
         for r in sorted(set(by_reader) | set(preds)):
             text = raw.get(TEXT_FIELDS[r]) if r in TEXT_FIELDS else None
