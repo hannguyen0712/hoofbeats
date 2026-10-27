@@ -4,7 +4,7 @@ Branch `stage1-intake`. Snapshot of 2026-10-26.
 
 **Data:** HPO 2026-09-01, `phenotype.hpoa` 2026-09-02, MedPix 2.0 (`d3bc431`).
 
-**Tests:** all 88 pass except the 4 PubMed tests. Those fail because `hoofbeats/pubmed.py` is missing, as they did before this branch.
+**Tests:** all 91 pass except the 4 PubMed tests. Those fail because `hoofbeats/pubmed.py` is missing, as they did before this branch.
 
 Read the caveats (section 5) before quoting any number from this file.
 
@@ -65,6 +65,8 @@ One core for structured labs, structured vitals, and free text (note text, image
 | Arm span | "arm span > height", or a ratio > 1.05 |
 
 Implausible values (typos such as "O2 sat 995") are skipped with a warning.
+
+**Measure lists.** "Height, weight and head circumference were 131.7 cm (<3rd percentile), 48.6 kg and 55.5 cm (95-97th percentile), respectively" is paired by order; if the counts differ, the sentence is skipped with a warning. "Below the 3rd centile for height, weight and head circumference" gives the centile to each measure. A centile range ("95-97th") counts only if it lies wholly outside the 3rd–97th band; "P90" is read inside lists.
 
 **Normal vital signs (`emit_normal_vitals`, default off).** A normal temperature, heart rate, respiratory rate, SpO2 or blood pressure gives no absent finding; abnormal values still give present findings. The value stays in `meta["vitals"]` (structured) and in `meta["provenance"]["normal_vitals"]` (span-checked). With the option on, the earlier behaviour returns. Labs (input or default ranges), PR/QTc, z-scores and centiles are unchanged.
 
@@ -275,6 +277,30 @@ Diseases with low ferritin or anemia profiles then move above HHT1. This is a kn
 | `task_b_second_annotator.csv` | 183 rows (10 of those cases) | same, by a second annotator → Cohen's kappa |
 | `task_c_extras.csv` | 100 random dev extras | `verdict` correct_not_in_gold / wrong_term / wrong_status / not_this_patient / unsure |
 
+Answers for A and C are copied to `pmc_eval/checks_v1_task_a.csv` and `checks_v1_task_c.csv` (ids, answers, notes; no article text).
+
+**Task A, locator (40 cases).** 27 yes, 10 partly, 3 no. Single-patient: 17 / 2 / 1. Multi-patient: 10 / 8 / 2. By rule: case_section 13 / 2 / 0; case_heading 4 / 0 / 1; id_start 5 / 2 / 0; id_only with id_start 2 / 2 / 0; id_only alone 3 / 4 / 2. "Partly" is mostly literature reviews, lab or animal experiments, or findings stated for the whole cohort; id_only keeps any paragraph that mentions the id. The 3 dev non-yes rows are all "partly", so the rules stay at v1: a fix would be informed by test rows.
+
+**Task C, 100 dev extras (from the 706-prediction run).** 78 correct but not in gold, 12 wrong status, 6 not this patient, 3 wrong term, 1 unsure. Precision with adjudicated extras: **80.0% strict, 88.2% lenient** (38.1% / 46.3% before adjudication; ±8 points on the 78%). Numbers reader 12 of 13 correct (1 unsure); all 21 errors are from the text rules:
+- status (12): hedge cue on plainly stated findings (4), family attribution in both directions (5), negation (3);
+- not this patient (6): literature cases, cohort statements, the mother;
+- wrong term (3): "MI" in a Michigan address, "weakness in limbs" → Asthenia, "abnormal liver function" → raised transaminases (an HPO synonym).
+
+The 12 status and 3 term errors are kept as a regression set for the LLM step (`pmc_eval/regression_v1_status_term.csv`: expected status and term, quote and sentence offsets in the located text). The rule status logic is not changed for them.
+
+**Dev re-run after the measure-list fix** (task C notes C022 and C037; developed on dev sentences and unit tests):
+
+| | Before | After |
+|---|---|---|
+| Recall, all gold (strict / lenient) | 22.0% / 27.5% | 22.0% / 27.5% |
+| Precision, unadjudicated (strict / lenient) | 38.1% / 46.3% | 37.5% / 45.6% |
+| Predictions / extras | 706 / 379 | 717 / 390 |
+| numbers: exact / parent-child / pred / extra | 7 / 2 / 48 / 39 | 6 / 2 / 58 / 50 |
+
+- Removed: a false Microcephaly present (a height "<3rd percentile" read as head circumference). It had matched the gold by chance; the text rules still find that gold term, so recall is unchanged.
+- Added, all from the numbers reader: Short stature present twice (the paired height and a centile before the list), Microcephaly present (PMID30509212, "below ... 3rd centiles at height, weight and head circumference"), and normal-range absents for paired or newly read measures. Read against the text, all 11 look correct but are not in the gold, so unadjudicated precision falls slightly.
+- C037 was not a miss: Microcephaly present was extracted from that sentence; only its Macrocephaly-absent row was in the task C sample.
+
 ## 4. Remaining misses and known issues
 
 - **Paraphrase with no matching label or synonym (the largest group):**
@@ -299,6 +325,6 @@ Diseases with low ferritin or anemia profiles then move above HHT1. This is a kn
 - **"son"** was added to the family-word list knowing the DM1 held-out note uses it.
 - **Gold edits.** One example alternative (Pustule) was added after seeing output and has since been removed. Gold files are no longer edited without an explicit request, and `TestGoldFiles` enforces this. The gold contains no vitals and no numeric findings beyond the dev labs, so correct numeric findings outside the gold count as extras.
 - **Tuning came from dev mistakes.** The one-word lemma rule, the "N/V." sentence-split fix and the plausibility check were each motivated by a specific observed error.
-- **The six cases are synthetic, written by the developer.** The PMC test set (section 3) is the independent check; its dev numbers are from the first runs on PMC text, and the test split has not been run.
+- **The six cases are synthetic, written by the developer.** The PMC test set (section 3) is the independent check; the test split has not been run. The measure-list fix was prompted by task C notes on dev cases.
 - **PMC gold is the curators' record, not the text.** All-gold recall understates the reader; vocabulary-visible recall uses the reader's own vocabulary and overstates it. Hand-checked recall (task B) is the number to quote once filled in. If no second annotator is found, agreement is reported as a limitation.
 - **PMC dev and test differ in mix:** dev has 40 single- and 24 multi-patient cases, test 96 and 76.
