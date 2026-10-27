@@ -1264,6 +1264,81 @@ class TestNumbers(unittest.TestCase):
         self.assertEqual(age_from_text("38 y/o M machinist"), 38.0)
 
 
+class TestPmcLocator(unittest.TestCase):
+    @staticmethod
+    def doc(*items):
+        # (section_type, type, text)
+        return {"passages": [{"infons": {"section_type": s, "type": t}, "text": x, "offset": i * 100}
+                             for i, (s, t, x) in enumerate(items)]}
+
+    def test_subject_keys(self):
+        from hoofbeats.pmc import subject_keys
+        self.assertEqual(subject_keys("Individual 3"), {("label", "3")})
+        self.assertEqual(subject_keys("P12"), {("label", "12")})
+        self.assertEqual(subject_keys("Family 2 II-3"), {("ped", "II", "3")})
+        self.assertEqual(subject_keys("STX_1_Patient_4"), {("label", "4")})
+        self.assertEqual(subject_keys("KBG3"), {("code", "kbg3")})
+        self.assertEqual(subject_keys("proband"), set())
+
+    def test_single_patient_paragraphs(self):
+        from hoofbeats.pmc import single_patient_paragraphs
+        d = self.doc(("INTRO", "paragraph", "Background on the disease."), ("CASE", "title_1", "Case presentation"),
+                     ("CASE", "paragraph", "A 5-year-old boy had seizures."), ("METHODS", "title_1", "Patients and methods"),
+                     ("METHODS", "paragraph", "DNA was extracted."), ("RESULTS", "title_1", "Results"),
+                     ("RESULTS", "title_2", "Clinical findings"), ("RESULTS", "paragraph", "He had ataxia."),
+                     ("DISCUSS", "title_1", "Clinical description"), ("DISCUSS", "paragraph", "Others report ataxia."))
+        self.assertEqual([(p["text"], r) for p, r in single_patient_paragraphs(d)],
+                         [("A 5-year-old boy had seizures.", "case_section"), ("He had ataxia.", "case_heading")])
+
+    def test_multi_patient_paragraphs(self):
+        from hoofbeats.pmc import multi_patient_paragraphs, subject_keys
+        d = self.doc(("RESULTS", "title_1", "Clinical reports"),
+                     ("RESULTS", "paragraph", "Patient 1 is a 4-year-old girl with ataxia."),
+                     ("RESULTS", "paragraph", "Patient 2 had seizures. His sister, patient 1, did not."),
+                     ("RESULTS", "paragraph", "Patient 2, the brother of patient 1, had ataxia."),
+                     ("RESULTS", "paragraph", "Patients 1 and 2 both had short stature."),
+                     ("RESULTS", "paragraph", "Patient 10 had scoliosis."),
+                     ("RESULTS", "title_2", "Patient 2"), ("RESULTS", "paragraph", "He walked late."),
+                     ("DISCUSS", "paragraph", "Patient 1 resembles earlier reports."))
+        keys = {"a": subject_keys("Individual 1"), "b": subject_keys("Individual 2")}
+        got = {k: [(p["text"][:12], r) for p, r in v] for k, v in multi_patient_paragraphs(d, keys).items()}
+        self.assertEqual(got, {"a": [("Patient 1 is", "id_start")],
+                               "b": [("Patient 2 ha", "id_start"), ("He walked la", "id_heading")]})
+
+    def test_vocab_visible(self):
+        from hoofbeats.extract_eval import _norm, vocab_visible
+        root = Path(tempfile.mkdtemp())
+        (root / "hp.obo").write_text(OBO)
+        ont = Ontology(root / "hp.obo")
+        self.assertTrue(vocab_visible(ont, "HP:0001250", _norm("She had two Seizures, then none.")))
+        self.assertFalse(vocab_visible(ont, "HP:0001250", _norm("She had two convulsive episodes.")))
+
+    def test_check_scores(self):
+        import csv
+        from hoofbeats.pmc_checks import kappa, score
+        self.assertAlmostEqual(kappa(["yes", "yes", "no", "no"], ["yes", "no", "no", "no"]), 0.5)
+        d = Path(tempfile.mkdtemp())
+
+        def put(name, rows):
+            with open(d / name, "w", newline="") as fh:
+                w = csv.DictWriter(fh, fieldnames=list(rows[0]))
+                w.writeheader()
+                w.writerows(rows)
+        b = lambda i, h, e, sm="": {"row_id": f"B{i}", "case_id": "c1", "split": "dev", "hpo_id": h, "label": "", "gold_status": "present",
+                                    "case_text": "", "expressed": e, "quote": "", "status_matches": sm, "notes": ""}
+        put("task_b_gold_in_text.csv", [b(1, "HP:1", "yes", "yes"), b(2, "HP:2", "yes", "yes"), b(3, "HP:3", "no"), b(4, "HP:4", "maybe")])
+        put("task_b_second_annotator.csv", [b(1, "HP:1", "yes"), b(2, "HP:2", "no"), b(3, "HP:3", "no")])
+        put("task_c_extras.csv", [{"row_id": "C1", "verdict": "correct_not_in_gold"}, {"row_id": "C2", "verdict": "wrong_term"}])
+        it = lambda h, r: {"case": "c1", "kind": "gold", "hpo_id": h, "status": "present", "result": r}
+        put("items.csv", [it("HP:1", "exact"), it("HP:2", "missed"), it("HP:3", "missed")])
+        (d / "summary.json").write_text(json.dumps({"pred": 10, "extra": 4, "precision": {"strict": 0.5, "lenient": 0.6}}))
+        res = score(d, d / "items.csv", d / "summary.json")
+        self.assertEqual(res["task_b"]["hand_checked_recall"]["strict"], 0.5)
+        self.assertEqual(res["task_b"]["agreement"]["rows"], 3)
+        self.assertAlmostEqual(res["task_c"]["precision_adjusted"]["strict"], 0.7)
+        self.assertTrue(any("maybe" in x for x in res["problems"]))
+
+
 F = lambda h, st, src="x", ev="": Finding(h, st, src, ev or f"{src}: {h}")
 
 

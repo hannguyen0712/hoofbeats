@@ -6,7 +6,7 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
-from .data import Extractor
+from .data import Extractor, tokens
 from .intake import load_case
 from .model import Ontology
 
@@ -192,4 +192,77 @@ def report(rows: list[dict], ont: Ontology, details: bool = False) -> str:
                 out.append(f"  {it['result']:6s} {it['status']:9s} {it['label']}{got}{span} <- {it.get('quote')!r}")
             for p in r["extras"]:
                 out.append(f"  EXTRA  {p['status']:9s} {ont.name(p['hpo_id'])} <- {p['evidence'][:90]!r}")
+    return "\n".join(out)
+
+
+# PMC test set: the note reader on each manifest case's located text, against its phenopacket features
+def _norm(s: str) -> str:
+    # lower case, word characters only, trailing plural "s" dropped (as the extractor's tokens)
+    return " " + " ".join(tokens(s)) + " "
+
+
+def vocab_visible(ont: Ontology, hpo_id: str, norm_text: str) -> bool:
+    # the term's label or one of its synonyms (EXACT, RELATED, layperson) appears as whole words, plurals allowed
+    t = ont.terms.get(hpo_id)
+    if t is None:
+        return False
+    names = (_norm(n) for n in [t.name, *t.synonyms, *(x for x, _ in t.extra_synonyms)])
+    return any(n.strip() and n in norm_text for n in names)
+
+
+def evaluate_pmc(manifest: dict, ont: Ontology, ext: Extractor | None = None, disease_names: dict[str, str] | None = None,
+                 split: str = "dev", **load_opts) -> list[dict]:
+    from .intake import parse_case
+    from .pmc import load_case_text
+    ext = ext or Extractor(ont)
+    rows = []
+    for c in manifest["cases"]:
+        if c["split"] != split:
+            continue
+        text = load_case_text(c)
+        case = parse_case({"case_id": c["case_id"], "note_text": text}, ont, ext, disease_names=disease_names, **load_opts)
+        norm = _norm(text)
+        gold = [{"hpo_id": g["hpo_id"], "label": g["label"], "status": g["status"],
+                 "vocab_visible": vocab_visible(ont, g["hpo_id"], norm)} for g in c["gold"]]
+        preds = predictions(case, {"note_text": text}).get("note", [])
+        rows.append({"case": c["case_id"], "reader": "note", "paper_kind": c["paper_kind"],
+                     **score_reader(ont, gold, preds, None)})
+    return rows
+
+
+def recall(items: list[dict]) -> dict:
+    n = len(items)
+    ex = sum(it["result"] == "exact" for it in items)
+    near = sum(it["result"] == "near" for it in items)
+    return {"n": n, "strict": ex / n if n else None, "lenient": (ex + near) / n if n else None}
+
+
+def pmc_summary(rows: list[dict]) -> dict:
+    s = summarize(rows)
+    items = [it for r in rows for it in r["items"]]
+    out = {"cases": len(rows), "gold": s["gold"], "pred": s["pred"], "extra": s["extra"],
+           "precision": {"strict": s["strict"][0], "lenient": s["lenient"][0]},
+           "recall_all_gold": recall(items), "recall_vocab_visible": recall([it for it in items if it["vocab_visible"]]),
+           "vocab_visible_share": sum(it["vocab_visible"] for it in items) / len(items) if items else None,
+           "by_status": {st: recall([it for it in items if it["status"] == st]) for st in ("present", "absent")},
+           "by_paper_kind": {k: recall([it for r in rows if r["paper_kind"] == k for it in r["items"]])
+                             for k in ("single", "multi")},
+           "by_method": {m: v for _, m, v in method_breakdown(rows)}}
+    return out
+
+
+def pmc_report(summ: dict) -> str:
+    f = lambda x: "–" if x is None else f"{100 * x:.1f}%"
+    r, v = summ["recall_all_gold"], summ["recall_vocab_visible"]
+    out = [f"{summ['cases']} cases, {summ['gold']} gold findings, {summ['pred']} predictions, {summ['extra']} extras", "",
+           "| measure | n | strict | lenient |", "|---|---|---|---|",
+           f"| recall, all gold | {r['n']} | {f(r['strict'])} | {f(r['lenient'])} |",
+           f"| recall, vocabulary-visible gold | {v['n']} | {f(v['strict'])} | {f(v['lenient'])} |",
+           f"| precision (extras unadjudicated) | {summ['pred']} | {f(summ['precision']['strict'])} | {f(summ['precision']['lenient'])} |"]
+    for k, x in [*summ["by_status"].items(), *summ["by_paper_kind"].items()]:
+        out.append(f"| recall, all gold, {k} | {x['n']} | {f(x['strict'])} | {f(x['lenient'])} |")
+    out += ["", f"vocabulary-visible share of gold: {f(summ['vocab_visible_share'])}", "",
+            "| method | gold found exact | gold found parent/child | pred | extra |", "|---|---|---|---|---|"]
+    for m, x in summ["by_method"].items():
+        out.append(f"| {m} | {x['exact']} | {x['near']} | {x['pred']} | {x['extra']} |")
     return "\n".join(out)

@@ -511,6 +511,8 @@ def cmd_extract_eval(a):
     from .extract_eval import TEXT_READERS, evaluate, report, summarize
     ont = Ontology(Path(a.kb) / "hp.obo")
     names = AnnotationDB(Path(a.kb) / "phenotype.hpoa", ont).names     # same disease names as diagnose (OMIM)
+    if a.pmc:
+        return pmc_extract_eval(a, ont, names)
     RUN["settings"].update({"hpo": ont.version, "cases": a.cases, "gold": a.gold})
     rows, problems = evaluate(a.cases, a.gold, ont, Extractor(ont), names)
     print(f"[extract-eval] {len({r['case'] for r in rows})} cases from {a.cases}, gold {a.gold}\n")
@@ -527,6 +529,76 @@ def cmd_extract_eval(a):
                "status": p["status"], "result": "extra", "quote": p["evidence"]} for r in rows for p in r["extras"]]
     Path(a.out).mkdir(parents=True, exist_ok=True)
     pd.DataFrame(items).to_csv(wrote(Path(a.out) / "extract_eval.csv"), index=False)
+
+
+def pmc_extract_eval(a, ont, names):
+    # the note reader on the frozen PMC manifest; the test split only with --allow-test, every run logged with its commit
+    import subprocess
+    from .extract_eval import evaluate_pmc, pmc_report, pmc_summary
+    if a.split == "test" and not a.allow_test:
+        raise SystemExit("the PMC test split is run only at agreed milestones; add --allow-test")
+    manifest = json.loads(Path(a.pmc).read_text())
+    RUN["settings"].update({"hpo": ont.version, "pmc_manifest": a.pmc, "locator_version": manifest["locator_version"],
+                            "split": a.split})
+    rows = evaluate_pmc(manifest, ont, Extractor(ont), names, a.split)
+    summ = pmc_summary(rows)
+    print(f"[extract-eval] PMC manifest v{manifest['locator_version']} ({a.pmc}), split {a.split}\n")
+    print(pmc_report(summ))
+    note("extract_eval_pmc", **summ)
+    items = [{"case": r["case"], "kind": "gold", "hpo_id": it["hpo_id"], "label": it["label"], "status": it["status"],
+              "result": it["result"], "got": ";".join(it["got"]), "vocab_visible": it["vocab_visible"], "method": "",
+              "quote": "", "evidence": ""} for r in rows for it in r["items"]]
+    items += [{"case": r["case"], "kind": "extra", "hpo_id": p["hpo_id"], "label": ont.name(p["hpo_id"]), "status": p["status"],
+               "result": "extra", "got": "", "vocab_visible": "", "method": p["method"], "quote": p.get("quote", ""),
+               "evidence": p["evidence"]} for r in rows for p in r["extras"]]
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(items).to_csv(wrote(out / f"pmc_{a.split}_items.csv"), index=False)
+    (out / f"pmc_{a.split}_summary.json").write_text(json.dumps(summ, indent=1))
+    wrote(out / f"pmc_{a.split}_summary.json")
+    git = lambda *x: subprocess.run(["git", *x], capture_output=True, text=True).stdout.strip()
+    with open(Path(a.pmc).parent / "runs.jsonl", "a") as fh:
+        fh.write(json.dumps({"time": time.strftime("%Y-%m-%d %H:%M:%S"), "commit": git("rev-parse", "HEAD"),
+                             "dirty": bool(git("status", "--porcelain", "hoofbeats")), "manifest": a.pmc,
+                             "locator_version": manifest["locator_version"], "split": a.split,
+                             "recall_all_gold": summ["recall_all_gold"], "recall_vocab_visible": summ["recall_vocab_visible"],
+                             "precision": summ["precision"], "pred": summ["pred"], "extra": summ["extra"]}) + "\n")
+
+
+def cmd_pmc_build(a):
+    # fetch (cached), locate and freeze the PMC manifest; refuses uncommitted locator code
+    from .pmc import LOCATOR_VERSION, build_manifest
+    ont = Ontology(Path(a.kb) / "hp.obo")
+    manifest, excluded = build_manifest(a.phenopackets, ont)
+    out = Path(a.dest)
+    out.mkdir(parents=True, exist_ok=True)
+    path = out / f"manifest_v{LOCATOR_VERSION}.json"
+    if path.exists() and not a.force:
+        raise SystemExit(f"{path} exists (frozen); bump LOCATOR_VERSION to rebuild, or --force before it is used")
+    path.write_text(json.dumps(manifest, indent=1))
+    pd.DataFrame(excluded).to_csv(wrote(out / f"excluded_v{LOCATOR_VERSION}.csv"), index=False)
+    print(json.dumps(manifest["counts"], indent=1))
+    note("pmc_build", **manifest["counts"])
+    print(f"[pmc] manifest: {wrote(path)}")
+
+
+def cmd_pmc_checks(a):
+    # pre-filled hand-check sheets: A and B from the manifest; C from an extract-eval items file (dev run)
+    from .pmc_checks import make_task_a, make_task_b, make_task_c
+    manifest = json.loads(Path(a.manifest).read_text())
+    out = Path(a.dest)
+    made = [] if a.items else [make_task_a(manifest, out), *make_task_b(manifest, out)]
+    if a.items:
+        made.append(make_task_c(a.items, out))
+    for f in made:
+        print(f"[pmc] wrote {wrote(f)}")
+
+
+def cmd_pmc_score(a):
+    from .pmc_checks import score
+    res = score(Path(a.checks), a.items, a.summary)
+    print(json.dumps(res, indent=1))
+    note("pmc_score", **res)
 
 
 def image_agreement(r: LRRanker, predicted: set[str], reference: set[str]) -> tuple[float | None, float | None]:
@@ -706,6 +778,22 @@ def main(argv=None):
     s.add_argument("--gold", default="examples/intended_findings.json")
     s.add_argument("--details", action="store_true", help="list every gold finding and extra")
     s.add_argument("--out", default="results/extract_eval")
+    s.add_argument("--pmc", help="PMC manifest (pmc_eval/manifest_v1.json): score the note reader on its located text")
+    s.add_argument("--split", default="dev", choices=["dev", "test"])
+    s.add_argument("--allow-test", action="store_true", help="needed to run on the PMC test split")
+    s = sub.add_parser("pmc-build", help="fetch, locate and freeze the PMC test-set manifest")
+    s.add_argument("--phenopackets", default="data/phenopacket-store")
+    s.add_argument("--dest", default="pmc_eval")
+    s.add_argument("--force", action="store_true", help="overwrite an existing manifest of the same version")
+    s = sub.add_parser("pmc-checks", help="write the pre-filled hand-check CSVs")
+    s.add_argument("--manifest", default="pmc_eval/manifest_v1.json")
+    s.add_argument("--items", help="extract-eval pmc_dev_items.csv: write task C (extras) instead of A and B")
+    s.add_argument("--dest", default="data/pmc/checks")
+    s = sub.add_parser("pmc-score", help="scores from the filled-in hand-check CSVs")
+    s.add_argument("--checks", default="data/pmc/checks")
+    s.add_argument("--items", help="extract-eval pmc_<split>_items.csv, for hand-checked recall")
+    s.add_argument("--summary", help="extract-eval pmc_<split>_summary.json, for precision with adjudicated extras")
+    s.add_argument("--out", default="results")
     s = sub.add_parser("report", help="tables, figures and notes from saved runs")
     s.add_argument("--results", default="results", help="folder searched (recursively) for runs and CSVs")
     s.add_argument("--out", default="reports/report", help="base name; each run writes <base>-1, <base>-2, ...")
@@ -762,7 +850,8 @@ def _logged(a):
     try:
         {"diagnose": cmd_diagnose, "benchmark": cmd_benchmark, "sequential": cmd_sequential,
          "learn-common": cmd_learn_common, "mimic": cmd_mimic, "medpix": cmd_medpix,
-         "llm-bench": cmd_llm_bench, "extract-eval": cmd_extract_eval}[a.cmd](a)
+         "llm-bench": cmd_llm_bench, "extract-eval": cmd_extract_eval, "pmc-build": cmd_pmc_build,
+         "pmc-checks": cmd_pmc_checks, "pmc-score": cmd_pmc_score}[a.cmd](a)
     except KeyboardInterrupt:
         status = "stopped (Ctrl-C)"
         raise
