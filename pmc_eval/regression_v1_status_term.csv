@@ -1,0 +1,16 @@
+row_id,case_id,error,predicted_hpo,predicted_label,predicted_status,expected_hpo,expected_status,quote_start,quote_end,sentence_start,sentence_end,notes
+C002,PMID27099744_Family_27,wrong_status,HP:0002280,Enlarged cisterna magna,uncertain,HP:0002280,present,2165,2188,2085,2235,"stated as present, not hedged"
+C010,PMID38622837_Case_presentation,wrong_status,HP:0002329,Drowsiness,family,HP:0002329,present,2482,2492,2434,2558,"patient's own drowsiness; should be present, not family"
+C011,PMID27099744_Family_27,wrong_status,HP:0001321,Cerebellar hypoplasia,uncertain,HP:0001321,present,2218,2234,2085,2235,"""small cerebellum"" is stated, should be present"
+C024,PMID37875108_Patient_5,wrong_status,HP:0001945,Fever,present,HP:0001945,family,1357,1362,1256,1386,the uncle's fever; should be family
+C031,PMID30538526_patient,wrong_status,HP:0002970,Genu varum,absent,HP:0002970,present,3452,3462,3202,3464,genu varum is present in the patient
+C039,PMID36147795_Case_Presentation,wrong_status,HP:0000733,Motor stereotypy,uncertain,HP:0000733,present,1604,1615,1446,1670,listed as signs present in the patient; should be present
+C046,PMID36147795_Case_Presentation,wrong_status,HP:0000729,Autistic behavior,uncertain,HP:0000729,present,1652,1669,1446,1670,listed as signs present in the patient; should be present
+C049,PMID30012084_older_sister,wrong_status,HP:0001252,Hypotonia,absent,HP:0001252,present,2081,2090,2016,2091,patient had hypotonia; should be present
+C052,PMID29801479_proband,wrong_status,HP:0000365,Hearing impairment,present,HP:0000365,absent,739,751,739,892,"""have not been observed""; should be absent"
+C066,PMID38622837_Case_presentation,wrong_term,HP:0002910,Elevated circulating hepatic transaminase concentration,present,HP:0031865,present,1073,1096,944,1097,HP:0031865 Abnormal liver physiology; HPO lists 'Abnormal liver function' as a synonym of HP:0002910
+C067,PMID21165303_case_report,wrong_term,HP:0001658,Myocardial infarction,present,,none,2614,2616,2550,2623,'MI' is Michigan in an address: no finding
+C077,PMID30891318_case,wrong_status,HP:0001618,Dysphonia,present,HP:0001618,family,848,861,694,1149,the brother's voice changes; should be family
+C078,PMID31213928_patient,wrong_term,HP:0025406,Asthenia,present,HP:0003690,present,100,108,0,118,HP:0003690 Limb muscle weakness
+C081,PMID32600459_proband,wrong_status,HP:0001251,Ataxia,family,,none,1479,1485,1420,1486,negated family statement: no finding
+C098,PMID26040326_eldest_sister_III_1,wrong_status,HP:0001254,Lethargy,family,HP:0001254,present,526,534,367,549,"""both siblings"" includes the patient; should be present"
