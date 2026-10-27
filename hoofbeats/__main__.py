@@ -550,7 +550,7 @@ def pmc_extract_eval(a, ont, names):
               "quote": "", "evidence": ""} for r in rows for it in r["items"]]
     items += [{"case": r["case"], "kind": "extra", "hpo_id": p["hpo_id"], "label": ont.name(p["hpo_id"]), "status": p["status"],
                "result": "extra", "got": "", "vocab_visible": "", "method": p["method"], "quote": p.get("quote", ""),
-               "evidence": p["evidence"]} for r in rows for p in r["extras"]]
+               "evidence": p.get("sentence") or p["evidence"]} for r in rows for p in r["extras"]]
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(items).to_csv(wrote(out / f"pmc_{a.split}_items.csv"), index=False)

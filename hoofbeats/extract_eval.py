@@ -6,7 +6,7 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
-from .data import Extractor, tokens
+from .data import Extractor, sentence_spans, tokens
 from .intake import load_case
 from .model import Ontology
 
@@ -225,8 +225,14 @@ def evaluate_pmc(manifest: dict, ont: Ontology, ext: Extractor | None = None, di
         gold = [{"hpo_id": g["hpo_id"], "label": g["label"], "status": g["status"],
                  "vocab_visible": vocab_visible(ont, g["hpo_id"], norm)} for g in c["gold"]]
         preds = predictions(case, {"note_text": text}).get("note", [])
-        rows.append({"case": c["case_id"], "reader": "note", "paper_kind": c["paper_kind"],
-                     **score_reader(ont, gold, preds, None)})
+        res = score_reader(ont, gold, preds, None)
+        sents = sentence_spans(text, 0, len(text))
+        for p in res["extras"]:     # quote and whole sentence, for hand-checking
+            if p["span"]:
+                a, b = p["span"]
+                ss = next(((x, y) for x, y in sents if x <= a < y), (a, b))
+                p["quote"], p["sentence"] = text[a:b], text[ss[0]:max(ss[1], b)].strip()
+        rows.append({"case": c["case_id"], "reader": "note", "paper_kind": c["paper_kind"], **res})
     return rows
 
 
