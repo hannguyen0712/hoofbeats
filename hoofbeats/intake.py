@@ -202,10 +202,13 @@ def original_texts(d: IntakeCase, pos: dict) -> dict[str, str]:
 
 
 def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancestors: bool = True, path=None,
-               disease_names: dict[str, str] | None = None, emit_normal_vitals: bool = False) -> Case:
+               disease_names: dict[str, str] | None = None, emit_normal_vitals: bool = False, llm_reader=None,
+               rules_text: bool = True, status_policy: str = "llm") -> Case:
     # disease_names: knowledge-base names (id -> name); their mentions are recorded, never turned into findings.
     # emit_normal_vitals: normal vital signs also give absent findings; when off they are only recorded in
     # meta["provenance"]["normal_vitals"]
+    # llm_reader: an LLMReader (llm_reader.py) also reads note_text and image_context; rules_text=False leaves the rule
+    # text reader out (LLM only); status_policy: whose status wins when the two disagree on the same words
     if not isinstance(obj, dict):
         raise IntakeError("a case must be a JSON object")
     warnings: list[str] = []
@@ -218,16 +221,22 @@ def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancesto
     w = warnings.append
     normals: list[dict] = []
     nv = {"emit_normal_vitals": emit_normal_vitals, "normals": normals}
+    text = (lambda t, src: read_text(t, ext, src, src if src != "note" else "note_text", diseases, mentions)) \
+        if rules_text else (lambda t, src: [])
+    llm = (lambda t, src: llm_reader(t, src, src if src != "note" else "note_text")) if llm_reader else (lambda t, src: [])
+    if llm_reader is not None:
+        llm_reader.case_id = d.case_id
     findings, prov = fuse([read_hpo_terms(d.hpo_terms, ont, w, pos.get("hpo_terms")),
-                           read_text(d.note_text, ext, "note", "note_text", diseases, mentions),
+                           text(d.note_text, "note"), llm(d.note_text, "note"),
                            read_numbers(d.note_text, "note", "note_text", age, w, **nv),
-                           read_text(d.image_context, ext, "image_context", "image_context", diseases, mentions),
+                           text(d.image_context, "image_context"), llm(d.image_context, "image_context"),
                            read_numbers(d.image_context, "image_context", "image_context", age, w, **nv),
                            read_image_findings(d.image_findings, ont, ext, w, pos.get("image_findings")),
-                           read_labs(d.labs, w, age), read_structured_vitals(d.vitals, w, age, **nv)], ont, drop_ancestors)
+                           read_labs(d.labs, w, age), read_structured_vitals(d.vitals, w, age, **nv)], ont, drop_ancestors,
+                          status_policy)
     prov["normal_vitals"] = normals
     warnings += [f"{c['hpo_id']} {ont.name(c['hpo_id'])}: {c['reason']} "
-                 f"({', '.join(c['contradicted_by'])}); absent {c['action']}" for c in prov["conflicts"]]
+                 f"({', '.join(c['contradicted_by'])}); {c['status']} {c['action']}" for c in prov["conflicts"]]
     meta = {"input_format": FORMAT, "policy": d.policy, "images": [], "age": d.age, "sex": d.sex,
             "vitals": d.vitals.model_dump(exclude_none=True) if d.vitals else {},
             "provenance": prov, "disease_mentions": mentions, "intake_warnings": warnings}
@@ -240,13 +249,15 @@ def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancesto
 
 
 def load_case(path, ont: Ontology, ext: Extractor | None = None, *, drop_ancestors: bool = True,
-              disease_names: dict[str, str] | None = None, emit_normal_vitals: bool = False) -> Case:
+              disease_names: dict[str, str] | None = None, emit_normal_vitals: bool = False, llm_reader=None,
+              rules_text: bool = True, status_policy: str = "llm") -> Case:
     try:
         obj = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as e:
         raise IntakeError(f"{path}: cannot read case file ({e})") from None
     return parse_case(obj, ont, ext, drop_ancestors=drop_ancestors, path=path, disease_names=disease_names,
-                      emit_normal_vitals=emit_normal_vitals)
+                      emit_normal_vitals=emit_normal_vitals, llm_reader=llm_reader, rules_text=rules_text,
+                      status_policy=status_policy)
 
 
 def intake_summary(c: Case, ont: Ontology) -> str:

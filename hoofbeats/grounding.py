@@ -60,6 +60,8 @@ def verify_provenance(case: Case, texts: dict[str, str]) -> list[str]:
             if e.get("field") is None or e.get("start") is None:
                 continue
             check(f"{h} quote", e["field"], e["start"], e["end"], e["quote"])
+            for o in e.get("other_spans", []):
+                check(f"{h} quote ({'+'.join(o['readers'])})", e["field"], o["start"], o["end"], o["quote"])
             if e.get("status_cue"):
                 c = e["status_cue"]
                 check(f"{h} status cue", e["field"], c["start"], c["end"], c["word"])

@@ -40,7 +40,7 @@ def predictions(case, raw: dict) -> dict[str, list[dict]]:
             elif e.get("start") is None and r in TEXT_FIELDS and e.get("evidence"):
                 i = (raw.get(TEXT_FIELDS[r]) or "").find(e["evidence"])
                 span = (i, i + len(e["evidence"])) if i >= 0 else None
-            method = (e.get("readers") or [None])[0] or ("rules" if r in TEXT_FIELDS else r)
+            method = "+".join(sorted(e.get("readers") or [])) or ("rules" if r in TEXT_FIELDS else r)   # llm+rules: both
             out[r].append({"hpo_id": h, "status": e["status"], "evidence": e.get("evidence", ""), "span": span, "method": method})
     return out
 

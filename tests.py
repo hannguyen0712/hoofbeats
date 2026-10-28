@@ -838,6 +838,47 @@ class TestLinker(unittest.TestCase):
         self.assertLess(sim[1], 0.5)
         self.assertEqual(ix.similarity(["x"], ["HP:9999999"]), [None])
 
+    def test_llm_reader_merged_with_rules(self):
+        from hoofbeats.intake import parse_case
+        from hoofbeats.linker import Linker
+        from hoofbeats.llm_reader import LLMReader
+        text = "The patient had fever. No seizures. The lens had slipped upward."
+        reply = json.dumps({"findings": [
+            {"phrase": "fever", "status": "present", "quote": "had fever"},                  # agrees with the rules
+            {"phrase": "seizures", "status": "present", "quote": "seizures"},                # rules: absent ("No")
+            {"phrase": "dislocated lens", "status": "present", "quote": "The lens had slipped upward"},   # paraphrase
+            {"phrase": "arachnodactyly", "status": "present", "quote": "No seizures."},      # quote explained by Seizure
+            {"phrase": "zzz", "status": "present", "quote": "patient"}]})                    # links to nothing
+        lk = Linker(self.ont, self.ext, self.index(), None, hi=0.75, lo=0.3, k=3)
+
+        def run(**kw):
+            reader = LLMReader(TestLLMExtract.ChunkFake(lambda p: reply), lk, self.ont, self.ext, workers=1)
+            c = parse_case({"case_id": "x", "note_text": text}, self.ont, self.ext, llm_reader=reader, **kw)
+            self.assertFalse([w for w in c.meta["intake_warnings"] if w.startswith("provenance")])   # spans verified
+            return c, {f.hpo_id: f for f in c.findings}, reader
+        c, got, reader = run()
+        self.assertEqual({h: f.status for h, f in got.items()},
+                         {"HP:0001945": Status.PRESENT, "HP:0001250": Status.PRESENT, "HP:0001083": Status.PRESENT})
+        self.assertEqual(got["HP:0001945"].grounding, "strong")                         # rules + llm on the same words
+        fever = c.meta["provenance"]["HP:0001945"]
+        self.assertEqual((len(fever), fever[0]["readers"], fever[0]["grounding"]), (1, ["rules", "llm"], "strong"))
+        self.assertEqual(fever[0]["other_spans"][0]["quote"], "had fever")
+        conflict = c.meta["provenance"]["conflicts"][0]
+        self.assertEqual((conflict["hpo_id"], conflict["status"], conflict["action"]), ("HP:0001250", "absent", "dropped"))
+        self.assertEqual([e["readers"] for e in c.meta["provenance"]["HP:0001250"]], [["llm"]])
+        self.assertEqual(got["HP:0001083"].link[0], "dict:synonym:exact")
+        verdicts = {r["phrase"]: (r["verdict"], r["kept"]) for r in reader.log}
+        self.assertEqual(verdicts["arachnodactyly"], ("explained_by_other_terms", False))
+        self.assertEqual(verdicts["dislocated lens"], ("no_rule_term", True))
+        self.assertEqual(verdicts["zzz"], ("unlinked", False))
+        _, got, _ = run(status_policy="rules")
+        self.assertEqual(got["HP:0001250"].status, Status.ABSENT)                       # the rules' "No seizures"
+        c, got, _ = run(rules_text=False)
+        self.assertEqual({f.reader for f in c.findings}, {"llm"})
+        self.assertEqual(got["HP:0001945"].grounding, "strong")                         # dictionary link, exact label
+        with self.assertRaises(ValueError):
+            run(status_policy="majority")
+
     def test_calibration(self):
         from hoofbeats.linker import calibrate
         cal = calibrate(self.index(), n=50, k=3)
