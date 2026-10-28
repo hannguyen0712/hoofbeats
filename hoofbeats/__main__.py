@@ -20,6 +20,7 @@ from .data import (DiseaseMatcher, Extractor, download, learn_common, load_medpi
                    load_phenopackets, orphadata_icd10)
 from .model import (AnnotationDB, Case, Finding, LRRanker, Ontology, Status, explain,
                     most_frequent_test, suggest_tests, verify_claim)
+from .context import add_arguments as add_context_arguments, commands as context_commands
 
 
 # run record: every command logs its settings, metrics and console output under <out>/runs/
@@ -74,14 +75,16 @@ def get_llm(a):
     if not a.llm:
         return None
     import os
-    from .llm import MedGemma
+    from .llm import MedGemma, with_json_mode
     key = os.environ.get(a.llm_key_env) if a.llm_key_env else None
     if a.llm_key_env and not key:
         raise SystemExit(f"environment variable {a.llm_key_env} is not set")
     vision = {"auto": None, "yes": True, "no": False}[a.llm_vision]
     extra = json.loads(a.llm_extra) if a.llm_extra else None
+    extra = with_json_mode(a.json_mode, a.llm_endpoint, extra, a.llm_model)
     cache = None if a.llm_cache == "none" else Path(a.llm_cache if a.llm_cache != "auto" else Path(_out_dir(a)) / "llm_cache")
-    llm = MedGemma(a.llm_model, a.llm_endpoint, a.llm_max_tokens, key, vision, extra, a.llm_rpm, cache, a.dry_run)
+    llm = MedGemma(a.llm_model, a.llm_endpoint, a.llm_max_tokens, key, vision, extra, a.llm_rpm, cache, a.dry_run,
+                   a.llm_timeout)
     RUN["settings"].update({"model": llm.model, "endpoint": llm.endpoint or "in-process",
                             "max_tokens": a.llm_max_tokens, "extra": extra or {}})
     print(f"[llm] {llm.model} via {llm.endpoint or 'transformers (in-process)'}"
@@ -661,6 +664,7 @@ def main(argv=None):
     s.add_argument("--results", default="results", help="folder searched (recursively) for runs and CSVs")
     s.add_argument("--out", default="reports/report", help="base name; each run writes <base>-1, <base>-2, ...")
     s.add_argument("--latex", action="store_true", help="also write LaTeX tables")
+    add_context_arguments(p, sub)     # multimodal, medpix-context and their options (context.py)
     a = p.parse_args(argv)
     if a.cmd == "download":
         download(a.dest)
@@ -693,13 +697,14 @@ def _write_txt(path: Path, body: str, trace: str):
         tail += ["", "files written:"] + [f"  {f}" for f in RUN["files"]]
     if trace:
         tail += ["", rule, "error", rule, trace]
-    path.write_text("\n".join(head + ["", rule, "console output", rule, "", body.rstrip()] + tail) + "\n")
+    path.write_text("\n".join(head + ["", rule, "console output", rule, "", body.rstrip()] + tail) + "\n", encoding="utf-8")
 
 
 def _logged(a):
     # run the command; save <out>/runs/<id>.txt (readable log) and <id>.json (settings + metrics)
     import traceback
-    model = re.sub(r"[^A-Za-z0-9.]+", "-", a.llm_model.split("/")[-1]).lower() if a.llm or a.cmd == "llm-bench" else ""
+    uses_llm = a.llm or a.cmd in ("llm-bench", "multimodal", "medpix-context")
+    model = re.sub(r"[^A-Za-z0-9.]+", "-", a.llm_model.split("/")[-1]).lower() if uses_llm else ""
     RUN.update({"id": time.strftime("%Y%m%d-%H%M%S") + f"_{a.cmd}" + (f"_{model}" if model else ""),
                 "command": a.cmd, "argv": sys.argv[1:], "note": a.note, "started": time.strftime("%Y-%m-%d %H:%M:%S")})
     RUN["settings"].update({k: v for k, v in vars(a).items()
@@ -707,13 +712,13 @@ def _logged(a):
     runs = _run_dir(a)
     runs.mkdir(parents=True, exist_ok=True)
     partial = runs / f"{RUN['id']}.partial.txt"     # raw output while running; replaced by the clean log at the end
-    log = open(partial, "w")
+    log = open(partial, "w", encoding="utf-8")   # model replies can hold any character (Windows)
     stdout, t0, status, trace = sys.stdout, time.time(), "ok", ""
     sys.stdout = _Tee(stdout, log)
     try:
         {"diagnose": cmd_diagnose, "benchmark": cmd_benchmark, "sequential": cmd_sequential,
          "learn-common": cmd_learn_common, "mimic": cmd_mimic, "medpix": cmd_medpix,
-         "llm-bench": cmd_llm_bench}[a.cmd](a)
+         "llm-bench": cmd_llm_bench, **context_commands(sys.modules[__name__])}[a.cmd](a)
     except KeyboardInterrupt:
         status = "stopped (Ctrl-C)"
         raise
@@ -739,9 +744,9 @@ def _logged(a):
         RUN.update({"status": status, "seconds": round(time.time() - t0, 1)})
         (runs / f"{RUN['id']}.json").write_text(json.dumps(RUN, indent=1, default=str))
         txt = runs / f"{RUN['id']}.txt"
-        _write_txt(txt, _clean_console(partial.read_text()), trace)
+        _write_txt(txt, _clean_console(partial.read_text(encoding="utf-8")), trace)
         partial.unlink()
-        (runs / "latest.txt").write_text(txt.read_text())
+        (runs / "latest.txt").write_text(txt.read_text(encoding="utf-8"), encoding="utf-8")
         print(f"[run] log: {txt}  ({status})")
 
 

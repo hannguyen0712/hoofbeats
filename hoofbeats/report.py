@@ -99,7 +99,7 @@ class Report:
     def table(self, df: pd.DataFrame, name: str, caption: str):
         df.to_csv(self.out / "tables" / f"{name}.csv", index=False)
         if self.latex:
-            (self.out / "tables" / f"{name}.tex").write_text(_tex_table(df, caption, f"tab:{name}"))
+            (self.out / "tables" / f"{name}.tex").write_text(_tex_table(df, caption, f"tab:{name}"), encoding="utf-8")
         self.md.append(f"*{caption}*\n\n{_md_table(df)}\n")
 
     def figure(self, fig, name: str, caption: str):
@@ -322,6 +322,37 @@ def medpix_section(rep: Report, compare: pd.DataFrame | None, medpix: dict[str, 
                      f"with the radiologist at {_pct(r.get('image_precision'))} precision and {_pct(r.get('image_recall'))} recall.")
 
 
+def context_section(rep: Report, compare: pd.DataFrame | None):
+    # medpix-context runs: what the ranking model is given, per ranking model and image-context model
+    if compare is None or compare.empty or "task" not in compare:
+        return
+    mc = compare[compare.task == "medpix-context"]
+    if mc.empty:
+        return
+    mc = mc.sort_values("time").groupby(["model", "context_model"]).tail(1)
+    short = lambda m: str(m).split("/")[-1]
+    conds = [("text", "text"), ("images", "+ images"), ("context", "+ image context"),
+             ("context+images", "+ context + images"), ("reference", "+ radiologist findings")]
+    rep.section("Image context for the ranking model (MedPix 2.0)")
+    rows = []
+    for _, r in mc.iterrows():
+        row = {"ranking model": short(r.model), "image-context model": short(r.context_model), "cases": int(r.cases)}
+        row.update({f"{lab} Top-10": _pct(r.get(f"{c}_name_top10")) for c, lab in conds})
+        if any(f"{c}_judge_top10" in mc for c, _ in conds):      # judged runs: synonyms count
+            row.update({f"{lab} judge Top-10": _pct(r.get(f"{c}_judge_top10")) for c, lab in conds
+                        if f"{c}_judge_top10" in mc})
+        row["context recall"] = _pct(r.get("context_recall"))
+        rows.append(row)
+    rep.table(pd.DataFrame(rows), "medpix_context",
+              "Top-10 (name match) on MedPix cases by what the ranking model is given; every input also has "
+              "patient details and history/exam")
+    for _, r in mc.iterrows():
+        t, both = r.get("text_name_top10"), r.get("context+images_name_top10")
+        if not (pd.isna(t) or pd.isna(both)):
+            rep.note(f"{short(r.model)} ranking with image context by {short(r.context_model)}: Top-10 {_pct(t)} from "
+                     f"text alone, {_pct(both)} with image context + images ({int(r.cases)} cases).")
+
+
 def sequential_section(rep: Report, csv: Path | None):
     if not csv:
         return
@@ -385,7 +416,7 @@ def build_report(results: Path, base: Path, latex: bool = False) -> Path:
     runs = []
     for p in results.rglob("runs/*.json"):
         try:
-            runs.append(json.loads(p.read_text()))
+            runs.append(json.loads(p.read_text(encoding="utf-8")))
         except json.JSONDecodeError:
             continue
     csvs = _latest(list(results.rglob("*.csv")))
@@ -399,6 +430,7 @@ def build_report(results: Path, base: Path, latex: bool = False) -> Path:
     benchmark_section(rep, csvs.get("benchmark.csv"), runs)
     llm_section(rep, compare, per_case)
     medpix_section(rep, compare, medpix)
+    context_section(rep, compare)
     sequential_section(rep, csvs.get("sequential.csv"))
     mimic_section(rep, csvs.get("mimic.csv"))
     runs_section(rep, runs)
@@ -407,8 +439,8 @@ def build_report(results: Path, base: Path, latex: bool = False) -> Path:
     if rep.notes:
         head += ["\n## Key findings\n"] + [f"- {n}" for n in rep.notes] + [""]
     md = out / f"{base.name}-{n}.md"
-    md.write_text("\n".join(head + rep.md))
-    (out / f"notes-{n}.md").write_text("\n".join(f"- {x}" for x in rep.notes) + "\n")
+    md.write_text("\n".join(head + rep.md), encoding="utf-8")
+    (out / f"notes-{n}.md").write_text("\n".join(f"- {x}" for x in rep.notes) + "\n", encoding="utf-8")
     print(f"[report] {len(rep.notes)} findings, {len(list((out / 'figures').glob('*.png')))} figures, "
           f"{len(list((out / 'tables').glob('*.csv')))} tables -> {md}")
     return md
