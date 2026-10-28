@@ -480,6 +480,26 @@ class Tests(unittest.TestCase):
         self.assertEqual((again.chat("a"), again.chat("c")), ("reply", ""))
         self.assertEqual((again.cache_hits, again.planned, again.requests), (1, 1, 0))
 
+    def test_offline_schema_key_and_threads(self):
+        from hoofbeats.llm import chat_many, require_local
+        d = self.root / "cache_offline"
+        m = MedGemma("x/m", "http://127.0.0.1:1/v1", cache_dir=d)
+        sent = []
+        m._endpoint_chat = lambda u, s, i, schema=None: (sent.append(schema), f"r:{u}")[1]
+        schema = {"type": "object"}
+        self.assertEqual(chat_many(m, [{"user": str(i)} for i in range(20)] + [{"user": "0", "schema": schema}], workers=4),
+                         [f"r:{i}" for i in range(20)] + ["r:0"])
+        self.assertEqual((m.n_calls, m.cache_hits, sent.count(schema)), (21, 0, 1))   # the schema is part of the key
+        self.assertEqual(len((d / "m.jsonl").read_text().splitlines()), 21)          # one cache file per model
+        off = MedGemma("x/m", "http://127.0.0.1:1/v1", cache_dir=d, offline=True)
+        off._endpoint_chat = lambda *a, **k: self.fail("offline mode sent a request")
+        self.assertEqual((off.chat("3"), off.chat("0", schema=schema), off.chat("new")), ("r:3", "r:0", ""))
+        self.assertEqual((off.cache_hits, off.missed, off.usage()["offline_misses"]), (2, 1, 1))
+        require_local(m)
+        require_local(MedGemma())
+        with self.assertRaises(PolicyError):
+            require_local(MedGemma("x/m", "https://api.example.com/v1"))
+
     def test_quota_errors(self):
         from hoofbeats.llm import quota_info
         body = json.dumps([{"error": {"code": 429, "message": "quota", "details": [

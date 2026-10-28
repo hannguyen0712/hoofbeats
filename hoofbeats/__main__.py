@@ -65,6 +65,8 @@ def usage_line(llm) -> str:
     note("requests", **u)
     if llm.dry_run:
         return f"[llm] dry run: would send {u['would_send']} requests; {u['cache_hits']} already answered from the cache"
+    if getattr(llm, "offline", False):
+        return f"[llm] offline: {u['cache_hits']} answered from the cache, {u['offline_misses']} not in the cache (no reply)"
     return (f"[llm] requests sent {u['requests']} (retries {u['retries']}), answered from cache {u['cache_hits']}, "
             f"{u['sec_per_request']} s per request")
 
@@ -81,12 +83,16 @@ def get_llm(a):
     vision = {"auto": None, "yes": True, "no": False}[a.llm_vision]
     extra = json.loads(a.llm_extra) if a.llm_extra else None
     cache = None if a.llm_cache == "none" else Path(a.llm_cache if a.llm_cache != "auto" else Path(_out_dir(a)) / "llm_cache")
-    llm = MedGemma(a.llm_model, a.llm_endpoint, a.llm_max_tokens, key, vision, extra, a.llm_rpm, cache, a.dry_run)
+    if a.llm_offline and cache is None:
+        raise SystemExit("--llm-offline answers from the reply cache; pass --llm-cache")
+    llm = MedGemma(a.llm_model, a.llm_endpoint, a.llm_max_tokens, key, vision, extra, a.llm_rpm, cache, a.dry_run,
+                   offline=a.llm_offline)
     RUN["settings"].update({"model": llm.model, "endpoint": llm.endpoint or "in-process",
-                            "max_tokens": a.llm_max_tokens, "extra": extra or {}})
+                            "max_tokens": a.llm_max_tokens, "extra": extra or {}, "offline": a.llm_offline})
     print(f"[llm] {llm.model} via {llm.endpoint or 'transformers (in-process)'}"
           + (f"; {len(llm._cache)} cached replies in {cache}" if cache else "")
-          + ("; DRY RUN, nothing is sent" if a.dry_run else ""))
+          + ("; DRY RUN, nothing is sent" if a.dry_run else "")
+          + ("; OFFLINE, cached replies only" if a.llm_offline else ""))
     if not llm.is_local:
         print("[llm] remote service: only public datasets will be sent; credentialed data is refused")
     return llm
@@ -733,6 +739,9 @@ def main(argv=None):
     p.add_argument("--llm-rpm", type=float, help="max model requests per minute (match your free-tier limit, e.g. 5)")
     p.add_argument("--llm-cache", default="auto", help="folder of saved model replies (default <out>/llm_cache; 'none' to disable)")
     p.add_argument("--dry-run", action="store_true", help="count the model requests a command would send, send none")
+    p.add_argument("--llm-offline", action="store_true",
+                   help="answer only from the reply cache (e.g. replies copied back from Sol); misses get no reply")
+    p.add_argument("--llm-workers", type=int, default=8, help="model requests in flight at once (a vLLM server batches them)")
     p.add_argument("--llm-extra", help='extra JSON fields for the request body, e.g. \'{"reasoning_effort": "low"}\'')
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("download"); s.add_argument("--dest", default="data")
