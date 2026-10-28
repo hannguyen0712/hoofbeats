@@ -45,13 +45,43 @@ def quota_info(body: bytes) -> dict:
     return out
 
 
+def image_type(path) -> str:
+    # media type from the file's first bytes, so JPEG/WebP inputs are not sent labelled as PNG
+    head = Path(path).read_bytes()[:12]
+    if head.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    if head[:4] == b"GIF8":
+        return "image/gif"
+    return "image/png"
+
+
+# --json-mode asks the server for JSON only (response_format json_object). Ollama and OpenAI support it. Gemini's
+# OpenAI-compatible endpoint documents only schema-based JSON, so it is not sent there; Gemini answers in JSON from
+# the prompt alone. Add a host here if another server rejects it.
+NO_JSON_MODE = ("generativelanguage.googleapis.com",)
+
+
+def with_json_mode(json_mode: bool, endpoint, extra, model: str):
+    # extra request fields, plus response_format when --json-mode is on and the server supports it
+    if not json_mode:
+        return extra
+    if urlparse(endpoint or "").hostname in NO_JSON_MODE:
+        print(f"[llm] {model}: --json-mode not sent (this server does not document it); the prompt asks for JSON")
+        return extra
+    return {**(extra or {}), "response_format": {"type": "json_object"}}
+
+
 class MedGemma:
     # endpoint=None loads the model in-process; otherwise any OpenAI-compatible server (Ollama, vLLM, Gemini)
 
     def __init__(self, model: str = DEFAULT_MODEL, endpoint: str | None = None, max_new_tokens: int = 2048,
                  api_key: str | None = None, vision: bool | None = None, extra: dict | None = None,
-                 rpm: float | None = None, cache_dir: str | Path | None = None, dry_run: bool = False):
+                 rpm: float | None = None, cache_dir: str | Path | None = None, dry_run: bool = False,
+                 timeout: float = 600):
         self.model, self.endpoint, self.max_new_tokens = model, endpoint, max_new_tokens
+        self.timeout = timeout                          # seconds to wait for one reply (CPU models can need more)
         self.api_key, self.vision, self.extra = api_key, vision, extra or {}
         self.rpm, self._last = rpm, 0.0                 # rpm: max requests per minute (free tiers)
         self.dry_run = dry_run                          # count requests that would be sent, send none
@@ -124,7 +154,7 @@ class MedGemma:
     def _endpoint_chat(self, user, system, images) -> str:
         content = user
         if images:   # OpenAI-compatible servers take images as base64 data URLs
-            content = [{"type": "image_url", "image_url": {"url": "data:image/png;base64," +
+            content = [{"type": "image_url", "image_url": {"url": f"data:{image_type(p)};base64," +
                         base64.b64encode(Path(p).read_bytes()).decode()}} for p in images]
             content.append({"type": "text", "text": user})
         body = {"model": self.model, "temperature": 0, "max_tokens": self.max_new_tokens,
@@ -142,8 +172,12 @@ class MedGemma:
             self.retries += attempt > 0
             req = urllib.request.Request(self.endpoint, json.dumps(body).encode(), headers)
             try:
-                with urllib.request.urlopen(req, timeout=600) as resp:
+                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                     return json.loads(resp.read())["choices"][0]["message"]["content"] or ""
+            except TimeoutError:        # a failed request (benchmarks skip the case), not a crash
+                self.errors += 1
+                raise RuntimeError(f"{self.model}: no reply within {self.timeout:.0f} s. A slow CPU or a reply stuck "
+                                   f"repeating itself: raise --llm-timeout or lower --llm-max-tokens") from None
             except urllib.error.HTTPError as e:
                 raw = e.read()
                 info = quota_info(raw) if e.code == 429 else {}
@@ -163,6 +197,15 @@ class MedGemma:
                 print(f"\n[llm] HTTP {e.code} ({'rate limit' if e.code == 429 else 'server busy'}), "
                       f"retrying in {wait}s (attempt {attempt + 1}/6)", flush=True)
                 time.sleep(wait)
+            except ConnectionError as e:          # the server dropped the connection mid-reply (e.g. it crashed)
+                self.errors += 1
+                raise RuntimeError(f"{self.model}: the connection to {self.endpoint} was lost ({e}). If the server "
+                                   "crashed (e.g. out of memory), restart it and run again") from None
+            except urllib.error.URLError as e:     # not reachable: no server, or no reply while connecting
+                self.errors += 1
+                why = "timed out" if isinstance(e.reason, TimeoutError) else str(e.reason)
+                raise RuntimeError(f"{self.model}: cannot reach {self.endpoint} ({why}). Is the server (e.g. Ollama) "
+                                   "running?") from None
 
     def _local_chat(self, user, system, images) -> str:
         self.requests += 1
@@ -488,3 +531,364 @@ def read_images(llm, ext: Extractor, case: Case, max_images: int = 4, cache: dic
         records.append({"image": img["id"], "report": report, "hpo": sorted({f.hpo_id for f in found}),
                         "parsed": bool(obj)})
     return list(best.values()), records
+
+
+# 4. image context -> multimodal ranking
+# Stage A: a vision model writes a detailed image context for each image (findings, not the disease behind them).
+# Stage B: the ranking model gets patient details + clinical text + the image context + the images themselves
+# and ranks diagnoses. The two can be the same model or different ones. Evidence the ranker cites from the
+# details, the clinical text or the context is checked against that text; "image" evidence cannot be checked.
+# The prompts were written after small models were seen to (a) confuse left and right, (b) call an enlarged
+# ventricle a mass, (c) deny "hydrocephalus" while describing enlarged ventricles because they were told not to
+# diagnose, and (d) let a wrong context override the images. Every model gets the same prompts and requests.
+CONTEXT_SYSTEM = ("You are an experienced radiologist describing images for a colleague who cannot see them. "
+                  "Answer only with the JSON requested.")
+CONTEXT_PROMPT = """{intro}{patient}{question}
+
+Write the findings section of a radiology report for {it}. Go through {it} systematically:
+- technique: modality, view or plane, contrast phase, image quality and limitations
+- anatomy: the body region and every structure visible
+- each structure: size, shape, left-right symmetry, density / signal / echogenicity{checklist}
+- findings: every abnormality, with location, side, approximate size, margins and effect on nearby structures,
+  and how sure you are (definite, probable or possible)
+- pertinent negatives: important structures that look normal, or signs that are absent
+- summary: 2-4 sentences on the key abnormal features
+
+Rules:
+- Use the patient's left and right. On axial and coronal images the patient's right is on the left of the image.
+- Before calling something a mass or lesion, check whether it is a normal structure that is enlarged or displaced
+  (a ventricle, vessel, cyst, bowel loop, bladder or fluid collection). Fluid is dark on CT and bright on T2 MRI.
+- Name imaging findings and patterns when you see them (for example pleural effusion, pneumothorax,
+  hydronephrosis, ventricular enlargement, mass effect), but not the disease or cause behind them.
+- Report only what you can see. Your pertinent negatives must not contradict your findings.
+- Reply with the JSON only: no plan, checklist or notes before or after it.
+
+Return only JSON:
+{{"technique": "...", "anatomy": "...",
+  "findings": [{{"finding": "...", "location": "...", "details": "...", "confidence": "definite|probable|possible"}}],
+  "pertinent_negatives": ["..."],
+  "summary": "..."}}"""
+
+MM_SYSTEM = "You are a careful diagnostician. Answer only with the JSON requested."
+MM_PROMPT = """{blocks}
+
+Work in this order:
+1. key_findings: the findings that matter most for the diagnosis, from all of the information above{images_too}.
+2. image_check: {check}
+3. diagnoses: the {k} most likely diagnoses (rare or common), most likely first. Prefer the most specific diagnosis
+   the findings support (the subtype or cause, not only the category) and put broader or competing ones lower.
+   For each, give the evidence for it and any evidence against it, and say where each piece comes from:
+   {sources}.{image_rule}
+
+Return only JSON, no markdown:
+{{"key_findings": ["..."], "image_check": ["..."],
+  "diagnoses": [{{"name": "<diagnosis>",
+                 "evidence": [{{"source": "{choices}", "detail": "<short phrase>"}}],
+                 "against": [{{"source": "{choices}", "detail": "<short phrase>"}}]}}]}}"""
+CHECKS = {(True, True): "compare the image context with the attached images and list every disagreement (which side, "
+                        "which structure, size, whether something is really there). Where they disagree, trust what "
+                        "you see in the images.",
+          (False, True): "list what you see yourself in the attached images that matters for the diagnosis.",
+          (True, False): "list anything in the image context that is inconsistent or unlikely.",
+          (False, False): "leave this empty (there is no image information)."}
+SOURCES = {"details": "patient details", "clinical": "clinical information", "context": "image context",
+           "image": "what you see yourself in the attached images"}
+
+
+def details_of(case: Case) -> dict:
+    # patient details: meta["details"] plus age and sex from the image records (MedPix keeps them there)
+    d = dict(case.meta.get("details") or {})
+    for img in case.meta.get("images", []):
+        for key in ("age", "sex"):
+            if img.get(key) and not d.get(key):
+                d[key] = str(img[key]).strip()
+    return {k: v for k, v in d.items() if v not in (None, "", [])}
+
+
+def details_text(d: dict) -> str:
+    # {"age": 73, "sex": "male", "setting": "ED"} -> "73-year-old male. Setting: ED."
+    d = dict(d)
+    age, sex = d.pop("age", None), str(d.pop("sex", "") or "").lower()
+    head = f"{age}-year-old {sex}." if age and sex else f"Age {age}." if age else f"Sex: {sex}." if sex else ""
+    return " ".join([head] + [f"{str(k).replace('_', ' ').capitalize()}: {v}." for k, v in d.items()]).strip()
+
+
+def _img_label(img: dict) -> str:
+    plane = f"{img['plane'].lower()} plane" if img.get("plane") else ""
+    return ", ".join(x for x in (img.get("modality") or "image", plane, (img.get("location") or "").lower()) if x)
+
+
+# structures a small model should not skip, by body region (matched on the image's location and modality)
+CHECKLISTS = (
+    (("brain", "neuro", "head ct", "skull", "cranial"), "lateral ventricles (each side), third and fourth ventricles, "
+     "midline, sulci and cisterns, grey-white matter, extra-axial spaces, posterior fossa"),
+    (("orbit", "eye"), "globes, lenses, optic nerves, extraocular muscles, orbital fat, bony walls"),
+    (("head and neck", "neck", "sinus", "pharyn", "larynx"), "airway, pharynx and larynx, salivary glands, thyroid, "
+     "lymph nodes by level, vessels, bones"),
+    (("chest", "lung", "pulmonary", "thorax", "cardio", "heart"), "lungs (each side), airways, pleura, heart size, "
+     "mediastinum and hila, diaphragm, bones and soft tissues"),
+    (("breast", "mammo"), "skin, parenchyma, masses, calcifications, nipple, axilla"),
+    (("abdomen", "pelvi", "gastro", "liver", "kidney", "renal", "genitourinary", "bladder", "bowel"),
+     "liver, gallbladder and bile ducts, pancreas, spleen, kidneys and ureters, bladder, bowel, free fluid or air, "
+     "vessels, lymph nodes, bones"),
+    (("spine", "spinal", "vertebra"), "alignment, vertebral bodies, discs, spinal canal and cord, neural foramina, "
+     "paraspinal soft tissues"),
+    (("musculoskeletal", "bone", "joint", "knee", "hip", "shoulder", "hand", "foot", "extremit"),
+     "bones and cortex, joints and alignment, soft tissues, any fracture, lesion or periosteal reaction"),
+)
+
+
+def _checklist(imgs: list[dict]) -> str:
+    where = " ".join(f"{img.get('location') or ''} {img.get('modality') or ''}" for img in imgs).lower()
+    found = [items for keys, items in CHECKLISTS if any(k in where for k in keys)]
+    return "".join(f"\n- check in particular: {items}" for items in dict.fromkeys(found))
+
+
+def context_prompt(imgs: list[dict], details: dict, clinical: str = "") -> str:
+    # the patient details and the clinical question (the history) are given, as a radiologist would get them
+    if len(imgs) == 1:
+        intro, it = f"This is one medical image: {_img_label(imgs[0])}.", "this image"
+    else:
+        listing = "\n".join(f"{i}. {_img_label(img)}" for i, img in enumerate(imgs, 1))
+        intro, it = f"These are {len(imgs)} images from one patient:\n{listing}", "these images"
+    pt = details_text(details)
+    question = " ".join(clinical.split())[:1500]
+    return CONTEXT_PROMPT.format(intro=intro, patient=f"\nPatient: {pt}" if pt else "", it=it,
+                                 question=f"\nClinical question: {question}" if question else "",
+                                 checklist=_checklist(imgs))
+
+
+def render_context(obj, raw: str, label: str) -> str:
+    # the context JSON as readable text; the raw reply if it was not JSON
+    if not isinstance(obj, dict):
+        return f"{label}: {raw.strip()[:3000]}" if raw.strip() else ""
+    lines = [f"{label}:"]
+    for key in ("technique", "anatomy"):
+        if str(obj.get(key) or "").strip():
+            lines.append(f"{key.capitalize()}: {str(obj[key]).strip()}")
+    found = obj.get("findings") or []
+    if isinstance(found, list) and found:
+        lines.append("Findings:")
+        for f in found:
+            if isinstance(f, dict) and str(f.get("finding") or "").strip():
+                loc, det = str(f.get("location") or "").strip(), str(f.get("details") or "").strip()
+                conf = str(f.get("confidence") or "").strip().lower()
+                lines.append(f"- {str(f['finding']).strip()}" + (f" ({loc})" if loc else "")
+                             + (f" [{conf}]" if conf else "") + (f": {det}" if det else ""))
+            elif isinstance(f, str) and f.strip():
+                lines.append(f"- {f.strip()}")
+    neg = obj.get("pertinent_negatives") or []
+    neg = [neg] if isinstance(neg, str) else neg if isinstance(neg, list) else []
+    if any(str(x).strip() for x in neg):
+        lines.append("Pertinent negatives: " + "; ".join(str(x).strip() for x in neg if str(x).strip()))
+    if str(obj.get("summary") or "").strip():
+        lines.append(f"Summary: {str(obj['summary']).strip()}")
+    return "\n".join(lines) if len(lines) > 1 else (f"{label}: {raw.strip()[:3000]}" if raw.strip() else "")
+
+
+@dataclass
+class ImageContext:
+    images: list[str]          # image ids described together
+    label: str                 # "Image 1 (CT - noncontrast, axial plane, head)"
+    text: str                  # what the ranking model is given
+    parsed: bool
+    model: str = ""
+    cut_off: bool = False      # the reply stopped before the JSON was finished
+
+
+def image_context(llm, case: Case, max_images: int = 4, per_call: int = 1) -> list[ImageContext]:
+    # Stage A: per_call images per request (1 = one context per image, best for small models)
+    check_policy(llm, [case])
+    imgs = case.meta.get("images", [])[:max_images]
+    if imgs and not llm.sees_images:
+        raise ValueError(f"{llm.model} cannot read images; the image-context model must be a vision model")
+    out, step, details = [], max(per_call, 1), details_of(case)
+    clinical = str(case.meta.get("history") or "")
+    for i in range(0, len(imgs), step):
+        grp = imgs[i:i + step]
+        raw = llm.chat(context_prompt(grp, details, clinical), CONTEXT_SYSTEM,
+                       images=tuple(g["path"] for g in grp))
+        obj = reply_json(raw, ("findings", "summary", "technique"))
+        label = (f"Image {i + 1} ({_img_label(grp[0])})" if len(grp) == 1 else
+                 f"Images {i + 1}-{i + len(grp)} (" + "; ".join(_img_label(g) for g in grp) + ")")
+        limit = getattr(llm, "max_new_tokens", None)
+        stopped = cut_off(raw, limit)
+        # free text is passed on only if it is a finished, short answer, not a reply that ran out of tokens
+        usable = isinstance(obj, dict) or (raw.strip() and not stopped and len(raw) < 4000)
+        out.append(ImageContext([g.get("id", g["path"]) for g in grp], label,
+                                render_context(obj, raw, label) if usable else "",
+                                isinstance(obj, dict), getattr(llm, "model", ""), stopped))
+    return out
+
+
+def multimodal_prompt(case: Case, context: str | None, k: int = 10, n_images: int = 0) -> tuple[str, dict]:
+    # the ranking prompt, plus the text of each source (used to check the evidence the model cites)
+    det = details_text(details_of(case))
+    text = str(case.meta.get("history") or "").strip()
+    genes = f"Genetic findings: {', '.join(case.genes)}." if case.genes else ""
+    blocks = ([f"Patient details:\n{det}"] if det else []) + \
+             [f"Clinical information:\n{text or 'Not recorded.'}" + (f"\n{genes}" if genes else "")]
+    if context:
+        blocks.append(f"Image context (a written description of the images; it may be incomplete or wrong):\n{context}")
+    if n_images:
+        blocks.append(f"Images: {n_images} attached.")
+    keys = [x for x in SOURCES if (x != "details" or det) and (x != "context" or context) and (x != "image" or n_images)]
+    named = [f'"{x}" ({SOURCES[x]})' for x in keys]
+    fmt = dict(blocks="\n\n".join(blocks), k=k, images_too=" and the attached images" if n_images else "",
+               sources=", ".join(named[:-1]) + " or " + named[-1] if len(named) > 1 else named[0],
+               choices="|".join(keys))
+    rule = ' Use "image" only for what you see yourself, not for something you read in the image context.' \
+        if n_images and context else ""
+    prompt = MM_PROMPT.format(**fmt, check=CHECKS[(bool(context), bool(n_images))], image_rule=rule)
+    return prompt, {"details": det, "clinical": f"{text} {genes}", "context": context or ""}
+
+
+def reply_json(raw: str, keys: tuple[str, ...]):
+    # the JSON object holding one of `keys`. Models that think aloud (MedGemma 1.5) can write a draft JSON in their
+    # plan and the final one after it, so a span from the first "{" to the last "}" is not valid JSON (or is the
+    # draft). Try each object start from the end: the first that holds a key is the final answer, or the part of it
+    # a cut-off reply managed to write.
+    for m in reversed(list(re.finditer(r'\{\s*"', raw))):
+        obj = _json(raw[m.start():], "{")
+        if isinstance(obj, dict) and any(k in obj for k in keys):
+            return obj
+    return _json(raw, "{")
+
+
+def cut_off(raw: str, max_tokens: int | None = None) -> bool:
+    # the reply stopped before its JSON was finished: it ends inside the JSON, or (given the token limit) it is as
+    # long as the limit allows and holds no JSON at all, usually a model stuck repeating itself while thinking
+    tail = raw.rstrip().rstrip("`").rstrip()
+    if bool(tail) and "{" in raw and not tail.endswith(("}", "]")):
+        return True
+    return bool(max_tokens) and len(raw) >= 3 * max_tokens and _json(raw, "{") is None
+
+
+def _supported(detail: str, source_text: str) -> bool:
+    body = _content(detail)
+    return bool(body) and len(body & _content(source_text)) / len(body) >= 0.5
+
+
+def _check_items(items, sources: dict) -> list[dict]:
+    # evidence items -> {"source", "detail", "supported"}; "image" evidence that only repeats the image context
+    # is relabelled "image=context" and checked like context (it is not something the model saw itself)
+    items = [items] if isinstance(items, (str, dict)) else items if isinstance(items, list) else []
+    out = []
+    for e in items:
+        src, det = (str(e.get("source") or "").lower().strip(), str(e.get("detail") or "")) if isinstance(e, dict) \
+            else ("", str(e))
+        if not det.strip():
+            continue
+        if src == "image":
+            if sources["context"] and _supported(det, sources["context"]):
+                src, ok = "image=context", True
+            else:
+                ok = None
+        elif src in sources:
+            ok = _supported(det, sources[src])
+        else:
+            ok = _supported(det, " ".join(sources.values()))
+        out.append({"source": src or "unspecified", "detail": det.strip()[:300], "supported": ok})
+    return out
+
+
+def _strings(x) -> list[str]:
+    # key findings / image check as text; small models sometimes return records ({"side": ..., "structure": ...})
+    x = [x] if isinstance(x, (str, dict)) else x if isinstance(x, list) else []
+    as_text = lambda v: "; ".join(f"{k}: {w}" for k, w in v.items() if str(w).strip()) if isinstance(v, dict) else str(v)
+    return [as_text(v).strip()[:300] for v in x if as_text(v).strip()]
+
+
+@dataclass
+class MultimodalRanking:
+    names: list[str]
+    evidence: list[list[dict]]   # per diagnosis: {"source", "detail", "supported": True / False / None (image)}
+    slots: list[set[str]]        # knowledge-base ids per answer (empty without a matcher or a match)
+    parsed: bool
+    raw: str = ""
+    cut_off: bool = False        # the reply stopped before the JSON was finished (diagnoses may be missing)
+    against: list[list[dict]] = field(default_factory=list)   # evidence against each diagnosis
+    key_findings: list[str] = field(default_factory=list)
+    image_check: list[str] = field(default_factory=list)      # where the image context and the images disagree
+
+    @property
+    def grounding(self) -> float:
+        # checkable evidence items found in the source they claim / all checkable items
+        checked = [e["supported"] for ev in self.evidence + self.against for e in ev if e["supported"] is not None]
+        return sum(checked) / len(checked) if checked else float("nan")
+
+
+def rank_multimodal(llm, case: Case, context: str | None = None, images: tuple[str, ...] = (), k: int = 10,
+                    matcher=None) -> MultimodalRanking:
+    # Stage B: images are local paths attached to the ranking request (needs a vision model)
+    check_policy(llm, [case])
+    if images and not llm.sees_images:
+        raise ValueError(f"{llm.model} cannot read images; drop the images or use a vision model to rank")
+    prompt, sources = multimodal_prompt(case, context, k, len(images))
+    raw = llm.chat(prompt, MM_SYSTEM, images=tuple(images))
+    obj = reply_json(raw, ("diagnoses",))
+    items = obj.get("diagnoses") if isinstance(obj, dict) else None
+    if not isinstance(items, list):
+        arr = _json(raw, "[")
+        items = arr if isinstance(arr, list) else None
+    names, evidence, against, seen = [], [], [], set()
+    for it in items or []:
+        name = (it.get("name") or it.get("diagnosis")) if isinstance(it, dict) else it
+        if not isinstance(name, str) or not name.strip() or name.strip().lower() in seen:
+            continue
+        seen.add(name.strip().lower())
+        names.append(name.strip())
+        evidence.append(_check_items(it.get("evidence") or [], sources) if isinstance(it, dict) else [])
+        against.append(_check_items(it.get("against") or [], sources) if isinstance(it, dict) else [])
+    names, evidence, against = names[:k], evidence[:k], against[:k]
+    slots = [set(matcher.match(n)) if matcher else set() for n in names]
+    obj = obj if isinstance(obj, dict) else {}
+    return MultimodalRanking(names, evidence, slots, isinstance(items, list), raw,
+                             cut_off(raw, getattr(llm, "max_new_tokens", None)), against,
+                             _strings(obj.get("key_findings")), _strings(obj.get("image_check")))
+
+
+# judge: name matching misses synonyms ("obstructive" = "non-communicating" hydrocephalus) and differently worded
+# titles ("Acute stroke, hemorrhage in basal ganglia" vs "hypertensive intracerebral hemorrhage")
+JUDGE_SYSTEM = "You compare diagnoses. Answer only with the JSON requested."
+JUDGE_PROMPT = """The correct diagnosis is: {truth}
+
+Candidate diagnoses, in order:
+{candidates}
+
+1. match: the number of the first candidate that names the same condition as the correct diagnosis. A synonym,
+   an abbreviation, another name for it, or a more specific form of it counts (for example "heart attack" or
+   "STEMI" for "myocardial infarction"). A different condition that only shares an organ or a symptom does not.
+2. broader: the number of the first candidate that is the correct diagnosis or a broader category that contains it
+   (for example "pneumonia" for "lobar pneumonia").
+
+Use 0 when there is none. Return only JSON: {{"match": <number>, "broader": <number>}}"""
+
+
+def judge_ranks(judge, preds: list[str], truth: list[str]) -> tuple[int | None, int | None]:
+    # (rank of the first answer naming the same condition, rank of the first answer that is it or a broader category)
+    if not preds or not truth:
+        return None, None
+    cands = "\n".join(f"{i}. {p}" for i, p in enumerate(preds, 1))
+    tr = truth[0] + (f" (also recorded as: {'; '.join(truth[1:])})" if len(truth) > 1 else "")
+    obj = reply_json(judge.chat(JUDGE_PROMPT.format(truth=tr, candidates=cands), JUDGE_SYSTEM), ("match", "broader"))
+
+    def num(key):
+        try:
+            v = int(obj.get(key))
+        except (TypeError, ValueError, AttributeError):
+            return None
+        return v if 1 <= v <= len(preds) else None
+    m, b = num("match"), num("broader")
+    return m, (m if m and (b is None or b > m) else b)
+
+
+def diagnose_multimodal(llm, case: Case, context_llm=None, k: int = 10, max_images: int = 4, per_call: int = 1,
+                        attach_images: bool = True, matcher=None) -> tuple[list[ImageContext], MultimodalRanking]:
+    # the whole input path: Stage A with context_llm (default: the ranking model itself), then Stage B
+    context_llm = context_llm or llm
+    imgs = case.meta.get("images", [])[:max_images]
+    ctxs = image_context(context_llm, case, max_images, per_call) if imgs else []
+    context = "\n\n".join(c.text for c in ctxs if c.text) or None
+    attach = tuple(img["path"] for img in imgs) if attach_images and llm.sees_images else ()
+    return ctxs, rank_multimodal(llm, case, context, attach, k, matcher)
