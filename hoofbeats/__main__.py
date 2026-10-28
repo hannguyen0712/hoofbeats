@@ -642,6 +642,27 @@ def cmd_llm_extract(a):
     print(usage_line(llm))
 
 
+def cmd_hpo_index(a):
+    # SapBERT vectors of all phenotype labels and synonyms, and the linker thresholds (leave-one-synonym-out)
+    from .linker import HpoIndex, SapBert, calibrated
+    ont = Ontology(Path(a.kb) / "hp.obo")
+    t0 = time.time()
+    index = HpoIndex(ont, SapBert(a.model, a.device), Path(a.kb) / ".cache")
+    print(f"[hpo-index] {len(index.strings)} labels and synonyms of {len(index.term_ids)} terms "
+          f"({time.time() - t0:.0f} s): {index.path}")
+    cal = calibrated(index, rebuild=a.recalibrate)
+    note("hpo_index", strings=len(index.strings), terms=len(index.term_ids), **{k: v for k, v in cal.items() if k != "bands"})
+    print(f"[hpo-index] leave-one-synonym-out, {cal['n']} queries: top-1 correct {cal['top1_correct']:.1%}, "
+          f"true term in top {cal['k']} {cal['in_top_k']:.1%}")
+    print(f"[hpo-index] accept at >= {cal['hi']:.2f} with a margin >= {cal['margin']:.2f} over the next term "
+          f"({cal['accepted_share']:.1%} of queries, {cal['accepted_correct']:.1%} "
+          f"correct); LLM chooses between {cal['lo']:.2f} and {cal['hi']:.2f}; below {cal['lo']:.2f} unlinked")
+    print("  score band  n  top-1 correct  in top k")
+    for b in cal["bands"]:
+        if b["n"]:
+            print(f"  {b['from']:.2f}  {b['n']:4d}  {b['correct'] / b['n']:6.1%}  {b['in_top_k'] / b['n']:6.1%}")
+
+
 def cmd_pmc_score(a):
     from .pmc_checks import score
     res = score(Path(a.checks), a.items, a.summary, a.manifest)
@@ -851,6 +872,11 @@ def main(argv=None):
     s.add_argument("--limit", type=int, default=5, help="number of dev cases")
     s.add_argument("--max-chars", type=int, default=2500, help="longest text chunk sent in one request")
     s.add_argument("--out", default="results/llm_extract")
+    s = sub.add_parser("hpo-index", help="SapBERT index of HPO labels/synonyms and the linker thresholds")
+    s.add_argument("--model", default="cambridgeltl/SapBERT-from-PubMedBERT-fulltext")
+    s.add_argument("--device", default="cpu")
+    s.add_argument("--recalibrate", action="store_true")
+    s.add_argument("--out", default="results")
     s = sub.add_parser("report", help="tables, figures and notes from saved runs")
     s.add_argument("--results", default="results", help="folder searched (recursively) for runs and CSVs")
     s.add_argument("--out", default="reports/report", help="base name; each run writes <base>-1, <base>-2, ...")
@@ -908,7 +934,8 @@ def _logged(a):
         {"diagnose": cmd_diagnose, "benchmark": cmd_benchmark, "sequential": cmd_sequential,
          "learn-common": cmd_learn_common, "mimic": cmd_mimic, "medpix": cmd_medpix,
          "llm-bench": cmd_llm_bench, "extract-eval": cmd_extract_eval, "pmc-build": cmd_pmc_build,
-         "pmc-checks": cmd_pmc_checks, "pmc-score": cmd_pmc_score, "llm-extract": cmd_llm_extract}[a.cmd](a)
+         "pmc-checks": cmd_pmc_checks, "pmc-score": cmd_pmc_score, "llm-extract": cmd_llm_extract,
+         "hpo-index": cmd_hpo_index}[a.cmd](a)
     except KeyboardInterrupt:
         status = "stopped (Ctrl-C)"
         raise

@@ -1,5 +1,6 @@
 # offline tests: python -m unittest tests
 import csv
+import hashlib
 import json
 import math
 import re
@@ -728,6 +729,95 @@ class TestLLMExtract(unittest.TestCase):
         self.assertEqual((rep.unreadable, rep.kept), (1, 0))
         with self.assertRaises(PolicyError):
             extract_candidates(self.ChunkFake(answer, "https://api.example.com/v1"), text)
+
+
+class TrigramEmbedder:
+    # stands in for SapBERT in tests: hashed character trigrams, L2-normalised
+    name = "trigram"
+
+    def __init__(self):
+        self.calls = 0
+
+    def encode(self, texts):
+        import numpy as np
+        self.calls += 1
+        out = np.zeros((len(texts), 512), np.float32)
+        for i, t in enumerate(texts):
+            s = f"  {t.lower()} "
+            for j in range(len(s) - 2):
+                out[i, int(hashlib.md5(s[j:j + 3].encode()).hexdigest(), 16) % 512] += 1
+        return out / np.maximum(np.linalg.norm(out, axis=1, keepdims=True), 1e-9)
+
+
+class TestLinker(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.root = Path(tempfile.mkdtemp())
+        kb = build(cls.root)
+        cls.ont = Ontology(kb / "hp.obo")
+        cls.ext = Extractor(cls.ont)
+
+    def index(self, cache=None):
+        from hoofbeats.linker import HpoIndex
+        return HpoIndex(self.ont, TrigramEmbedder(), cache or Path(tempfile.mkdtemp()))
+
+    def test_index_strings_and_cache(self):
+        from hoofbeats.linker import term_strings
+        rows = term_strings(self.ont)
+        ids = {t for t, _ in rows}
+        self.assertIn(("HP:0001250", "Fits"), rows)                       # RELATED synonyms are searchable too
+        self.assertFalse(ids & {"HP:9999999", "HP:0040279", "HP:0000118"})  # obsolete, not a phenotype, the root
+        cache = Path(tempfile.mkdtemp())
+        first = self.index(cache)
+        again = self.index(cache)
+        self.assertEqual((first.embedder.calls, again.embedder.calls), (1, 0))   # second load from the .npz
+        res = again.search(again.embedder.encode(["epileptic seizures"]), k=3)[0]
+        self.assertEqual((res[0][0], res[0][2]), ("HP:0001250", "Epileptic seizure"))
+        self.assertEqual(len({t for t, _, _ in res}), 3)                  # terms, not strings
+
+    def test_dictionary_needs_the_whole_phrase(self):
+        from hoofbeats.linker import Linker
+        lk = Linker(self.ont, self.ext)
+        self.assertEqual([(x.hpo_id, x.method, x.grounding) for x in lk.dictionary("recurrent epileptic seizures")],
+                         [("HP:0001250", "dict:synonym:exact", "strong")])
+        self.assertEqual(lk.dictionary("seizures of the left foot"), [])  # "foot" is not accounted for
+        self.assertEqual({x.hpo_id for x in lk.dictionary("fever and arachnodactyly")}, {"HP:0001945", "HP:0001166"})
+        self.assertEqual(lk.link_many([("lens displaced upward", "")])[0][0].method, "unlinked")   # no index
+
+    def test_embedding_thresholds_and_llm_choice(self):
+        from hoofbeats.linker import Linker
+        replies = []
+
+        class Chooser(TestLLMExtract.ChunkFake):
+            pass
+        llm = Chooser(lambda p: replies.pop(0))
+        lk = Linker(self.ont, self.ext, self.index(), llm, hi=0.75, lo=0.3, k=3, workers=1)
+        replies[:] = [json.dumps({"choice": "HP:0001083"}), json.dumps({"choice": "none"})]
+        # trigram cosine to the best string: hyperamonemia 0.90, displaced lens 0.65, lens displacement 0.37,
+        # lens slipping 0.24 (hi 0.75, lo 0.3)
+        out = lk.link_many([("Fever", "fever"), ("hyperamonemia", "ammonia high"), ("displaced lens", "lens off"),
+                            ("lens displacement", "lens displacement"), ("lens slipping", "lens slipping")])
+        self.assertEqual((out[0][0].method, out[0][0].grounding), ("dict:exact_label", "strong"))
+        self.assertEqual((out[1][0].hpo_id, out[1][0].method, out[1][0].grounding), ("HP:0001987", "embedding", "supported"))
+        self.assertEqual((out[2][0].hpo_id, out[2][0].method, out[2][0].grounding), ("HP:0001083", "llm_choice", "weak"))
+        self.assertEqual((out[3][0].hpo_id, out[3][0].method), (None, "unlinked"))     # the LLM said none
+        self.assertEqual((out[4][0].hpo_id, out[4][0].method), (None, "unlinked"))     # below lo: not asked
+        self.assertEqual(len(llm.sent), 2)
+        enum = llm.sent[0][1]["properties"]["choice"]["enum"]
+        self.assertEqual(len(enum), 4)
+        self.assertEqual(enum[-1], "none")                                 # only the 3 candidates, or none
+        no_llm = Linker(self.ont, self.ext, self.index(), None, hi=0.75, lo=0.3, k=3).link_many([("displaced lens", "")])
+        self.assertEqual((no_llm[0][0].hpo_id, no_llm[0][0].method), (None, "borderline"))
+        with self.assertRaises(PolicyError):
+            Linker(self.ont, self.ext, self.index(), Chooser(lambda p: "{}", "https://x.example/v1"), hi=0.75,
+                   lo=0.3).link_many([("displaced lens", "")])
+
+    def test_calibration(self):
+        from hoofbeats.linker import calibrate
+        cal = calibrate(self.index(), n=50, k=3)
+        self.assertEqual(cal["n"], 7)     # the strings of the 3 terms with two differently worded strings (3 + 2 + 2)
+        self.assertTrue(0.0 <= cal["lo"] <= cal["hi"] <= 1.0)
+        self.assertEqual(sum(b["n"] for b in cal["bands"]), cal["n"])
 
 
 def write_medpix(root: Path) -> Path:
