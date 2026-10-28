@@ -705,7 +705,7 @@ class TestLLMExtract(unittest.TestCase):
                 "Blood pressure was normal. His father had  seizures.")
 
         def answer(prompt):
-            if "hypotonia" in prompt:
+            if "hypotonia" in prompt.rsplit('"""', 2)[-2]:            # the chunk, not the prompt's own example
                 return json.dumps({"findings": [
                     {"phrase": "hypotonia", "status": "present", "quote": "hypotonia"},
                     {"phrase": "cryptorchidism", "status": "present", "quote": "testes were not palpable in the scrotum"},
@@ -725,6 +725,12 @@ class TestLLMExtract(unittest.TestCase):
         self.assertEqual(found[3].quote, "father had  seizures")
         self.assertEqual((rep.proposed, rep.quote_not_found, rep.duplicates, rep.bad_item, rep.kept), (7, 1, 1, 1, 4))
         self.assertEqual(rep.not_found_examples, [{"phrase": "ataxia", "quote": "unsteady gait"}])
+        v1, v2 = self.ChunkFake(lambda p: "[]"), self.ChunkFake(lambda p: "[]")
+        extract_candidates(v1, text, workers=1, prompt_version=1)
+        extract_candidates(v2, text, workers=1)                                            # v2 is the default
+        self.assertNotIn("Example answer", v1.sent[0][0])
+        self.assertIn("Example answer", v2.sent[0][0])
+        self.assertTrue(v2.sent[0][0].rstrip().endswith(text.strip() + '\n"""'))           # the case text, once, at the end
         _, rep = extract_candidates(self.ChunkFake(lambda p: "I cannot help with that."), text, workers=1)
         self.assertEqual((rep.unreadable, rep.kept), (1, 0))
         with self.assertRaises(PolicyError):

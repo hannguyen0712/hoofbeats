@@ -9,9 +9,9 @@ from .data import sentence_spans
 from .llm import _json, chat_many, require_local
 from .model import Status
 
-PROMPT_VERSION = 1
+PROMPT_VERSION = 2
 SYSTEM = "You extract clinical findings from case reports. Answer only with the JSON requested."
-PROMPT = """Read this text from a clinical case report and list the clinical findings it states about the patient
+PROMPT_V1 = """Read this text from a clinical case report and list the clinical findings it states about the patient
 being described, or about the patient's relatives.
 
 A finding is a sign, symptom, physical or imaging finding, abnormal test result, or a developmental or behavioural
@@ -33,7 +33,54 @@ Text:
 \"\"\"
 {text}
 \"\"\""""
-SCHEMA = {"type": "object", "additionalProperties": False, "required": ["findings"],
+# v2, after the 5-case smoke run: no molecular findings, normal results never "present", one finding per list item,
+# tumours and described (not named) findings included. The example is written for the prompt; none of it comes from
+# PMC dev or test text (no 6-word run of it occurs in any manifest case)
+PROMPT_V2 = """Read this text from a clinical case report and list the clinical findings it states about the patient
+being described, or about the patient's relatives.
+
+A finding is a sign, symptom, physical or imaging finding, abnormal test result, a developmental or behavioural
+feature, or a tumour or malformation the patient has. Name findings that are only described, not named
+("walked at 3 years" -> "delayed walking"). Do not list the name of the syndrome itself, treatments, or anything
+molecular: genes, variants, mutations, splicing, protein or RNA expression, methylation, cell or animal experiments,
+sequencing methods. If the text describes no clinical findings, return an empty list.
+
+For each finding give:
+- "phrase": a short standard medical term for it
+- "status": "present" (the patient has it), "absent" (the text says the patient does not have it, or a normal
+  result rules it out), "family" (a relative has it, not the patient), or "uncertain" (suspected or possible)
+- "quote": the shortest exact words from the text that state it, copied character for character
+
+Rules:
+- A normal result is never "present". Give it as "absent" with the abnormality it rules out ("normal muscle tone"
+  -> "hypotonia", absent). If it could rule out more than one opposite abnormality (reflexes could be reduced or
+  brisk), leave it out.
+- A list gives one finding per item; the items may share a quote.
+- Skip findings about other patients, about the disease in general, or from the literature.
+
+Example text:
+\"\"\"
+At 3 years she spoke no words, and she sat without support only at 14 months. Examination showed wide-spaced eyes,
+normal muscle tone and contractures of both knees and both ankles. Her brother had recurrent fevers. An abdominal
+ultrasound found an adrenal neuroblastoma. Sequencing found a de novo variant in GENE1.
+\"\"\"
+Example answer:
+{"findings": [
+ {"phrase": "absent speech", "status": "present", "quote": "spoke no words"},
+ {"phrase": "delayed sitting", "status": "present", "quote": "sat without support only at 14 months"},
+ {"phrase": "hypertelorism", "status": "present", "quote": "wide-spaced eyes"},
+ {"phrase": "hypotonia", "status": "absent", "quote": "normal muscle tone"},
+ {"phrase": "knee contracture", "status": "present", "quote": "contractures of both knees and both ankles"},
+ {"phrase": "ankle contracture", "status": "present", "quote": "contractures of both knees and both ankles"},
+ {"phrase": "recurrent fever", "status": "family", "quote": "Her brother had recurrent fevers"},
+ {"phrase": "neuroblastoma", "status": "present", "quote": "adrenal neuroblastoma"}]}
+
+Text:
+\"\"\"
+{text}
+\"\"\""""
+PROMPTS = {1: PROMPT_V1, 2: PROMPT_V2}
+SCHEMA ={"type": "object", "additionalProperties": False, "required": ["findings"],
           "properties": {"findings": {"type": "array", "items": {
               "type": "object", "additionalProperties": False, "required": ["phrase", "status", "quote"],
               "properties": {"phrase": {"type": "string"}, "status": {"type": "string", "enum": [s.value for s in Status]},
@@ -136,15 +183,16 @@ def parse_reply(reply: str) -> list | None:
     return arr if isinstance(arr, list) else None
 
 
-def extract_candidates(llm, text: str, field: str = "note_text", max_chars: int = 2500,
-                       workers: int = 8) -> tuple[list[Candidate], ExtractReport]:
+def extract_candidates(llm, text: str, field: str = "note_text", max_chars: int = 2500, workers: int = 8,
+                       prompt_version: int = PROMPT_VERSION) -> tuple[list[Candidate], ExtractReport]:
     require_local(llm)
     rep, out, seen = ExtractReport(), [], set()
     if not text or not text.strip():
         return out, rep
     spans = chunks(text, max_chars)
     rep.chunks = len(spans)
-    replies = chat_many(llm, [{"user": PROMPT.format(text=text[a:b]), "system": SYSTEM, "schema": SCHEMA}
+    prompt = PROMPTS[prompt_version]           # replace, not format: the v2 example contains JSON braces
+    replies = chat_many(llm, [{"user": prompt.replace("{text}", text[a:b]), "system": SYSTEM, "schema": SCHEMA}
                               for a, b in spans], workers)
     statuses = {s.value: s for s in Status}
     for k, ((a, b), reply) in enumerate(zip(spans, replies)):

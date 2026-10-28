@@ -604,19 +604,20 @@ def cmd_pmc_checks(a):
 def cmd_llm_extract(a):
     # LLM finding candidates on the first PMC dev cases (smoke test; no linking or scoring yet)
     from dataclasses import asdict
-    from .llm_extract import PROMPT_VERSION, extract_candidates
+    from .llm_extract import extract_candidates
     from .pmc import load_case_text
     a.llm = True
+    version = int(a.prompt_version[1:])
     llm = get_llm(a)
     ont = Ontology(Path(a.kb) / "hp.obo")
     ext = Extractor(ont)
     manifest = json.loads(Path(a.pmc).read_text())
     cases = [c for c in manifest["cases"] if c["split"] == "dev"][: a.limit]
-    RUN["settings"].update({"pmc_manifest": a.pmc, "prompt_version": PROMPT_VERSION, "max_chars": a.max_chars, "cases": len(cases)})
+    RUN["settings"].update({"pmc_manifest": a.pmc, "prompt_version": version, "max_chars": a.max_chars, "cases": len(cases)})
     rows, reps, t0 = [], [], time.time()
     for i, c in enumerate(cases, 1):
         text = load_case_text(c)
-        found, rep = extract_candidates(llm, text, "note_text", a.max_chars, a.llm_workers)
+        found, rep = extract_candidates(llm, text, "note_text", a.max_chars, a.llm_workers, version)
         reps.append({"case": c["case_id"], "words": len(text.split()), **asdict(rep)})
         for f in found:
             hits = ext.findings(f.phrase)
@@ -631,11 +632,11 @@ def cmd_llm_extract(a):
     out.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).to_csv(wrote(out / f"llm_candidates_{llm.slug}.csv"), index=False)
     (out / f"llm_extract_{llm.slug}.json").write_text(json.dumps(
-        {"model": llm.model, "prompt_version": PROMPT_VERSION, "seconds": round(secs, 1), "totals": tot, "usage": llm.usage(),
+        {"model": llm.model, "prompt_version": version, "seconds": round(secs, 1), "totals": tot, "usage": llm.usage(),
          "cases": reps}, indent=1))
     wrote(out / f"llm_extract_{llm.slug}.json")
     note("llm_extract", seconds=round(secs, 1), **tot)
-    print(f"\n[llm-extract] {llm.model}, prompt v{PROMPT_VERSION}, {len(cases)} cases in {secs:.0f} s")
+    print(f"\n[llm-extract] {llm.model}, prompt v{version}, {len(cases)} cases in {secs:.0f} s")
     print("  " + ", ".join(f"{k} {v}" for k, v in tot.items()))
     linked = sum(bool(r["dictionary"]) for r in rows)
     print(f"  {linked} of {len(rows)} kept phrases match the rule dictionary as written (the rest need the linker)")
@@ -804,6 +805,7 @@ def main(argv=None):
     p.add_argument("--llm-offline", action="store_true",
                    help="answer only from the reply cache (e.g. replies copied back from Sol); misses get no reply")
     p.add_argument("--llm-workers", type=int, default=8, help="model requests in flight at once (a vLLM server batches them)")
+    p.add_argument("--prompt-version", default="v2", choices=["v1", "v2"], help="finding-extraction prompt (llm_extract.py)")
     p.add_argument("--llm-extra", help='extra JSON fields for the request body, e.g. \'{"reasoning_effort": "low"}\'')
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("download"); s.add_argument("--dest", default="data")
