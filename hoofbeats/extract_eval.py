@@ -234,6 +234,10 @@ def evaluate_pmc(manifest: dict, ont: Ontology, ext: Extractor | None = None, di
                 a, b = p["span"]
                 ss = next(((x, y) for x, y in sents if x <= a < y), (a, b))
                 p["quote"], p["sentence"] = text[a:b], text[ss[0]:max(ss[1], b)].strip()
+        methods = {}
+        for p in preds:
+            methods.setdefault((p["hpo_id"], p["status"]), set()).add(p["method"])
+        res["preds"] = [{"hpo_id": h, "status": st, "method": "+".join(sorted(ms))} for (h, st), ms in methods.items()]
         rows.append({"case": c["case_id"], "reader": "note", "paper_kind": c["paper_kind"], **res})
     return rows
 

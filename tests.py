@@ -879,6 +879,27 @@ class TestLinker(unittest.TestCase):
         with self.assertRaises(ValueError):
             run(status_policy="majority")
 
+    def test_llm_eval_helpers(self):
+        from hoofbeats.llm_eval import absent_sample, absent_stats, configs, hand_checked
+        it = lambda h, st, res, vis: {"hpo_id": h, "status": st, "result": res, "vocab_visible": vis}
+        rows = [{"case": "c1", "items": [it("HP:1", "present", "exact", True), it("HP:2", "present", "missed", False),
+                                         it("HP:3", "absent", "near", False), it("HP:4", "absent", "missed", True)],
+                 "preds": [{"hpo_id": "HP:3", "status": "absent", "method": "llm"},
+                           {"hpo_id": "HP:9", "status": "absent", "method": "llm"},
+                           {"hpo_id": "HP:1", "status": "present", "method": "llm+rules"}],
+                 "extras": [{"hpo_id": "HP:9", "status": "absent", "method": "llm", "quote": "no x", "sentence": "No x."}]}]
+        b = lambda h, st, e: {"case_id": "c1", "hpo_id": h, "gold_status": st, "expressed": e}
+        hc = hand_checked(rows, [b("HP:1", "present", "yes"), b("HP:2", "present", "yes"), b("HP:3", "absent", "yes"),
+                                 b("HP:4", "absent", "no"), b("HP:7", "present", "yes")])     # HP:7 not in this run
+        self.assertEqual((hc["all"]["n"], hc["all"]["strict"], hc["all"]["lenient"]), (3, 1 / 3, 2 / 3))
+        self.assertEqual((hc["label"]["n"], hc["paraphrase"]["n"], hc["paraphrase"]["lenient"]), (1, 2, 0.5))
+        ab = absent_stats(rows)
+        self.assertEqual((ab["pred"], ab["extra"], ab["matched_share"], ab["by_method"]), (2, 1, 0.5, {"llm": 2}))
+        self.assertEqual(ab["gold_recall"]["n"], 2)
+        self.assertEqual([r["hpo_id"] for r in absent_sample(rows)], ["HP:9"])
+        self.assertEqual(list(configs(None)), ["rules"])
+        self.assertEqual(list(configs(object(), ("rules",))), ["rules", "llm", "rules+llm/status=rules"])
+
     def test_calibration(self):
         from hoofbeats.linker import calibrate
         cal = calibrate(self.index(), n=50, k=3)
