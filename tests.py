@@ -818,6 +818,26 @@ class TestLinker(unittest.TestCase):
             Linker(self.ont, self.ext, self.index(), Chooser(lambda p: "{}", "https://x.example/v1"), hi=0.75,
                    lo=0.3).link_many([("displaced lens", "")])
 
+    def test_crosscheck(self):
+        from hoofbeats.linker import crosscheck
+        cc = lambda h, q, **kw: crosscheck(self.ont, self.ext, h, q, **kw)
+        self.assertEqual(cc("HP:0001250", "had recurrent epileptic seizures").verdict, "agree")
+        self.assertEqual(cc("HP:0007359", "had seizures").verdict, "agree")               # a child of the rule term
+        self.assertEqual(cc("HP:0001083", "the lens had slipped upward").verdict, "no_rule_term")
+        # the quote is fully accounted for by other terms: nothing supports Arachnodactyly here
+        chk = cc("HP:0001166", "No fever and no seizures were noted.")
+        self.assertEqual((chk.verdict, set(chk.rule_terms)), ("explained_by_other_terms", {"HP:0001945", "HP:0001250"}))
+        self.assertEqual(cc("HP:0001166", "fever and very long thin fingers").verdict, "disagree")   # words remain
+        low = cc("HP:0001083", "the lens had slipped upward", similarity=0.2, lo=0.62)
+        self.assertEqual((low.verdict, low.low_similarity), ("no_rule_term", True))       # a flag only, not a drop
+
+    def test_label_similarity(self):
+        ix = self.index()
+        sim = ix.similarity(["Hyperammonemia", "fever"], ["HP:0001987", "HP:0001987"])
+        self.assertAlmostEqual(sim[0], 1.0, places=5)
+        self.assertLess(sim[1], 0.5)
+        self.assertEqual(ix.similarity(["x"], ["HP:9999999"]), [None])
+
     def test_calibration(self):
         from hoofbeats.linker import calibrate
         cal = calibrate(self.index(), n=50, k=3)

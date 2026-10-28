@@ -86,6 +86,14 @@ class HpoIndex:
         self.ids, self.strings = ids, strings
         self.starts = np.array([i for i in range(len(ids)) if i == 0 or ids[i] != ids[i - 1]])
         self.term_ids = [ids[i] for i in self.starts]
+        self.label_row = {t: int(i) for t, i in zip(self.term_ids, self.starts)}    # a term's first row is its label
+
+    def similarity(self, texts: list[str], hpo_ids: list[str]) -> list[float | None]:
+        # cosine between each text and its term's label (None for a term not in the index)
+        if not texts:
+            return []
+        q = self.embedder.encode(texts)
+        return [float(q[i] @ self.vecs[self.label_row[h]]) if h in self.label_row else None for i, h in enumerate(hpo_ids)]
 
     def search(self, q: np.ndarray, k: int = 10, mask_rows: list | None = None) -> list[list[tuple[str, float, str]]]:
         # per query: the k best terms as (id, cosine of its best string, that string); mask_rows[i] lists string rows
@@ -233,6 +241,43 @@ class Linker:
                     out[i] = [Link(None, "unlinked" if choice == "none" else "borderline", "", old.matched, old.score,
                                    old.candidates)]
         return out
+
+
+# cross-check: the rule reader on the LLM's quote alone
+FILLER = set("a an the of in on at to by for from with without and or but as is was were are be been being has have had "
+             "he she his her him their they it its this that these those patient child boy girl also both which who "
+             "there showed revealed noted found presented observed seen no not none never negative normal absent "
+             "absence denies denied".split())
+
+
+@dataclass(frozen=True)
+class Check:
+    verdict: str                 # agree | no_rule_term | disagree | explained_by_other_terms
+    rule_terms: tuple = ()       # terms the rules find in the quote
+    similarity: float | None = None
+    low_similarity: bool = False
+
+
+def crosscheck(ont: Ontology, ext: Extractor, hpo_id: str, quote: str, similarity: float | None = None,
+               lo: float | None = None) -> Check:
+    # agree: the rules find this term (or a parent/child) in the quote. no_rule_term: they find nothing (a paraphrase;
+    # kept). explained_by_other_terms: they find only unrelated terms and those account for every content word of
+    # the quote, so nothing is left to support this term (dropped). disagree: unrelated terms, but words remain
+    # (kept as weak). low_similarity (SapBERT quote vs the term's label below lo) is only a flag: paraphrases score
+    # low by nature ("testes were not palpable" vs Cryptorchidism)
+    ms = ext.mentions(quote)
+    terms = tuple(dict.fromkeys(m.hpo_id for m in ms))
+    low = similarity is not None and lo is not None and similarity < lo
+    if any(t == hpo_id or t in ont.ancestors(hpo_id) or hpo_id in ont.ancestors(t) for t in terms):
+        return Check("agree", terms, similarity, low)
+    if not ms:
+        return Check("no_rule_term", terms, similarity, low)
+    covered = [False] * len(quote)
+    for m in ms:
+        covered[m.start:m.end] = [True] * (m.end - m.start)
+    rest = [w for w in tokens("".join(ch if not c else " " for ch, c in zip(quote, covered)))
+            if w not in FILLER and w not in MODIFIERS and not w.isdigit()]
+    return Check("disagree" if rest else "explained_by_other_terms", terms, similarity, low)
 
 
 def calibrated(index: HpoIndex, rebuild: bool = False) -> dict:
