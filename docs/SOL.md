@@ -12,7 +12,7 @@ The branch is not pushed, so the working copy is copied with rsync. Large data n
 ```bash
 rsync -av --exclude '.venv/' --exclude 'results/' --exclude 'scratch/' --exclude '__pycache__/' \
   --exclude 'data/medpix-src/' --exclude 'data/phenopacket-store/' --exclude 'data/pmc/checks/' \
-  --exclude 'docs/proposal.pdf' ./ vmallip2@login.sol.rc.asu.edu:/scratch/vmallip2/hoofbeats/
+  --exclude 'docs/proposal.pdf' ./ vmallip2@sol.asu.edu:/scratch/vmallip2/hoofbeats/
 ```
 
 ## 2. One-time setup (on Sol)
@@ -46,8 +46,8 @@ the vLLM log goes to `results/sol/`.
 ## 4. Copy results back (from the Mac, repo root)
 
 ```bash
-rsync -av vmallip2@login.sol.rc.asu.edu:/scratch/vmallip2/hoofbeats/results/{llm_cache,llm_smoke,sol} results/
-rsync -av 'vmallip2@login.sol.rc.asu.edu:/scratch/vmallip2/hoofbeats/hoofbeats-smoke-*.out' results/sol/
+rsync -av vmallip2@sol.asu.edu:/scratch/vmallip2/hoofbeats/results/{llm_cache,llm_smoke,sol} results/
+rsync -av 'vmallip2@sol.asu.edu:/scratch/vmallip2/hoofbeats/hoofbeats-smoke-*.out' results/sol/
 ```
 
 Re-running a command on the Mac with `--llm-offline --llm-cache results/llm_cache` (and the same `--llm-model`)
