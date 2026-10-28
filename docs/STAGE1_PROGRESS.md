@@ -111,6 +111,30 @@ Provenance records value, unit, converted value, the range or threshold and its 
 - `TestGoldFiles` fixes the accepted alternatives.
 - **PMC test set** (`hoofbeats/pmc.py`, `hoofbeats/pmc_checks.py`, `pmc_eval/`): real case-report text with Phenopacket Store gold; see section 3.
 
+### LLM text reader (in progress; results pending the first Sol run)
+
+Aim: recover paraphrased findings and normal statements (on PMC dev the rules find 39 of 42 hand-checked terms
+written with an HPO label or synonym, but 4 of 27 paraphrased ones) without losing precision or grounding.
+- **Model:** Qwen2.5-7B-Instruct through vLLM on Sol, bound to 127.0.0.1; extraction and linking refuse any other
+  endpoint. `--llm-model` selects the model; replies are cached per model, and `--llm-offline` replays them.
+- **Extraction** (`llm_extract.py`): `{phrase, status, quote}` per text chunk under a JSON schema at temperature 0;
+  every quote must be found in the text and gets its offsets. Prompt v2 (default) follows the 5-case smoke run;
+  v1 stays available (`--prompt-version v1`).
+- **Linking** (`linker.py`): dictionary (the rule vocabulary, whole phrase), else SapBERT nearest labels/synonyms
+  (accept at >= 0.82 with a 0.05 margin), else the LLM picks one of the top 10 ids or none (0.62-0.82). Thresholds
+  from leave-one-synonym-out on HPO itself: 54% accepted at 90.0% exact; true term in the top 10 for 93%.
+- **Cross-check:** the rules on the LLM's quote. Same term: grounding at least supported. Nothing found: kept.
+  Unrelated terms that explain every content word: dropped (logged with examples). Otherwise weak. A low SapBERT
+  quote-label similarity only marks a finding weak.
+- **Merge:** rules and LLM agreeing on the same words give one entry with readers `["rules", "llm"]`, grounding
+  strong. A status disagreement on the same words is settled by `status_policy` (llm or rules); both are evaluated.
+- **Evaluation** (`llm-eval`): rules, LLM, rules+LLM per status policy, per prompt version; hand-checked recall split
+  label vs paraphrase, all-gold recall, precision with extras not judged, absent findings on their own (with their
+  effect on the example ranks), and the 15-row regression set.
+- **Caveat: dev LLM numbers will be optimistic.** The v2 prompt was written after reading the smoke-run output on
+  5 dev cases, and any later prompt change will also be judged on dev. Every prompt version is logged with its dev
+  scores in `pmc_eval/runs.jsonl`; the test split stays unrun.
+
 ## 2. How to run
 
 ```bash
