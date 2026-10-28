@@ -601,6 +601,47 @@ def cmd_pmc_checks(a):
         print(f"[pmc] wrote {wrote(f)}")
 
 
+def cmd_llm_extract(a):
+    # LLM finding candidates on the first PMC dev cases (smoke test; no linking or scoring yet)
+    from dataclasses import asdict
+    from .llm_extract import PROMPT_VERSION, extract_candidates
+    from .pmc import load_case_text
+    a.llm = True
+    llm = get_llm(a)
+    ont = Ontology(Path(a.kb) / "hp.obo")
+    ext = Extractor(ont)
+    manifest = json.loads(Path(a.pmc).read_text())
+    cases = [c for c in manifest["cases"] if c["split"] == "dev"][: a.limit]
+    RUN["settings"].update({"pmc_manifest": a.pmc, "prompt_version": PROMPT_VERSION, "max_chars": a.max_chars, "cases": len(cases)})
+    rows, reps, t0 = [], [], time.time()
+    for i, c in enumerate(cases, 1):
+        text = load_case_text(c)
+        found, rep = extract_candidates(llm, text, "note_text", a.max_chars, a.llm_workers)
+        reps.append({"case": c["case_id"], "words": len(text.split()), **asdict(rep)})
+        for f in found:
+            hits = ext.findings(f.phrase)
+            rows.append({"case": c["case_id"], "chunk": f.chunk, "phrase": f.phrase, "status": f.status.value, "quote": f.quote,
+                         "start": f.start, "end": f.end, "match": f.match,
+                         "dictionary": "; ".join(dict.fromkeys(f"{h.hpo_id} {ont.name(h.hpo_id)}" for h in hits))})
+        print(f"\r[llm-extract] {i}/{len(cases)} cases", end="", flush=True)
+    secs = time.time() - t0
+    keys = ("chunks", "unreadable", "proposed", "bad_item", "quote_not_found", "duplicates", "kept")
+    tot = {k: sum(r[k] for r in reps) for k in keys}
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(rows).to_csv(wrote(out / f"llm_candidates_{llm.slug}.csv"), index=False)
+    (out / f"llm_extract_{llm.slug}.json").write_text(json.dumps(
+        {"model": llm.model, "prompt_version": PROMPT_VERSION, "seconds": round(secs, 1), "totals": tot, "usage": llm.usage(),
+         "cases": reps}, indent=1))
+    wrote(out / f"llm_extract_{llm.slug}.json")
+    note("llm_extract", seconds=round(secs, 1), **tot)
+    print(f"\n[llm-extract] {llm.model}, prompt v{PROMPT_VERSION}, {len(cases)} cases in {secs:.0f} s")
+    print("  " + ", ".join(f"{k} {v}" for k, v in tot.items()))
+    linked = sum(bool(r["dictionary"]) for r in rows)
+    print(f"  {linked} of {len(rows)} kept phrases match the rule dictionary as written (the rest need the linker)")
+    print(usage_line(llm))
+
+
 def cmd_pmc_score(a):
     from .pmc_checks import score
     res = score(Path(a.checks), a.items, a.summary, a.manifest)
@@ -805,6 +846,11 @@ def main(argv=None):
     s.add_argument("--summary", help="extract-eval pmc_<split>_summary.json, for precision with adjudicated extras")
     s.add_argument("--manifest", default="pmc_eval/manifest_v1.json", help="for recall by single/multi-patient paper")
     s.add_argument("--out", default="results")
+    s = sub.add_parser("llm-extract", help="LLM finding candidates on the first PMC dev cases (smoke test)")
+    s.add_argument("--pmc", default="pmc_eval/manifest_v1.json")
+    s.add_argument("--limit", type=int, default=5, help="number of dev cases")
+    s.add_argument("--max-chars", type=int, default=2500, help="longest text chunk sent in one request")
+    s.add_argument("--out", default="results/llm_extract")
     s = sub.add_parser("report", help="tables, figures and notes from saved runs")
     s.add_argument("--results", default="results", help="folder searched (recursively) for runs and CSVs")
     s.add_argument("--out", default="reports/report", help="base name; each run writes <base>-1, <base>-2, ...")
@@ -862,7 +908,7 @@ def _logged(a):
         {"diagnose": cmd_diagnose, "benchmark": cmd_benchmark, "sequential": cmd_sequential,
          "learn-common": cmd_learn_common, "mimic": cmd_mimic, "medpix": cmd_medpix,
          "llm-bench": cmd_llm_bench, "extract-eval": cmd_extract_eval, "pmc-build": cmd_pmc_build,
-         "pmc-checks": cmd_pmc_checks, "pmc-score": cmd_pmc_score}[a.cmd](a)
+         "pmc-checks": cmd_pmc_checks, "pmc-score": cmd_pmc_score, "llm-extract": cmd_llm_extract}[a.cmd](a)
     except KeyboardInterrupt:
         status = "stopped (Ctrl-C)"
         raise

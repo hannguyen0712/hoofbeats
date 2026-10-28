@@ -665,6 +665,71 @@ class Fake:
         return self.reply
 
 
+class TestLLMExtract(unittest.TestCase):
+    # LLM finding extraction: chunks, quote check with offsets, reply parsing (fake model, no GPU)
+    class ChunkFake:
+        def __init__(self, answer, endpoint=None):
+            self.answer, self.endpoint, self.is_local, self.sent = answer, endpoint, endpoint is None, []
+
+        def chat(self, user, system="", images=(), schema=None):
+            self.sent.append((user, schema))
+            return self.answer(user)
+
+    def test_chunks_keep_offsets(self):
+        from hoofbeats.llm_extract import chunks
+        text = "First paragraph here.\n\nSecond one. It has two sentences.\n\n" + "Long sentence number %d. " * 40 % tuple(range(40))
+        spans = chunks(text, max_chars=200)
+        self.assertEqual(spans[0], (0, text.index("sentences.") + len("sentences.")))      # short paragraphs joined
+        self.assertTrue(all(b - a <= 200 for a, b in spans))
+        self.assertEqual("".join(text[a:b] for a, b in spans).replace(" ", "").replace("\n", ""),
+                         text.replace(" ", "").replace("\n", ""))                          # nothing lost or repeated
+        self.assertEqual(chunks("   "), [])
+
+    def test_locate_quote(self):
+        from hoofbeats.llm_extract import locate
+        text = "Exam: the testes were  not palpable\nin the scrotum. He had “marked” hypotonia–severe."
+        s, e, how = locate(text, 0, len(text), "testes were not palpable in the scrotum.")
+        self.assertEqual((text[s:e], how), ("testes were  not palpable\nin the scrotum.", "normalised"))
+        s, e, _ = locate(text, 0, len(text), "the testes were not palpable in the scrotum, ")   # added comma dropped
+        self.assertEqual(text[s:e], "the testes were  not palpable\nin the scrotum")
+        s, e, how = locate(text, 0, len(text), 'He had "marked" Hypotonia-severe')
+        self.assertEqual(text[s:e], "He had “marked” hypotonia–severe")
+        self.assertEqual(locate(text, 0, len(text), "hypotonia")[2], "exact")
+        self.assertIsNone(locate(text, 0, 20, "hypotonia"))                                # only inside the chunk
+        self.assertIsNone(locate(text, 0, len(text), "ataxia"))
+
+    def test_extract_candidates(self):
+        from hoofbeats.llm_extract import SCHEMA, extract_candidates
+        text = ("The boy had hypotonia. His testes were not palpable in the scrotum.\n\n"
+                "Blood pressure was normal. His father had  seizures.")
+
+        def answer(prompt):
+            if "hypotonia" in prompt:
+                return json.dumps({"findings": [
+                    {"phrase": "hypotonia", "status": "present", "quote": "hypotonia"},
+                    {"phrase": "cryptorchidism", "status": "present", "quote": "testes were not palpable in the scrotum"},
+                    {"phrase": "ataxia", "status": "present", "quote": "unsteady gait"},          # not in the text
+                    {"phrase": "hypotonia", "status": "present", "quote": "hypotonia"},           # repeated
+                    {"phrase": "x", "status": "maybe", "quote": "boy"}]})                         # bad status
+            return 'Sure! ```json\n[{"phrase": "hypertension", "status": "absent", "quote": "Blood pressure was normal."},' \
+                   '{"phrase": "seizures", "status": "family", "quote": "father had seizures"}]\n```'
+        llm = self.ChunkFake(answer)
+        found, rep = extract_candidates(llm, text, max_chars=80, workers=1)
+        self.assertEqual(rep.chunks, 2)
+        self.assertTrue(all(s is SCHEMA for _, s in llm.sent))
+        self.assertEqual([(c.phrase, c.status, c.match) for c in found],
+                         [("hypotonia", Status.PRESENT, "exact"), ("cryptorchidism", Status.PRESENT, "exact"),
+                          ("hypertension", Status.ABSENT, "exact"), ("seizures", Status.FAMILY, "normalised")])
+        self.assertTrue(all(text[c.start:c.end] == c.quote for c in found))
+        self.assertEqual(found[3].quote, "father had  seizures")
+        self.assertEqual((rep.proposed, rep.quote_not_found, rep.duplicates, rep.bad_item, rep.kept), (7, 1, 1, 1, 4))
+        self.assertEqual(rep.not_found_examples, [{"phrase": "ataxia", "quote": "unsteady gait"}])
+        _, rep = extract_candidates(self.ChunkFake(lambda p: "I cannot help with that."), text, workers=1)
+        self.assertEqual((rep.unreadable, rep.kept), (1, 0))
+        with self.assertRaises(PolicyError):
+            extract_candidates(self.ChunkFake(answer, "https://api.example.com/v1"), text)
+
+
 def write_medpix(root: Path) -> Path:
     mp = root / "MedPix-2-0"
     (mp / "images").mkdir(parents=True, exist_ok=True)
