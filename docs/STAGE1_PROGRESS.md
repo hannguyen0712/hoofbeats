@@ -344,6 +344,56 @@ The 12 status and 3 term errors are kept as a regression set for the LLM step (`
 - Added, all from the numbers reader: Short stature present twice (the paired height and a centile before the list), Microcephaly present (PMID30509212, "below ... 3rd centiles at height, weight and head circumference"), and normal-range absents for paired or newly read measures. Read against the text, all 11 look correct but are not in the gold, so unadjudicated precision falls slightly.
 - C037 was not a miss: Microcephaly present was extracted from that sentence; only its Macrocephaly-absent row was in the task C sample.
 
+### LLM text reader on PMC dev (first Sol run, Qwen2.5-7B-Instruct, commit `2be3084`)
+
+All numbers are dev and **optimistic** (prompt v2 was written after reading dev output). Status policy: llm (the
+rules policy gives the same recall and precision but fixes none of the regression rows). Recall cells are
+strict / lenient.
+
+| | rules | rules + LLM v1 | rules + LLM v2 | LLM alone v1 | LLM alone v2 |
+|---|---|---|---|---|---|
+| Hand-checked recall, 69 terms | 55.1 / 62.3 | **69.6 / 78.3** | **66.7 / 79.7** | 62.3 / 68.1 | 56.5 / 68.1 |
+| … written as a label/synonym, 42 | 90.5 / 92.9 | 90.5 / 92.9 | 90.5 / 92.9 | 78.6 / 78.6 | 73.8 / 76.2 |
+| … paraphrased, 27 | 0.0 / 14.8 | **37.0 / 55.6** | **29.6 / 59.3** | 37.0 / 51.9 | 29.6 / 55.6 |
+| All-gold recall, 1,225 | 22.0 / 27.5 | 27.9 / 34.9 | 28.2 / 35.3 | 22.3 / 28.3 | 22.9 / 29.1 |
+| Present / absent gold recall (strict) | 36.9 / 3.5 | 47.1 / 4.2 | 48.1 / 3.7 | 39.2 / 1.3 | 40.7 / 0.7 |
+| Precision, extras not judged | 37.5 / 45.6 | 29.8 / 36.2 | 29.7 / 36.6 | 31.2 / 38.9 | 31.0 / 39.5 |
+| Predictions / extras | 717 / 390 | 1,148 / 732 | 1,165 / 739 | 875 / 535 | 902 / 546 |
+| Absent predictions / extras | 95 / 70 | 115 / 85 | 130 / 103 | 74 / 66 | 87 / 80 |
+| Regression rows fixed / partly / not (15) | 0 / 0 / 15 | 7 / 0 / 8 | 5 / 1 / 9 | 9 / 6 / 0 | 7 / 7 / 1 |
+| Examples strict F1, dev / held-out | 58.5 / 47.9 | 67.2 / 53.0 | 68.7 / 57.6 | 62.8 / 42.0 | 64.5 / 49.1 |
+| Ranks: Marfan, Wilson, TSC, Fabry, DM1, HHT1 | 1, 1, 1, 19, 107, 82 | 4, 1, 2, 4, 71, 17 | 1, 1, 2, 34, 146, 3 | 4, 1, 2, 4, 35, 3 | 1, 1, 2, 50, 62, 1 |
+
+- **Recall gain is on paraphrase.** The LLM keeps everything the rules find with a label (90.5%) and adds 8-10 of the
+  27 paraphrased terms strictly (15-16 leniently). v1 vs v2 differ by 2 terms of 69 overall: within noise.
+- **Precision before judging falls** (37.5 to about 30) because the LLM adds ~355 extras per version that only it
+  found; task C judged 78% of rule extras correct, so this number says little until the LLM extras are judged.
+  A blind sheet of 50 LLM-only extras per version (plus 10 absent ones each) is in `data/pmc/checks/task_c_llm.csv`.
+- **Absent findings:** the LLM adds 20 (v1) / 35 (v2) absent predictions; few match an absent gold term (absent gold is
+  mostly not in the text). They do not move any example rank: ranks are identical without the LLM-only absent
+  findings, for both versions.
+- **Extraction:** 128 chunks per version, no unreadable reply; quotes not found 75 (v1) / 43 (v2) of ~1,250 proposed.
+  Linking of kept findings: dictionary ~440, SapBERT ~170, LLM choice ~325; unlinked 241 (v1) / 177 (v2, fewer
+  molecular phrases). The cross-check dropped one finding per version, both correctly ("foamy urine" -> Hematuria;
+  "no contractures" -> Aplasia of the musculature).
+- **Why rules+LLM fixes fewer regression rows than the LLM alone (7 vs 9 for v1, 5 vs 7 for v2):** the status policy
+  only acts where both readers give the same term (or a parent/child) on the same words. Two rows are fixed in
+  LLM-alone only because the LLM says nothing: "MI" in a Michigan address (C067) and a negated family ataxia (C081)
+  expect no finding; with the rules also running their wrong finding stays, since silence cannot overrule it. (v2
+  also misses C024 and C052 in the merge for the same reason: the LLM gave no Fever or Hearing impairment there.)
+- **Why Marfan drops to rank 4 with v1:** one correct finding, "Seasonal allergies" -> Seasonal allergy (SapBERT,
+  0.99). Removing it alone restores rank 1. The ranker scores a present term through its best-annotated ancestor:
+  Loeys-Dietz 1 and 3 match through "Abnormality of immune system physiology" (log LR +1.6), Marfan has nothing on
+  that branch and gets the floor (-3.0), and Stolerman syndrome, annotated with Allergy, gains +5.6. v2 did not list
+  the allergy, hence rank 1.
+- **Why DM1 drops to 146 with v2 (rules 107):** wrong terms from paraphrase, all grounded weak: "dozes off at work" ->
+  Fatigue (the LLM's own term; hypersomnolence is meant), extensor weakness -> Limited wrist extension, percussion
+  myotonia -> Abnormality of the thenar eminence, "long thin face with hollow temples" -> Triangular face. Removing
+  Fatigue alone gives rank 83. Correct paraphrases help at the same time (without Myotonia, from "hands lock up",
+  the rank would be 319). Dropping all weak LLM-only findings is not a fix: it also undoes HHT1 82 -> 3 and Fabry
+  19 -> 4 (v1).
+- **Ranks on six cases are noisy:** single findings move them by tens of places, in both directions.
+
 ## 4. Remaining misses and known issues
 
 - **Paraphrase with no matching label or synonym (the largest group):**
