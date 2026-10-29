@@ -5,3 +5,9 @@ __pycache__/
 # never commit credentialed MIMIC data or anything derived from it
 **/mimic*/
 .DS_Store
+# model replies, embeddings and weights stay local wherever they are written
+**/llm_cache/
+*.npz
+*.npy
+*.safetensors
+*.gguf
