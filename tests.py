@@ -879,6 +879,32 @@ class TestLinker(unittest.TestCase):
         with self.assertRaises(ValueError):
             run(status_policy="majority")
 
+    def test_llm_reader_prefetch_batches_requests(self):
+        import threading
+        from hoofbeats.linker import Linker
+        from hoofbeats.llm_reader import LLMReader
+        live, peak, lock = [0], [0], threading.Lock()
+
+        class Slow(TestLLMExtract.ChunkFake):
+            def chat(self, user, system="", images=(), schema=None):
+                with lock:
+                    live[0] += 1
+                    peak[0] = max(peak[0], live[0])
+                import time
+                time.sleep(0.05)
+                with lock:
+                    live[0] -= 1
+                return super().chat(user, system, images, schema)
+        llm = Slow(lambda p: json.dumps({"findings": [{"phrase": "fever", "status": "present", "quote": "fever"}]}))
+        reader = LLMReader(llm, Linker(self.ont, self.ext), self.ont, self.ext, workers=8)
+        texts = [(f"Case {i} had fever.", "note", "note_text", f"c{i}") for i in range(6)]
+        reader.prefetch(texts)
+        self.assertEqual(len(llm.sent), 6)
+        self.assertGreater(peak[0], 1)                                  # the six texts' requests overlapped
+        self.assertEqual([f.hpo_id for f in reader("Case 3 had fever.", "note", "note_text")], ["HP:0001945"])
+        self.assertEqual(len(llm.sent), 6)                              # answered from the prefetched results
+        self.assertEqual([r["case"] for r in reader.reports], [f"c{i}" for i in range(6)])
+
     def test_llm_eval_helpers(self):
         from hoofbeats.llm_eval import absent_sample, absent_stats, configs, hand_checked
         it = lambda h, st, res, vis: {"hpo_id": h, "status": st, "result": res, "vocab_visible": vis}

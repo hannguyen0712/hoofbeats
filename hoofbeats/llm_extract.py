@@ -185,15 +185,25 @@ def parse_reply(reply: str) -> list | None:
 
 def extract_candidates(llm, text: str, field: str = "note_text", max_chars: int = 2500, workers: int = 8,
                        prompt_version: int = PROMPT_VERSION) -> tuple[list[Candidate], ExtractReport]:
+    return extract_many(llm, [(text, field)], max_chars, workers, prompt_version)[0]
+
+
+def extract_many(llm, texts: list[tuple[str, str]], max_chars: int = 2500, workers: int = 8,
+                 prompt_version: int = PROMPT_VERSION) -> list[tuple[list[Candidate], ExtractReport]]:
+    # (text, field) pairs -> (candidates, report) each; the chunks of all texts share one pool of concurrent requests,
+    # so a vLLM server sees many at once
     require_local(llm)
-    rep, out, seen = ExtractReport(), [], set()
-    if not text or not text.strip():
-        return out, rep
-    spans = chunks(text, max_chars)
-    rep.chunks = len(spans)
     prompt = PROMPTS[prompt_version]           # replace, not format: the v2 example contains JSON braces
-    replies = chat_many(llm, [{"user": prompt.replace("{text}", text[a:b]), "system": SYSTEM, "schema": SCHEMA}
-                              for a, b in spans], workers)
+    spans = [chunks(t, max_chars) if t and t.strip() else [] for t, _ in texts]
+    calls = [{"user": prompt.replace("{text}", t[a:b]), "system": SYSTEM, "schema": SCHEMA}
+             for (t, _), sp in zip(texts, spans) for a, b in sp]
+    replies = iter(chat_many(llm, calls, workers))
+    return [_collect(t, f, sp, [next(replies) for _ in sp]) for (t, f), sp in zip(texts, spans)]
+
+
+def _collect(text: str, field: str, spans: list[tuple[int, int]], replies: list[str]) -> tuple[list[Candidate], ExtractReport]:
+    # one text's chunk replies -> candidates whose quotes are found in their chunk
+    rep, out, seen = ExtractReport(chunks=len(spans)), [], set()
     statuses = {s.value: s for s in Status}
     for k, ((a, b), reply) in enumerate(zip(spans, replies)):
         items = parse_reply(reply) if reply else None

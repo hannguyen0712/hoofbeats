@@ -6,7 +6,7 @@ from dataclasses import asdict
 from .data import Extractor
 from .grounding import RANK, GroundedFinding
 from .linker import Linker, crosscheck
-from .llm_extract import PROMPT_VERSION, extract_candidates
+from .llm_extract import PROMPT_VERSION, extract_many
 from .model import Ontology
 
 
@@ -25,23 +25,37 @@ class LLMReader:
             return []
         key = (text, source, field)
         if key not in self._memo:
-            self._memo[key] = self._read(text, source, field)
+            self.prefetch([(text, source, field, self.case_id)])
         return list(self._memo[key])
 
-    def _read(self, text: str, source: str, field: str) -> list[GroundedFinding]:
-        cands, rep = extract_candidates(self.llm, text, field, self.max_chars, self.workers, self.prompt_version)
-        self.reports.append({"case": self.case_id, "field": field, **{k: v for k, v in asdict(rep).items()
-                                                                       if k != "not_found_examples"},
+    def prefetch(self, items: list[tuple[str, str, str, str]]):
+        # (text, source, field, case id) for many texts at once: all their chunks go out as one batch of concurrent
+        # requests, then all candidates are linked together (the LLM's choices also as one batch)
+        todo = list(dict.fromkeys((t, s, f, cid) for t, s, f, cid in items
+                                  if t and t.strip() and (t, s, f) not in self._memo))
+        if not todo:
+            return
+        got = extract_many(self.llm, [(t, f) for t, _, f, _ in todo], self.max_chars, self.workers, self.prompt_version)
+        flat = [(c.phrase, c.quote) for cands, _ in got for c in cands]
+        links = iter(self.linker.link_many(flat))
+        per_text = [[next(links) for _ in cands] for cands, _ in got]
+        linked = [(c.quote, self.ont.resolve(link.hpo_id)) for (cands, _), ls in zip(got, per_text)
+                  for c, lk in zip(cands, ls) for link in lk if link.hpo_id and self.ont.resolve(link.hpo_id)]
+        sims = iter(self.linker.index.similarity([q for q, _ in linked], [h for _, h in linked])
+                    if self.linker.index else [])
+        for (t, s, f, cid), (cands, rep), ls in zip(todo, got, per_text):
+            self._memo[(t, s, f)] = self._finish(cid, s, f, cands, rep, ls, sims)
+
+    def _finish(self, case_id, source, field, cands, rep, links, sims) -> list[GroundedFinding]:
+        # one text: cross-check each linked candidate, log every candidate, return the kept findings
+        self.reports.append({"case": case_id, "field": field, **{k: v for k, v in asdict(rep).items()
+                                                                  if k != "not_found_examples"},
                              "not_found_examples": rep.not_found_examples})
-        links = self.linker.link_many([(c.phrase, c.quote) for c in cands])
         pairs = [(c, link) for c, ls in zip(cands, links) for link in ls]
-        linked = [(c, self.ont.resolve(link.hpo_id)) for c, link in pairs if link.hpo_id]
-        sims = (self.linker.index.similarity([c.quote for c, h in linked if h], [h for c, h in linked if h])
-                if self.linker.index else [])
-        sim = iter(sims)
+        sim = sims
         out, seen = [], set()
         for c, link in pairs:
-            rec = {"case": self.case_id, "field": field, "phrase": c.phrase, "status": c.status.value, "quote": c.quote,
+            rec = {"case": case_id, "field": field, "phrase": c.phrase, "status": c.status.value, "quote": c.quote,
                    "start": c.start, "end": c.end, "link_method": link.method, "link_score": link.score,
                    "hpo_id": link.hpo_id or "", "label": self.ont.name(link.hpo_id) if link.hpo_id else "",
                    "candidates": "; ".join(f"{t} {self.ont.name(t)} {s}" for t, s in link.candidates[:5])}

@@ -694,6 +694,9 @@ def cmd_llm_eval(a):
     save(rules, out / "rules", None)
     for v in versions:
         reader = LLMReader(llm, linker, ont, ext, v, a.max_chars, a.llm_workers)
+        t1 = time.time()
+        reader.prefetch(eval_texts(manifest))        # every request of this version as one concurrent batch
+        print(f"[llm-eval] prompt v{v}: all texts read in {time.time() - t1:.0f} s")
         policies = ("llm", "rules") if a.status_policy == "both" else (a.status_policy,)
         for name, opts in configs(reader, policies).items():
             if name == "rules":
@@ -713,6 +716,21 @@ def cmd_llm_eval(a):
     wrote(out / "comparison.md")
     print("\n" + table)
     print(usage_line(llm))
+
+
+def eval_texts(manifest: dict) -> list[tuple[str, str, str, str]]:
+    # (text, source, field, case id) of every text llm-eval reads: PMC dev cases (the regression rows are dev cases
+    # too) and the example case files
+    from .llm_eval import EXAMPLES
+    from .pmc import load_case_text
+    out = [(load_case_text(c), "note", "note_text", c["case_id"]) for c in manifest["cases"] if c["split"] == "dev"]
+    for folder, _ in EXAMPLES:
+        for fn in json.loads(Path(folder, "intended_findings.json").read_text()):
+            if not fn.startswith("_"):
+                raw = json.loads(Path(folder, fn).read_text())
+                out += [(raw.get("note_text") or "", "note", "note_text", fn),
+                        (raw.get("image_context") or "", "image_context", "image_context", fn)]
+    return out
 
 
 def csv_rows(path) -> list[dict]:
@@ -903,7 +921,7 @@ def main(argv=None):
     p.add_argument("--dry-run", action="store_true", help="count the model requests a command would send, send none")
     p.add_argument("--llm-offline", action="store_true",
                    help="answer only from the reply cache (e.g. replies copied back from Sol); misses get no reply")
-    p.add_argument("--llm-workers", type=int, default=8, help="model requests in flight at once (a vLLM server batches them)")
+    p.add_argument("--llm-workers", type=int, default=32, help="model requests in flight at once (a vLLM server batches them)")
     p.add_argument("--prompt-version", default="v2", choices=["v1", "v2"], help="finding-extraction prompt (llm_extract.py)")
     p.add_argument("--llm-extra", help='extra JSON fields for the request body, e.g. \'{"reasoning_effort": "low"}\'')
     sub = p.add_subparsers(dest="cmd", required=True)

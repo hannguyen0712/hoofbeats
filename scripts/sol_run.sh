@@ -2,11 +2,12 @@
 # Start a vLLM server on this GPU node (127.0.0.1 only), wait until it answers, run one hoofbeats command against it,
 # and stop the server on exit. Run from the repo root inside an allocation, with the conda env active:
 #   bash scripts/sol_run.sh llm-extract --limit 5 --out results/llm_smoke
-# Settings (environment): MODEL, MAX_LEN, CACHE (reply cache folder), HF_HOME.
+# Settings (environment): MODEL, MAX_LEN, MAX_SEQS, CACHE (reply cache folder), HF_HOME.
 set -euo pipefail
 
 MODEL=${MODEL:-Qwen/Qwen2.5-7B-Instruct}
 MAX_LEN=${MAX_LEN:-16384}
+MAX_SEQS=${MAX_SEQS:-64}                              # requests vLLM batches together (hoofbeats sends up to --llm-workers)
 CACHE=${CACHE:-results/llm_cache}
 export HF_HOME=${HF_HOME:-/scratch/vmallip2/hf_cache}
 export HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}          # the model is already downloaded; compute nodes need no network
@@ -20,7 +21,7 @@ LOG="results/sol/vllm-${SLURM_JOB_ID:-local}-$PORT.log"
 # --generation-config vllm: ignore the model's own sampling defaults (e.g. a repetition penalty), so temperature 0
 # means plain greedy decoding and runs are comparable across models
 vllm serve "$MODEL" --host 127.0.0.1 --port "$PORT" --max-model-len "$MAX_LEN" --gpu-memory-utilization 0.85 \
-    --seed 0 --generation-config vllm > "$LOG" 2>&1 &
+    --max-num-seqs "$MAX_SEQS" --seed 0 --generation-config vllm > "$LOG" 2>&1 &
 PID=$!
 trap 'kill "$PID" 2>/dev/null || true; wait "$PID" 2>/dev/null || true' EXIT
 
