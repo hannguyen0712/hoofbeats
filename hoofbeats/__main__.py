@@ -18,6 +18,7 @@ import re
 
 from .data import (DiseaseMatcher, Extractor, download, learn_common, load_medpix, load_mimic,
                    load_phenopackets, orphadata_icd10)
+from .grounding import level_of
 from .model import (AnnotationDB, Case, Finding, LRRanker, Ontology, Status, explain,
                     most_frequent_test, suggest_tests, verify_claim)
 
@@ -83,9 +84,10 @@ def stage1(a) -> dict:
             "status_policy": cfg["status_policy"], "max_chars": cfg["llm"]["max_chars"], "raw": cfg}
 
 
-def get_llm(a, model: str | None = None):
-    # model: the Stage 1 reader's model; other LLM steps (re-ranking, benchmarks) default to MedGemma
-    if not a.llm:
+def get_llm(a, model: str | None = None, force: bool = False):
+    # model: the Stage 1 reader's model; other LLM steps (re-ranking, benchmarks) default to MedGemma.
+    # force: build it without --llm (the Stage 1 reader turns on with --llm-endpoint alone)
+    if not (a.llm or force):
         return None
     import os
     from .llm import DEFAULT_MODEL, MedGemma
@@ -201,47 +203,136 @@ def fmt(m: dict) -> str:
 
 
 # commands
-def read_case(a, r: LRRanker) -> tuple[Case, frozenset[str]]:
-    # a hoofbeats case file (intake format) or a phenopacket; case files have no PMIDs to exclude
+def read_case(path, r: LRRanker, reader=None, status_policy: str = "llm") -> tuple[Case, frozenset[str]]:
+    # a hoofbeats case file (intake format) or a phenopacket; case files have no PMIDs to exclude. reader: the Stage 1
+    # LLM reader (llm_reader.py) for the case file's text, or None for rules + numbers only
     from .intake import IntakeError, intake_summary, is_intake, load_case
-    path = Path(a.case)
+    path = Path(path)
     try:
         obj = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
     except (UnicodeDecodeError, json.JSONDecodeError):
         obj = None
     if is_intake(obj):
         try:
-            c = load_case(path, r.ont, Extractor(r.ont), disease_names=r.db.names)
+            c = load_case(path, r.ont, Extractor(r.ont), disease_names=r.db.names, llm_reader=reader,
+                          status_policy=status_policy)
         except IntakeError as e:
             raise SystemExit(str(e))
         print(intake_summary(c, r.ont))
         note("intake", case=c.case_id, findings=len(c.findings), warnings=len(c.meta["intake_warnings"]),
              subsumed=len(c.meta["provenance"]["subsumed_by"]))
         return c, frozenset()
-    found = load_phenopackets(a.case) if path.exists() else []
+    found = load_phenopackets(str(path)) if path.exists() else []
     if not found:
-        raise SystemExit(f"no phenopacket or hoofbeats case found at {a.case}")
+        raise SystemExit(f"no phenopacket or hoofbeats case found at {path}")
     return found[0], leak(found[0])
 
 
+def stage1_reader(a, ont: Ontology):
+    # the LLM reader of the frozen Stage 1 configuration when an endpoint (or an offline reply cache) is given;
+    # otherwise None, and Stage 1 runs with rules + numbers only
+    s1 = stage1(a)
+    from .config import load_stage1
+    for p in load_stage1(a.stage1_config, ont.version)["problems"]:
+        print(f"[stage1] warning: {p}")
+    if not (a.llm_endpoint or a.llm_offline):
+        print("[stage1] no LLM endpoint given: reading text with rules + numbers only. For the full Stage 1, start a "
+              "local server and pass --llm-endpoint http://127.0.0.1:<port>/v1/chat/completions (see README).")
+        return None, s1
+    try:
+        from .linker import SapBert, build_linker
+        from .llm_reader import LLMReader
+        import torch, transformers  # noqa: F401  (SapBERT needs them)
+    except ImportError as e:
+        raise SystemExit(f"the LLM reader needs torch and transformers (pip install -r requirements-llm.txt): {e}")
+    llm = get_llm(a, s1["model"], force=True)
+    if llm.model != s1["raw"]["llm"]["model"]:
+        print(f"[stage1] warning: reading text with {llm.model}, not the frozen {s1['raw']['llm']['model']}")
+    ext = Extractor(ont)
+    linker, cal = build_linker(ont, ext, llm, Path(a.kb) / ".cache", SapBert(), a.llm_workers, s1["chooser_version"])
+    print(f"[stage1] {a.stage1_config}: rules + numbers + LLM ({llm.model}, prompt v{s1['prompt_version']}, "
+          f"chooser v{s1['chooser_version']}, status policy {s1['status_policy']})")
+    RUN["settings"].update({"stage1": {k: v for k, v in s1.items() if k != "raw"}})
+    return LLMReader(llm, linker, ont, ext, s1["prompt_version"], s1["max_chars"], a.llm_workers), s1
+
+
+def findings_table(c: Case, ont: Ontology) -> list[dict]:
+    # one row per fused finding: term, status, quote, readers (every reader that gave this status), grounding
+    prov = c.meta.get("provenance", {})
+    rows = []
+    for f in c.findings:
+        es = [e for e in prov.get(f.hpo_id, []) if e["status"] == f.status.value]
+        readers = sorted({r for e in es for r in (e.get("readers") or [e["source"]])})
+        rows.append({"hpo_id": f.hpo_id, "term": ont.name(f.hpo_id), "status": f.status.value,
+                     "quote": getattr(f, "quote", "") or f.evidence, "readers": readers, "grounding": level_of(f)})
+    return sorted(rows, key=lambda x: (x["status"] != "present", x["term"].lower()))
+
+
 def cmd_diagnose(a):
+    from .intake import is_intake
     r = load_kb(a)
-    c, ex = read_case(a, r)
+    texts = []
+    for path in a.case:
+        try:
+            obj = json.loads(Path(path).read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if is_intake(obj) and (obj.get("note_text") or obj.get("image_context")):
+            texts.append(path)
+    reader, s1 = stage1_reader(a, r.ont) if texts else (None, stage1(a))
+    if reader is not None:      # every case file's text in one concurrent batch
+        items = []
+        for path in a.case:
+            try:
+                obj = json.loads(Path(path).read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                continue
+            if is_intake(obj):
+                items += [(obj.get("note_text") or "", "note", "note_text", str(obj.get("case_id", ""))),
+                          (obj.get("image_context") or "", "image_context", "image_context", str(obj.get("case_id", "")))]
+        reader.prefetch(items)
+    out = Path(a.out) / "diagnose"
+    for path in a.case:
+        diagnose_one(a, r, path, reader, s1, out)
+    if reader is not None:
+        print(usage_line(reader.llm))
+
+
+def diagnose_one(a, r: LRRanker, path, reader, s1: dict, out: Path):
+    c, ex = read_case(path, r, reader, s1["status_policy"])
+    rows = findings_table(c, r.ont)
+    print(f"\nFindings ({len(rows)}):")
+    for x in rows:
+        print(f"   {x['status']:9s} {x['term']} ({x['hpo_id']}) [{'+'.join(x['readers'])}, {x['grounding']}]"
+              + (f" <- {x['quote'][:80]!r}" if x["quote"] else ""))
     ranking = r.score(c, ex)
-    print(f"\n{c.case_id}: truth {c.truth}, rank {ranking.rank_of(c.truth)}\n")
+    rank = ranking.rank_of(c.truth)
+    print(f"\n{c.case_id}: truth {c.truth}, rank {rank}\n")
     n_ok = n_all = 0
+    top = []
     for i, (d, p, claims) in enumerate(explain(r, c, ranking, a.k, ex), 1):
         print(f"{i}. {label(r, d)} posterior {p:.1%}")
+        cl_out = []
         for cl in claims:
-            n_all += 1
-            n_ok += verify_claim(r, c, cl, ex)[0]
+            ok = verify_claim(r, c, cl, ex)[0]
+            n_all, n_ok = n_all + 1, n_ok + ok
+            cl_out.append({"text": cl.text, "verified": bool(ok)})
             print("   -", cl.text)
-    note("diagnose", case=c.case_id, truth=c.truth[0] if c.truth else None, rank=ranking.rank_of(c.truth),
-         claims=n_all, claims_verified=n_ok)
+        top.append({"rank": i, "id": d, "name": r.db.names[d], "posterior": float(p), "claims": cl_out})
+    note("diagnose", case=c.case_id, truth=c.truth[0] if c.truth else None, rank=rank, claims=n_all, claims_verified=n_ok)
     print(f"\n{n_ok}/{n_all} claims verified against the record and knowledge base\n\nNext checks:")
+    checks = []
     for t, eig, by in suggest_tests(r, ranking, c, ex):
+        checks.append({"hpo_id": t, "term": r.ont.name(t), "bits": float(eig)})
         print(f"   - {r.ont.name(t)} ({t}), {eig:.2f} bits; " +
               ", ".join(f"{r.db.names[d][:30]} {f:.0%}" for d, f in by[:3]))
+    out.mkdir(parents=True, exist_ok=True)
+    (out / f"{c.case_id}.json").write_text(json.dumps(
+        {"case_id": c.case_id, "source": str(path), "stage1": {k: v for k, v in s1.items() if k != "raw"},
+         "llm_reader": reader is not None, "findings": rows, "truth": c.truth, "truth_rank": rank, "top": top,
+         "claims_verified": f"{n_ok}/{n_all}", "next_checks": checks,
+         "warnings": c.meta.get("intake_warnings", [])}, indent=1))
+    wrote(out / f"{c.case_id}.json")
     pm, lit = get_pubmed(a), {}
     if pm:
         lit = gather_literature(a, pm, r, Extractor(r.ont), c, ranking, ex)
@@ -252,17 +343,16 @@ def cmd_diagnose(a):
                 print(f"   - {lc.text}")
             if not lit.get(d):
                 print("   - none found")
-    llm = get_llm(a)
+    llm = get_llm(a)          # --llm: re-rank the shortlist (MedGemma unless --llm-model says otherwise)
     if llm:
         from .llm import rerank
         print(f"\n[llm] asking {llm.model} to re-rank the top 10 (can take a minute for thinking models)...", flush=True)
         res = rerank(llm, r, c, ranking, ex, k=10, literature=lit)
         if not res.parsed:
-            print(f"\n[llm] could not read MedGemma's reply; it began:\n{res.raw[:1500]}\n")
+            print(f"\n[llm] could not read the model's reply; it began:\n{res.raw[:1500]}\n")
         print(usage_line(llm))
         pos = next((i for i, d in enumerate(res.ranking, 1) if d in c.truth), None)
-        note("diagnose", case=c.case_id, rank=ranking.rank_of(c.truth), rerank=pos,
-             faithfulness=res.faithfulness, parsed=res.parsed)
+        note("diagnose", case=c.case_id, rank=rank, rerank=pos, faithfulness=res.faithfulness, parsed=res.parsed)
         where = f"truth now at {pos or '>10'}" if c.truth else "no truth given"
         print(f"\n{llm.model} re-ranking ({where}), faithfulness {res.faithfulness:.0%}:")
         for i, d in enumerate(res.ranking[: a.k], 1):
@@ -971,9 +1061,11 @@ def main(argv=None):
     p.add_argument("--llm-extra", help='extra JSON fields for the request body, e.g. \'{"reasoning_effort": "low"}\'')
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("download"); s.add_argument("--dest", default="data")
-    s = sub.add_parser("diagnose"); s.add_argument("case", help="phenopacket JSON or hoofbeats case file (see examples/)")
-    s.add_argument("-k", type=int, default=5)
-    s.add_argument("--out", default="results", help="run log goes to <out>/runs/")
+    s = sub.add_parser("diagnose", help="Stage 1 (rules + numbers; + LLM reader with --llm-endpoint), ranking; "
+                                        "--llm also re-ranks")
+    s.add_argument("case", nargs="+", help="phenopacket JSON or hoofbeats case files (see examples/)")
+    s.add_argument("-k", type=int, default=10, help="diseases shown")
+    s.add_argument("--out", default="results", help="per-case JSON in <out>/diagnose/, run log in <out>/runs/")
     for name in ("benchmark", "sequential", "llm-bench"):
         s = sub.add_parser(name)
         s.add_argument("--phenopackets", default="data/phenopacket-store")

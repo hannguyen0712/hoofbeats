@@ -1955,6 +1955,26 @@ class TestIntake(unittest.TestCase):
         self.assertIn("[intake] dx1: 3 findings", text)
         self.assertIn("dx1: truth ['OMIM:1'], rank 1", text)
         self.assertIn("1. Disease Alpha (OMIM:1)", text)
+        self.assertIn("[stage1] no LLM endpoint given", text)                  # rules + numbers fallback, said so
+
+    def test_diagnose_many_cases_writes_json(self):
+        import contextlib, io
+        from hoofbeats.__main__ import main
+        paths = []
+        for i, note in enumerate(("Tall, with dislocated lens.", "No seizures. Fever.")):
+            p = self.root / f"many_{i}.json"
+            p.write_text(json.dumps({"case_id": f"m{i}", "note_text": note, "truth": ["OMIM:1"], "policy": "open"}))
+            paths.append(str(p))
+        with contextlib.redirect_stdout(io.StringIO()):
+            main(["--kb", str(self.kb), "--common", "none", "diagnose", *paths, "--out", str(self.root / "many")])
+        d = json.loads((self.root / "many" / "diagnose" / "m1.json").read_text())
+        self.assertFalse(d["llm_reader"])
+        self.assertEqual({(x["term"], x["status"], tuple(x["readers"])) for x in d["findings"]},
+                         {("Seizure", "absent", ("rules",)), ("Fever", "present", ("rules",))})
+        self.assertEqual(d["findings"][0]["quote"], "Fever")
+        self.assertTrue(d["top"] and {"rank", "id", "name", "posterior", "claims"} <= set(d["top"][0]))
+        self.assertEqual(d["stage1"]["prompt_version"], 1)
+        self.assertTrue((self.root / "many" / "diagnose" / "m0.json").exists())
 
 
 if __name__ == "__main__":
