@@ -175,13 +175,43 @@ CHOOSE_PROMPT = """A clinical case report describes a finding as:
 
 Which Human Phenotype Ontology term below names this finding? Answer "none" if none of them fits.
 {options}"""
+# v2 (frozen configuration): the whole sentence, and broader terms (direct parents of the candidates) for a finding
+# no candidate names exactly; still only listed ids or "none"
+CHOOSE_PROMPT_V2 = """A clinical case report describes a finding as:
+  phrase: "{phrase}"
+  words in the report: "{quote}"
+  sentence: "{sentence}"
+
+Which Human Phenotype Ontology term below names this finding? Prefer a candidate that names it exactly. If none
+does, choose a broader term that is still true of it. If no term is true of it, or the sentence is not about a
+finding of the patient, answer "none". Do not choose a term that adds details the sentence does not state.
+
+Candidates:
+{options}
+
+Broader terms:
+{broader}"""
+CHOOSER_VERSIONS = (1, 2)
 
 
 class Linker:
     def __init__(self, ont: Ontology, ext: Extractor, index: HpoIndex | None = None, llm=None,
-                 hi: float = 1.0, lo: float = 1.0, k: int = 10, margin: float = 0.02, workers: int = 8):
+                 hi: float = 1.0, lo: float = 1.0, k: int = 10, margin: float = 0.02, workers: int = 8,
+                 chooser_version: int = 1):
         self.ont, self.ext, self.index, self.llm = ont, ext, index, llm
         self.hi, self.lo, self.k, self.margin, self.workers = hi, lo, k, margin, workers
+        if chooser_version not in CHOOSER_VERSIONS:
+            raise ValueError(f"chooser version must be one of {CHOOSER_VERSIONS}")
+        self.chooser_version = chooser_version
+
+    def broader(self, ids: list[str]) -> list[str]:
+        # direct parents of the candidates that are phenotype terms and not candidates themselves, in candidate order
+        out = []
+        for t in ids:
+            for p in self.ont.terms[t].parents if t in self.ont.terms else ():
+                if p not in ids and p not in out and self.ont.is_phenotype(p):
+                    out.append(p)
+        return out
 
     def dictionary(self, phrase: str) -> list[Link]:
         # the rule reader's labels and synonyms, only if they account for every word of the phrase except modifiers
@@ -197,9 +227,10 @@ class Linker:
             out.setdefault(m.hpo_id, Link(m.hpo_id, f"dict:{m.link[0]}", m.grounding, m.link[1] or m.quote))
         return list(out.values())
 
-    def link_many(self, items: list[tuple[str, str]]) -> list[list[Link]]:
-        # items: (phrase, quote); one list of links per item (several when the phrase names several terms)
-        out = [self.dictionary(p) for p, _ in items]
+    def link_many(self, items: list[tuple]) -> list[list[Link]]:
+        # items: (phrase, quote) or (phrase, quote, sentence); one list of links per item (several when the phrase
+        # names several terms); chooser v2 shows the sentence
+        out = [self.dictionary(it[0]) for it in items]
         todo = [i for i, links in enumerate(out) if not links]
         if not todo:
             return out
@@ -222,21 +253,29 @@ class Linker:
         if ask and self.llm is not None:
             require_local(self.llm)
             calls = []
+            offered = {}
             for i in ask:
                 ids = [t for t, _ in out[i][0].candidates]
+                up = self.broader(ids) if self.chooser_version == 2 else []
+                offered[i] = ids + up
                 opts = "\n".join(f"{t}: {self.ont.name(t)}" for t in ids)
                 schema = {"type": "object", "additionalProperties": False, "required": ["choice"],
-                          "properties": {"choice": {"type": "string", "enum": ids + ["none"]}}}
-                calls.append({"user": CHOOSE_PROMPT.format(phrase=items[i][0], quote=items[i][1][:300], options=opts),
-                              "schema": schema})
+                          "properties": {"choice": {"type": "string", "enum": offered[i] + ["none"]}}}
+                if self.chooser_version == 1:
+                    user = CHOOSE_PROMPT.format(phrase=items[i][0], quote=items[i][1][:300], options=opts)
+                else:
+                    sent = items[i][2] if len(items[i]) > 2 and items[i][2] else items[i][1]
+                    user = CHOOSE_PROMPT_V2.format(phrase=items[i][0], quote=items[i][1][:300], sentence=sent[:600],
+                                                   options=opts, broader="\n".join(f"{t}: {self.ont.name(t)}" for t in up)
+                                                   or "(none)")
+                calls.append({"user": user, "schema": schema})
             for i, reply in zip(ask, chat_many(self.llm, calls, self.workers)):
                 obj = _json(reply, "{") if reply else None
                 choice = obj.get("choice") if isinstance(obj, dict) else None
-                ids = [t for t, _ in out[i][0].candidates]
                 old = out[i][0]
-                if choice in ids:
-                    out[i] = [Link(choice, "llm_choice", "weak", self.ont.name(choice), dict(old.candidates)[choice],
-                                   old.candidates)]
+                if choice in offered[i]:         # a broader term has no score of its own
+                    out[i] = [Link(choice, "llm_choice" if choice in dict(old.candidates) else "llm_choice:broader",
+                                   "weak", self.ont.name(choice), dict(old.candidates).get(choice), old.candidates)]
                 else:
                     out[i] = [Link(None, "unlinked" if choice == "none" else "borderline", "", old.matched, old.score,
                                    old.candidates)]
@@ -292,7 +331,8 @@ def calibrated(index: HpoIndex, rebuild: bool = False) -> dict:
 
 
 def build_linker(ont: Ontology, ext: Extractor, llm=None, cache_dir: str | Path | None = None, embedder=None,
-                 workers: int = 8) -> tuple[Linker, dict]:
+                 workers: int = 8, chooser_version: int = 1) -> tuple[Linker, dict]:
     index = HpoIndex(ont, embedder or SapBert(), cache_dir)
     cal = calibrated(index)
-    return Linker(ont, ext, index, llm, hi=cal["hi"], lo=cal["lo"], k=cal["k"], margin=cal["margin"], workers=workers), cal
+    return Linker(ont, ext, index, llm, hi=cal["hi"], lo=cal["lo"], k=cal["k"], margin=cal["margin"], workers=workers,
+                  chooser_version=chooser_version), cal

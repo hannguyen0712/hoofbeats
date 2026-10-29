@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
-from .data import Extractor
+from .data import Extractor, sentence_spans
 from .grounding import RANK, GroundedFinding
 from .linker import Linker, crosscheck
 from .llm_extract import PROMPT_VERSION, extract_many
@@ -36,7 +36,12 @@ class LLMReader:
         if not todo:
             return
         got = extract_many(self.llm, [(t, f) for t, _, f, _ in todo], self.max_chars, self.workers, self.prompt_version)
-        flat = [(c.phrase, c.quote) for cands, _ in got for c in cands]
+        flat = []
+        for (t, _, _, _), (cands, _) in zip(todo, got):     # each candidate with the sentence its quote is in
+            sents = sentence_spans(t, 0, len(t))
+            for c in cands:
+                a, b = next(((x, y) for x, y in sents if x <= c.start < y), (c.start, c.end))
+                flat.append((c.phrase, c.quote, t[a:max(b, c.end)].strip()))
         links = iter(self.linker.link_many(flat))
         per_text = [[next(links) for _ in cands] for cands, _ in got]
         linked = [(c.quote, self.ont.resolve(link.hpo_id)) for (cands, _), ls in zip(got, per_text)

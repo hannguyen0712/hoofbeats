@@ -670,10 +670,12 @@ def cmd_llm_eval(a):
     manifest = json.loads(Path(a.pmc).read_text())
     task_b = [r for r in csv_rows(a.task_b) if r["split"] == "dev"]
     reg = csv_rows(a.regression)
-    linker, cal = build_linker(ont, ext, llm, Path(a.kb) / ".cache", SapBert(device=a.sapbert_device), a.llm_workers)
+    chooser = int(a.chooser_version[1:])
+    linker, cal = build_linker(ont, ext, llm, Path(a.kb) / ".cache", SapBert(device=a.sapbert_device), a.llm_workers,
+                               chooser)
     versions = [int(v[1:]) for v in a.prompt_versions]
     RUN["settings"].update({"pmc_manifest": a.pmc, "locator_version": manifest["locator_version"], "split": "dev",
-                            "prompt_versions": versions, "status_policy": a.status_policy, "linker": {k: cal[k] for k in ("hi", "margin", "lo", "k")}})
+                            "prompt_versions": versions, "status_policy": a.status_policy, "chooser_version": chooser, "linker": {k: cal[k] for k in ("hi", "margin", "lo", "k")}})
     out = Path(a.out)
     results = []
 
@@ -686,7 +688,8 @@ def cmd_llm_eval(a):
         wrote(folder / "summary.json")
         log_pmc_run(a.pmc, {"kind": "llm-eval", "manifest": a.pmc, "locator_version": manifest["locator_version"],
                             "split": "dev", "config": res["config"], "model": llm.model if version else None,
-                            "prompt_version": version, "offline": a.llm_offline,
+                            "prompt_version": version, "chooser_version": chooser if version else None,
+                            "offline": a.llm_offline,
                             "linker": {k: cal[k] for k in ("hi", "margin", "lo")} if version else None,
                             **{k: s[k] for k in ("recall_all_gold", "recall_vocab_visible", "precision", "pred", "extra",
                                                  "hand_checked", "absent", "regression_outcomes", "examples", "ranks")}})
@@ -929,6 +932,8 @@ def main(argv=None):
                    help="answer only from the reply cache (e.g. replies copied back from Sol); misses get no reply")
     p.add_argument("--llm-workers", type=int, default=32, help="model requests in flight at once (a vLLM server batches them)")
     p.add_argument("--prompt-version", default="v2", choices=["v1", "v2"], help="finding-extraction prompt (llm_extract.py)")
+    p.add_argument("--chooser-version", default="v1", choices=["v1", "v2"],
+                   help="linker's LLM choice step: v2 adds the sentence and broader (parent) terms")
     p.add_argument("--llm-extra", help='extra JSON fields for the request body, e.g. \'{"reasoning_effort": "low"}\'')
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("download"); s.add_argument("--dest", default="data")

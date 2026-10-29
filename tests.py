@@ -818,6 +818,35 @@ class TestLinker(unittest.TestCase):
             Linker(self.ont, self.ext, self.index(), Chooser(lambda p: "{}", "https://x.example/v1"), hi=0.75,
                    lo=0.3).link_many([("displaced lens", "")])
 
+    def test_chooser_v2_sentence_and_broader_terms(self):
+        from hoofbeats.linker import CHOOSE_PROMPT, Linker
+        answers = []
+        llm = TestLLMExtract.ChunkFake(lambda p: json.dumps({"choice": answers.pop(0)}))
+        lk = Linker(self.ont, self.ext, self.index(), llm, hi=0.75, lo=0.3, k=3, workers=1, chooser_version=2)
+        answers[:] = ["HP:0000478", "HP:0001083", "HP:0000118"]
+        out = lk.link_many([("displaced lens", "lens off", "On exam the lens was off centre."),
+                            ("displaced lens", "lens off", ""), ("displaced lens", "lens off")])
+        prompt, schema = llm.sent[0]
+        self.assertIn('sentence: "On exam the lens was off centre."', prompt)
+        enum = schema["properties"]["choice"]["enum"]
+        self.assertEqual(enum[:3], [t for t, _ in out[1][0].candidates])            # the top-k first
+        self.assertIn("HP:0000478", enum)                                          # Abnormality of the eye: a parent
+        self.assertNotIn("HP:0000118", enum)                                       # the root is never offered
+        self.assertEqual(enum[-1], "none")
+        self.assertEqual((out[0][0].hpo_id, out[0][0].method, out[0][0].grounding, out[0][0].score),
+                         ("HP:0000478", "llm_choice:broader", "weak", None))
+        self.assertEqual((out[1][0].hpo_id, out[1][0].method), ("HP:0001083", "llm_choice"))
+        self.assertIn('sentence: "lens off"', llm.sent[1][0])                      # no sentence: the quote stands in
+        self.assertIsNone(out[2][0].hpo_id)                                        # an id that was not offered
+        v1 = TestLLMExtract.ChunkFake(lambda p: json.dumps({"choice": "none"}))
+        Linker(self.ont, self.ext, self.index(), v1, hi=0.75, lo=0.3, k=3, workers=1).link_many(
+            [("displaced lens", "lens off", "a sentence")])
+        self.assertEqual(v1.sent[0][0], CHOOSE_PROMPT.format(phrase="displaced lens", quote="lens off",
+                                                             options="\n".join(f"{t}: {self.ont.name(t)}" for t in
+                                                                               v1.sent[0][1]["properties"]["choice"]["enum"][:-1])))
+        with self.assertRaises(ValueError):
+            Linker(self.ont, self.ext, chooser_version=3)
+
     def test_crosscheck(self):
         from hoofbeats.linker import crosscheck
         cc = lambda h, q, **kw: crosscheck(self.ont, self.ext, h, q, **kw)
