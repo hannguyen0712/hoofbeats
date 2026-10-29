@@ -416,6 +416,26 @@ strict / lenient.
   range, head control at 3 months), relatives' or the mother's findings, and a procedure read as a finding
   ("intermittent photic stimulation").
 
+**Chooser v2 tried and reverted** (rules + LLM, prompt v1, status policy llm; Sol run at `e279769`). v2 shows the
+chooser the whole sentence and offers the candidates' direct parents as broader terms (`--chooser-version v2`, kept
+behind its flag, default off). Rule set in advance: keep it only if judged precision improves while strict
+hand-checked recall drops by at most ~2 points.
+
+| | chooser v1 | chooser v2 |
+|---|---|---|
+| Hand-checked recall, strict / lenient | 69.6 / 78.3 | 65.2 / 78.3 |
+| … paraphrase (27) | 37.0 / 55.6 | 25.9 / 51.9 |
+| All-gold recall | 27.9 / 34.9 | 28.2 / 36.5 |
+| Precision, extras not judged | 29.8 / 36.2 | 28.6 / 35.8 |
+| Predictions / extras | 1,148 / 732 | 1,211 / 778 |
+| Chooser links kept (of which broader) | 326 | 400 (87) |
+| Regression fixed / partly / not | 7 / 0 / 8 | 8 / 0 / 7 |
+| Ranks | 4, 1, 2, 4, 71, 17 | 4, 1, 2, 4, 172, 17 |
+
+Strict recall fell by 4.4 points, so v2 was reverted without judging its sheet. On the 69 hand-checked terms the
+broader option replaced exact answers rather than only filling gaps: Long face and Prominent fingertip pads now come
+back as parents (lenient only), Hypertension is lost to "none", and one label term gains a lenient match.
+
 ## 4. Remaining misses and known issues
 
 - **Paraphrase with no matching label or synonym (the largest group):**
