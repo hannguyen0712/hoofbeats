@@ -80,6 +80,59 @@ def make_task_c(items_csv, out: Path, n: int = 100) -> Path:
     return out / "task_c_extras.csv"
 
 
+def make_task_c_llm(items: dict[str, str], out: Path, n: int = 50, n_absent: int = 10) -> list[Path]:
+    # extras only the LLM gave (method "llm"), per prompt version: n at random (for precision) plus n_absent more
+    # absent ones (absent findings on their own). One sheet, shuffled, with no version or method shown; an extra two
+    # versions share is judged once. The key file says which version and stratum each row stands for
+    rng, rows, key = random.Random(SEED + 3), {}, {}
+    for version, path in items.items():
+        ex = [r for r in _read(path) if r["kind"] == "extra" and r["method"] == "llm"]
+        pick = [("random", r) for r in rng.sample(ex, min(n, len(ex)))]
+        rest = [r for r in ex if r not in [p for _, p in pick] and r["status"] == "absent"]
+        pick += [("absent", r) for r in rng.sample(rest, min(n_absent, len(rest)))]
+        for stratum, r in pick:
+            k = (r["case"], r["hpo_id"], r["status"])
+            rows.setdefault(k, r)
+            key.setdefault(k, []).append({"version": version, "stratum": stratum})
+    order = sorted(rows)
+    rng.shuffle(order)
+    sheet = [{"row_id": f"D{i:03d}", "case_id": k[0], "hpo_id": k[1], "label": rows[k]["label"],
+              "predicted_status": k[2], "quote": rows[k]["quote"], "sentence": rows[k]["evidence"], "verdict": "",
+              "notes": ""} for i, k in enumerate(order, 1)]
+    _write(out / "task_c_llm.csv", sheet)
+    (out / "task_c_llm_key.json").write_text(json.dumps(
+        {"items": items, "n": n, "n_absent": n_absent,
+         "rows": {s["row_id"]: key[(s["case_id"], s["hpo_id"], s["predicted_status"])] for s in sheet}}, indent=1))
+    return [out / "task_c_llm.csv", out / "task_c_llm_key.json"]
+
+
+def score_task_c_llm(checks: Path, rules_share: float | None, summaries: dict[str, str] | None = None) -> dict:
+    # per version: share of its random LLM extras judged correct, absent precision, and precision with every extra
+    # adjudicated (LLM-only extras at this share; the other extras at rules_share, task C's 78%)
+    key = json.loads((checks / "task_c_llm_key.json").read_text())
+    ans = {r["row_id"]: r["verdict"].strip().lower() for r in _read(checks / "task_c_llm.csv")}
+    out = {}
+    for version, path in key["items"].items():
+        mine = [(rid, s["stratum"]) for rid, ss in key["rows"].items() for s in ss if s["version"] == version]
+        judged = lambda sel: [ans[rid] for rid in sel if ans.get(rid) in ANSWERS["verdict"]]
+        rand = judged([rid for rid, st in mine if st == "random"])
+        absent_rows = {r["row_id"] for r in _read(checks / "task_c_llm.csv") if r["predicted_status"] == "absent"}
+        ab = judged([rid for rid, _ in mine if rid in absent_rows])
+        share = rand.count("correct_not_in_gold") / len(rand) if rand else None
+        res = {"judged": len(rand), "of": sum(st == "random" for _, st in mine), "verdicts": dict(Counter(rand)),
+               "llm_extras_correct": share, "absent_judged": len(ab),
+               "absent_correct": ab.count("correct_not_in_gold") / len(ab) if ab else None}
+        if summaries and version in summaries and share is not None and rules_share is not None:
+            s = json.loads(Path(summaries[version]).read_text())
+            extras = [r for r in _read(path) if r["kind"] == "extra"]
+            n_llm = sum(r["method"] == "llm" for r in extras)
+            add = share * n_llm + rules_share * (len(extras) - n_llm)
+            res["precision_adjusted"] = {k: (s["precision"][k] * s["pred"] + add) / s["pred"] for k in ("strict", "lenient")}
+            res["llm_only_extras"], res["other_extras"] = n_llm, len(extras) - n_llm
+        out[version] = res
+    return out
+
+
 def kappa(a: list[str], b: list[str]) -> float | None:
     n = len(a)
     if not n:

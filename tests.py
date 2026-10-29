@@ -1662,6 +1662,41 @@ class TestPmcLocator(unittest.TestCase):
         self.assertAlmostEqual(res["task_c"]["precision_adjusted"]["strict"], 0.7)
         self.assertTrue(any("maybe" in x for x in res["problems"]))
 
+    def test_task_c_llm_sheet(self):
+        import csv
+        from hoofbeats.pmc_checks import make_task_c_llm, score_task_c_llm
+        d = Path(tempfile.mkdtemp())
+        ex = lambda h, st, m="llm": {"case": "c1", "kind": "extra", "hpo_id": h, "label": h, "status": st, "result": "extra",
+                                     "method": m, "quote": "q", "evidence": "s"}
+        for name, rows in (("v1.csv", [ex("HP:1", "present"), ex("HP:2", "present"), ex("HP:3", "absent"),
+                                       ex("HP:8", "present", "rules")]),
+                           ("v2.csv", [ex("HP:1", "present"), ex("HP:4", "present"), ex("HP:5", "absent")])):
+            with open(d / name, "w", newline="") as fh:
+                w = csv.DictWriter(fh, fieldnames=list(rows[0]))
+                w.writeheader()
+                w.writerows(rows)
+        make_task_c_llm({"v1": str(d / "v1.csv"), "v2": str(d / "v2.csv")}, d, n=2, n_absent=1)
+        sheet = list(csv.DictReader(open(d / "task_c_llm.csv")))
+        self.assertNotIn("method", sheet[0])                            # blind: no version or method on the sheet
+        self.assertNotIn("HP:8", {r["hpo_id"] for r in sheet})          # only LLM-only extras
+        self.assertEqual(len(sheet), len({r["hpo_id"] for r in sheet}))  # a shared extra appears once
+        with open(d / "task_c_llm.csv", "w", newline="") as fh:         # judge: HP:1 and HP:3 correct, the rest wrong
+            w = csv.DictWriter(fh, fieldnames=list(sheet[0]))
+            w.writeheader()
+            w.writerows([{**r, "verdict": "correct_not_in_gold" if r["hpo_id"] in ("HP:1", "HP:3") else "wrong_term"}
+                         for r in sheet])
+        (d / "s1.json").write_text(json.dumps({"pred": 10, "precision": {"strict": 0.5, "lenient": 0.6}}))
+        res = score_task_c_llm(d, 0.5, {"v1": str(d / "s1.json")})
+        key = json.loads((d / "task_c_llm_key.json").read_text())
+        v1_random = [rid for rid, ss in key["rows"].items() for s in ss if s == {"version": "v1", "stratum": "random"}]
+        self.assertEqual(res["v1"]["judged"], 2)
+        self.assertEqual(res["v1"]["absent_correct"], 1.0)              # HP:3, its only absent extra
+        share = res["v1"]["llm_extras_correct"]
+        self.assertEqual(share, sum(next(r for r in sheet if r["row_id"] == rid)["hpo_id"] in ("HP:1", "HP:3")
+                                    for rid in v1_random) / 2)
+        self.assertAlmostEqual(res["v1"]["precision_adjusted"]["strict"], (5 + share * 3 + 0.5 * 1) / 10)
+        self.assertNotIn("precision_adjusted", res["v2"])               # no summary given for v2
+
 
 F = lambda h, st, src="x", ev="": Finding(h, st, src, ev or f"{src}: {h}")
 

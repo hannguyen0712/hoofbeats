@@ -600,10 +600,13 @@ def cmd_pmc_build(a):
 
 def cmd_pmc_checks(a):
     # pre-filled hand-check sheets: A and B from the manifest; C from an extract-eval items file (dev run)
-    from .pmc_checks import make_task_a, make_task_b, make_task_c
+    from .pmc_checks import make_task_a, make_task_b, make_task_c, make_task_c_llm
     manifest = json.loads(Path(a.manifest).read_text())
     out = Path(a.dest)
-    made = [] if a.items else [make_task_a(manifest, out), *make_task_b(manifest, out)]
+    if a.llm_items:     # task C for LLM-only extras, one blind sheet over prompt versions
+        made = make_task_c_llm(dict(x.split("=", 1) for x in a.llm_items), out)
+    else:
+        made = [] if a.items else [make_task_a(manifest, out), *make_task_b(manifest, out)]
     if a.items:
         made.append(make_task_c(a.items, out))
     for f in made:
@@ -782,8 +785,11 @@ def cmd_hpo_index(a):
 
 
 def cmd_pmc_score(a):
-    from .pmc_checks import score
+    from .pmc_checks import score, score_task_c_llm
     res = score(Path(a.checks), a.items, a.summary, a.manifest)
+    if (Path(a.checks) / "task_c_llm_key.json").exists():
+        res["task_c_llm"] = score_task_c_llm(Path(a.checks), res.get("task_c", {}).get("correct_share"),
+                                             dict(x.split("=", 1) for x in a.llm_summaries or []))
     print(json.dumps(res, indent=1))
     note("pmc_score", **res)
 
@@ -979,12 +985,17 @@ def main(argv=None):
     s = sub.add_parser("pmc-checks", help="write the pre-filled hand-check CSVs")
     s.add_argument("--manifest", default="pmc_eval/manifest_v1.json")
     s.add_argument("--items", help="extract-eval pmc_dev_items.csv: write task C (extras) instead of A and B")
+    s.add_argument("--llm-items", nargs="+", metavar="VERSION=ITEMS",
+                   help="llm-eval items per prompt version (e.g. v1=results/llm_eval/v1/rules+llm_status-llm/"
+                        "pmc_dev_items.csv): one blind task-C sheet of LLM-only extras")
     s.add_argument("--dest", default="data/pmc/checks")
     s = sub.add_parser("pmc-score", help="scores from the filled-in hand-check CSVs")
     s.add_argument("--checks", default="data/pmc/checks")
     s.add_argument("--items", help="extract-eval pmc_<split>_items.csv, for hand-checked recall")
     s.add_argument("--summary", help="extract-eval pmc_<split>_summary.json, for precision with adjudicated extras")
     s.add_argument("--manifest", default="pmc_eval/manifest_v1.json", help="for recall by single/multi-patient paper")
+    s.add_argument("--llm-summaries", nargs="+", metavar="VERSION=SUMMARY",
+                   help="llm-eval summary.json per prompt version, for precision with the LLM extras judged")
     s.add_argument("--out", default="results")
     s = sub.add_parser("llm-extract", help="LLM finding candidates on the first PMC dev cases (smoke test)")
     s.add_argument("--pmc", default="pmc_eval/manifest_v1.json")
