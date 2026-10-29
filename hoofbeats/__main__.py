@@ -766,6 +766,24 @@ def llm_eval_table(results) -> str:
     return "\n".join(out)
 
 
+def cmd_chooser_sheet(a):
+    # blind sheet of the extras whose term the new chooser changed, plus a sample of newly linked ones
+    from .chooser_eval import make_sheet
+    res = make_sheet(a.old, a.new, a.checks, a.version, a.n_new)
+    note("chooser_sheet", **res)
+    print(json.dumps(res, indent=1))
+    print(f"[pmc] wrote {wrote(Path(a.checks) / 'task_c_chooser.csv')}")
+
+
+def cmd_chooser_score(a):
+    from .chooser_eval import score
+    from .pmc_checks import score as pmc_score
+    rules_share = pmc_score(Path(a.checks))["task_c"]["correct_share"]    # task C: rule extras judged correct
+    res = score(Path(a.checks), rules_share)
+    note("chooser_score", **res)
+    print(json.dumps(res, indent=1))
+
+
 def cmd_hpo_index(a):
     # SapBERT vectors of all phenotype labels and synonyms, and the linker thresholds (leave-one-synonym-out)
     from .linker import HpoIndex, SapBert, calibrated
@@ -1017,6 +1035,16 @@ def main(argv=None):
     s.add_argument("--status-policy", default="both", choices=["llm", "rules", "both"],
                    help="whose status wins when rules and LLM disagree on the same words (parse_case default: llm)")
     s.add_argument("--out", default="results/llm_eval")
+    s = sub.add_parser("chooser-sheet", help="task C sheet for the linker's new LLM-choice step (changed terms only)")
+    s.add_argument("--old", default="results/llm_eval/v1", help="llm-eval folder of one prompt version, old chooser")
+    s.add_argument("--new", default="results/llm_eval_chooser2/v1", help="the same with the new chooser")
+    s.add_argument("--checks", default="data/pmc/checks")
+    s.add_argument("--version", default="v1", help="prompt version whose task-C sample is reused")
+    s.add_argument("--n-new", type=int, default=20, help="newly linked chooser extras to judge")
+    s.add_argument("--out", default="results")
+    s = sub.add_parser("chooser-score", help="chooser precision old vs new, and precision with every extra judged")
+    s.add_argument("--checks", default="data/pmc/checks")
+    s.add_argument("--out", default="results")
     s = sub.add_parser("hpo-index", help="SapBERT index of HPO labels/synonyms and the linker thresholds")
     s.add_argument("--model", default="cambridgeltl/SapBERT-from-PubMedBERT-fulltext")
     s.add_argument("--device", default="cpu")
@@ -1080,7 +1108,8 @@ def _logged(a):
          "learn-common": cmd_learn_common, "mimic": cmd_mimic, "medpix": cmd_medpix,
          "llm-bench": cmd_llm_bench, "extract-eval": cmd_extract_eval, "pmc-build": cmd_pmc_build,
          "pmc-checks": cmd_pmc_checks, "pmc-score": cmd_pmc_score, "llm-extract": cmd_llm_extract,
-         "hpo-index": cmd_hpo_index, "llm-eval": cmd_llm_eval}[a.cmd](a)
+         "hpo-index": cmd_hpo_index, "llm-eval": cmd_llm_eval,
+         "chooser-sheet": cmd_chooser_sheet, "chooser-score": cmd_chooser_score}[a.cmd](a)
     except KeyboardInterrupt:
         status = "stopped (Ctrl-C)"
         raise

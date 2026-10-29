@@ -1691,6 +1691,57 @@ class TestPmcLocator(unittest.TestCase):
         self.assertAlmostEqual(res["task_c"]["precision_adjusted"]["strict"], 0.7)
         self.assertTrue(any("maybe" in x for x in res["problems"]))
 
+    def test_chooser_comparison(self):
+        import csv
+        from hoofbeats.chooser_eval import make_sheet, score
+
+        def put(path, rows):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "w", newline="") as fh:
+                w = csv.DictWriter(fh, fieldnames=list(rows[0]))
+                w.writeheader()
+                w.writerows(rows)
+        log = lambda ph, start, h, m="llm_choice": {"case": "c", "field": "note_text", "phrase": ph, "status": "present",
+                                                     "start": start, "end": start + 3, "hpo_id": h or "",
+                                                     "kept": str(bool(h)), "link_method": m}
+        ex = lambda h, m="llm": {"case": "c", "kind": "extra", "hpo_id": h, "label": h, "status": "present", "method": m,
+                                 "quote": "q", "evidence": "s"}
+        gold = {"case": "c", "kind": "gold", "hpo_id": "HP:G", "label": "g", "status": "present", "method": "llm",
+                "quote": "", "evidence": ""}
+        d = Path(tempfile.mkdtemp())
+        # old: A (chooser, kept), B (chooser, now dropped), C (chooser, will change to D), E (chooser, will hit gold),
+        #      F (embedding: not a chooser extra), x (borderline, unlinked)
+        put(d / "old/llm_log.csv", [log("a", 0, "HP:A"), log("b", 10, "HP:B"), log("c", 20, "HP:C"), log("e", 30, "HP:E"),
+                                    log("f", 40, "HP:F", "embedding"), log("x", 50, None, "borderline")])
+        put(d / "old/rules+llm_status-llm/pmc_dev_items.csv", [gold] + [ex(h) for h in ("HP:A", "HP:B", "HP:C", "HP:E", "HP:F")])
+        put(d / "new/llm_log.csv", [log("a", 0, "HP:A"), log("b", 10, None, "unlinked"), log("c", 20, "HP:D"),
+                                    log("e", 30, "HP:G"), log("f", 40, "HP:F", "embedding"), log("x", 50, "HP:X")])
+        put(d / "new/rules+llm_status-llm/pmc_dev_items.csv", [gold] + [ex(h) for h in ("HP:A", "HP:D", "HP:F", "HP:X")])
+        for run in ("old", "new"):
+            (d / run / "rules+llm_status-llm" / "summary.json").write_text(
+                json.dumps({"pred": 10, "precision": {"strict": 0.5, "lenient": 0.5}}))
+        chk = d / "checks"
+        put(chk / "task_c_llm.csv", [{"row_id": f"D{i}", "case_id": "c", "hpo_id": h, "predicted_status": "present",
+                                      "verdict": v} for i, (h, v) in enumerate(
+            [("HP:A", "correct_not_in_gold"), ("HP:B", "wrong_term"), ("HP:C", "wrong_term"), ("HP:E", "wrong_term"),
+             ("HP:F", "correct_not_in_gold")])])
+        (chk / "task_c_llm_key.json").write_text(json.dumps({"rows": {f"D{i}": [{"version": "v1", "stratum": "random"}]
+                                                                      for i in range(5)}}))
+        res = make_sheet(d / "old", d / "new", chk)
+        self.assertEqual(res["outcomes"], {"unchanged": 1, "dropped": 1, "changed_to_judge": 1, "changed_to_gold": 1})
+        self.assertEqual(res["candidates"], {"unchanged": 1, "dropped": 1, "changed": 2, "newly_linked": 1})
+        sheet = list(csv.DictReader(open(chk / "task_c_chooser.csv")))
+        self.assertEqual(sorted(r["hpo_id"] for r in sheet), ["HP:D", "HP:X"])     # changed term + newly linked
+        put(chk / "task_c_chooser.csv", [{**r, "verdict": "correct_not_in_gold" if r["hpo_id"] == "HP:D" else "wrong_term"}
+                                         for r in sheet])
+        out = score(chk, 0.5)
+        cp = out["chooser_precision"]
+        self.assertEqual((cp["old"], cp["old_sample_after_change"], cp["newly_linked_sample"]), (0.25, 1.0, 0.0))
+        # old chooser stratum: 4 extras; 3 of 4 sampled stay (B dropped) -> 3 at 100%, plus 1 fresh at 0%
+        self.assertAlmostEqual(cp["new"], 3 / 4)
+        self.assertEqual(out["other_llm_extras_precision"], 1.0)
+        self.assertAlmostEqual(out["precision_judged"]["old"]["strict"], (5 + 0.25 * 4 + 1.0 * 1) / 10)
+
     def test_task_c_llm_sheet(self):
         import csv
         from hoofbeats.pmc_checks import make_task_c_llm, score_task_c_llm
