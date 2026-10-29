@@ -7,7 +7,10 @@ from pathlib import Path
 DEFAULT = "configs/stage1_v1.json"
 
 
-TAG = "stage1-final-dev"
+# the freeze was tagged stage1-final-dev; merging origin/main changed two frozen files without changing Stage 1 (an offline
+# replay of the frozen dev evaluation was identical: 540 cached requests, 0 misses), so checks run against the merge
+FROZEN_TAG = "stage1-final-dev"
+TAG = "stage1-final-dev-merged"
 # what the frozen configuration consists of: the readers, linker, fusion, scoring and their resources, the
 # configuration and the PMC manifest (evaluation drivers such as __main__.py and llm_eval.py may change)
 FROZEN_PATHS = ["configs/stage1_v1.json", "pmc_eval/manifest_v1.json", "hoofbeats/resources"] + [

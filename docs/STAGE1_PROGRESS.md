@@ -144,8 +144,18 @@ written with an HPO label or synonym, but 4 of 27 paraphrased ones) without losi
 
 ### One-time PMC test run (prepared, not run)
 
+**Merge with origin/main (tag `stage1-final-dev-merged`, commit `2f4f2bb`).** The merge brought teammates' changes
+into two frozen files: `hoofbeats/data.py` (new MedPix name fields and name-matching / input functions, purely
+additive) and `hoofbeats/llm.py` (a configurable timeout with the old 600 s default, clearer errors on failed
+requests, image MIME types, the image-context pipeline). Equivalence check before re-pointing the freeze, offline with
+the merged code and the Sol reply cache: the frozen configuration's PMC dev evaluation (rules, LLM alone, rules + LLM)
+is identical, from the same 540 cached requests with 0 misses (the cache key covers model, settings, prompts and
+schema, so the requests are byte-identical); the six example ranks are unchanged (1, 1, 1, 19, 107, 82 rules only;
+4, 1, 2, 4, 71, 17 with the LLM reader). The frozen check now runs against `stage1-final-dev-merged`; the original
+tag `stage1-final-dev` stays at `ef8a923`.
+
 `pmc-test-run` (Sol: `sbatch scripts/sol_pmc_test.sbatch`) runs the frozen configuration once on PMC test. It refuses
-unless HEAD contains `stage1-final-dev`, the frozen files (readers, linker, fusion, scoring, resources, the
+unless HEAD contains `stage1-final-dev-merged`, the frozen files (readers, linker, fusion, scoring, resources, the
 configuration and the manifest) are unchanged and committed since the tag, the HPO version and linker calibration
 match the configuration, no setting overrides it, and no frozen test run is logged yet. It reports, for rules, LLM
 alone and rules + LLM, on dev (replies from the cache) and test with the same code, and the gap test - dev:
