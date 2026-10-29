@@ -394,6 +394,28 @@ strict / lenient.
   19 -> 4 (v1).
 - **Ranks on six cases are noisy:** single findings move them by tens of places, in both directions.
 
+**Task C for LLM-only extras** (one blind sheet, 116 rows; answers in `pmc_eval/checks_v1_task_c_llm.csv`):
+
+| | v1 | v2 |
+|---|---|---|
+| LLM-only extras judged correct (random 50) | **64%** (32/50; 95% CI 50-76) | **60%** (30/50; 46-72) |
+| Their errors | wrong term 10, wrong status 4, not this patient 1, unsure 3 | wrong term 13, wrong status 3, not this patient 1, unsure 3 |
+| Absent LLM extras correct | 8/12 | 7/13 |
+| Precision with every extra judged, strict / lenient | **75.2 / 81.7** | **73.6 / 80.5** |
+
+- Rules alone, judged the same way, are at 79.9 / 88.0: the LLM costs about 5 points of judged precision for
+  +14.5 (v1) / +11.6 (v2) points of strict hand-checked recall.
+- v1 and v2 do not differ beyond noise on precision either (64% vs 60% on 50 each); v1 is ahead on every point
+  estimate (judged precision, absent precision, strict paraphrase recall).
+- By link method (both versions pooled, 116 rows): SapBERT accepted directly 21/26 correct, dictionary 12/21 (its
+  errors are the LLM's own phrase or status), **LLM choice among candidates 35/69 (51%)**. The chooser is pushed
+  into over-specific terms when nothing fits (Post-capillary pulmonary hypertension for "secondary pulmonary
+  hypertension", Renal interstitial neutrophil infiltration for a skin infiltrate, Decreased DLCO for diffusion
+  restriction on brain MRI).
+- Other error types: normal values still called present despite the v2 rule (OFC at the 10th centile, glucose in
+  range, head control at 3 months), relatives' or the mother's findings, and a procedure read as a finding
+  ("intermittent photic stimulation").
+
 ## 4. Remaining misses and known issues
 
 - **Paraphrase with no matching label or synonym (the largest group):**
