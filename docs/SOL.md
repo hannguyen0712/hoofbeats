@@ -39,6 +39,8 @@ Batch (preferred), from the repo root:
   cases and the regression set (rules / LLM / rules+LLM, both status policies).
 - `sbatch scripts/sol_diagnose.sbatch`: `diagnose` with the frozen Stage 1 configuration on the six example cases;
   per-case JSON in `results/diagnose/`.
+- `sbatch scripts/sol_pmc_test.sbatch`: **the one-time PMC test run** with the frozen configuration
+  (`pmc-test-run`); results in `results/pmc_test/`. It refuses if anything frozen changed since `stage1-final-dev`.
 
 Follow a job with `tail -f hoofbeats-<name>-<jobid>.out`.
 
@@ -57,7 +59,7 @@ the vLLM log goes to `results/sol/`.
 ## 4. Copy results back (from the Mac, repo root)
 
 ```bash
-rsync -av vmallip2@sol.asu.edu:/scratch/vmallip2/hoofbeats/results/{llm_cache,llm_smoke,llm_eval,llm_eval_chooser2,diagnose,runs,sol} results/
+rsync -av vmallip2@sol.asu.edu:/scratch/vmallip2/hoofbeats/results/{llm_cache,llm_smoke,llm_eval,llm_eval_chooser2,diagnose,pmc_test,runs,sol} results/
 rsync -av 'vmallip2@sol.asu.edu:/scratch/vmallip2/hoofbeats/hoofbeats-*.out' results/sol/
 # the run log: Sol's copy is the Mac's plus the new runs; check that, then take it
 rsync -av vmallip2@sol.asu.edu:/scratch/vmallip2/hoofbeats/pmc_eval/runs.jsonl /tmp/runs_sol.jsonl

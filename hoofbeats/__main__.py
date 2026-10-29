@@ -828,6 +828,85 @@ def cmd_llm_eval(a):
     print(usage_line(llm))
 
 
+def cmd_pmc_test_run(a):
+    # the one-time PMC test run with the frozen Stage 1 configuration: rules, LLM alone and rules + LLM on dev (replies
+    # from the cache) and test, the same metrics on both, and the dev-vs-test gap. Refuses unless the frozen files are
+    # unchanged since the tag, nothing overrides the configuration, and no frozen test run is logged yet
+    from .config import TAG, frozen_problems, load_stage1
+    from .linker import SapBert, build_linker
+    from .llm_eval import configs, estimated_judged_precision, evaluate_split, gap_table
+    from .llm_reader import LLMReader
+    from .pmc import load_case_text
+    from .pmc_checks import score as pmc_score
+    if not a.allow_test:
+        raise SystemExit("the PMC test split is run once, with the frozen configuration; add --allow-test")
+    ont = Ontology(Path(a.kb) / "hp.obo")
+    problems = frozen_problems() + load_stage1(a.stage1_config, ont.version)["problems"]
+    frozen = load_stage1(a.stage1_config)
+    want = {"prompt_version": f"v{frozen['llm']['prompt_version']}", "chooser_version":
+            f"v{frozen['linker']['chooser_version']}", "llm_model": frozen["llm"]["model"]}
+    problems += [f"--{k.replace('_', '-')} {getattr(a, k)} overrides the frozen configuration ({v})"
+                 for k, v in want.items() if getattr(a, k) and getattr(a, k) != v]
+    runs = Path(a.pmc).parent / "runs.jsonl"
+    done = [json.loads(x) for x in runs.read_text().splitlines() if '"frozen-test"' in x] if runs.exists() else []
+    if a.llm_offline and not done:     # offline has no test replies: it would score the rules alone on test
+        problems.append("--llm-offline replays a logged frozen test run; there is none yet")
+    if done and not a.again and not a.llm_offline:
+        problems.append(f"a frozen test run is already logged ({done[-1]['time']}, commit {done[-1]['commit'][:7]}); "
+                        "--again only to repeat it after a failure")
+    if problems:
+        raise SystemExit("not running the test split:\n  " + "\n  ".join(problems))
+    s1 = stage1(a)
+    a.llm = True
+    llm = get_llm(a, s1["model"])
+    ext = Extractor(ont)
+    names = AnnotationDB(Path(a.kb) / "phenotype.hpoa", ont).names
+    manifest = json.loads(Path(a.pmc).read_text())
+    task_b = csv_rows(a.task_b)
+    linker, cal = build_linker(ont, ext, llm, Path(a.kb) / ".cache", SapBert(device=a.sapbert_device), a.llm_workers,
+                               s1["chooser_version"])
+    reader = LLMReader(llm, linker, ont, ext, s1["prompt_version"], s1["max_chars"], a.llm_workers)
+    RUN["settings"].update({"stage1": {k: v for k, v in s1.items() if k != "raw"}, "tag": TAG, "pmc_manifest": a.pmc})
+    t0 = time.time()
+    reader.prefetch([(load_case_text(c), "note", "note_text", c["case_id"]) for c in manifest["cases"]
+                     if c["split"] in ("dev", "test")])
+    print(f"[pmc-test-run] dev and test texts read in {time.time() - t0:.0f} s")
+    rules_share = pmc_score(Path(a.checks))["task_c"]["correct_share"]
+    from .pmc_checks import score_task_c_llm
+    tc = score_task_c_llm(Path(a.checks), rules_share) if (Path(a.checks) / "task_c_llm_key.json").exists() else {}
+    llm_share = (tc.get(f"v{s1['prompt_version']}") or {}).get("llm_extras_correct")
+    chosen = {k: v for k, v in configs(reader, (s1["status_policy"],)).items()}
+    results, out = {}, Path(a.out)
+    for split in ("dev", "test"):
+        for name, opts in chosen.items():
+            res = evaluate_split(name, opts, manifest, ont, ext, names, task_b, split)
+            summ, items = res["summary"], pmc_items(res["rows"], ont)
+            summ["precision_estimated"] = estimated_judged_precision(summ, items, rules_share, llm_share)
+            folder = out / split / name.replace("/", "_").replace("=", "-")
+            folder.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(items).to_csv(wrote(folder / f"pmc_{split}_items.csv"), index=False)
+            (folder / "summary.json").write_text(json.dumps(summ, indent=1, default=str))
+            wrote(folder / "summary.json")
+            results[(name, split)] = summ
+            log_pmc_run(a.pmc, {"kind": ("frozen-test-replay" if a.llm_offline else "frozen-test") if split == "test"
+                                else "frozen-test-dev",
+                                "manifest": a.pmc, "locator_version": manifest["locator_version"], "split": split,
+                                "config": name, "stage1_config": a.stage1_config, "tag": TAG, "model": llm.model,
+                                "prompt_version": s1["prompt_version"], "chooser_version": s1["chooser_version"],
+                                "offline": a.llm_offline,
+                                **{k: summ[k] for k in ("recall_all_gold", "recall_vocab_visible", "precision",
+                                                        "precision_estimated", "pred", "extra", "hand_checked",
+                                                        "absent", "by_status", "by_paper_kind")}})
+    pd.DataFrame(reader.log).to_csv(wrote(out / "llm_log.csv"), index=False)
+    (out / "extract_reports.json").write_text(json.dumps(reader.reports, indent=1))
+    table = gap_table(results) + (f"\nPrecision estimated with dev judging: rule-found extras at {rules_share:.0%}, "
+                                  f"LLM-only extras at {llm_share:.0%} (task C on dev)." if llm_share else "")
+    (out / "dev_vs_test.md").write_text(table + "\n")
+    wrote(out / "dev_vs_test.md")
+    print("\n" + table)
+    print(usage_line(llm))
+
+
 def eval_texts(manifest: dict) -> list[tuple[str, str, str, str]]:
     # (text, source, field, case id) of every text llm-eval reads: PMC dev cases (the regression rows are dev cases
     # too) and the example case files
@@ -1153,6 +1232,14 @@ def main(argv=None):
     s = sub.add_parser("chooser-score", help="chooser precision old vs new, and precision with every extra judged")
     s.add_argument("--checks", default="data/pmc/checks")
     s.add_argument("--out", default="results")
+    s = sub.add_parser("pmc-test-run", help="the one-time PMC test run with the frozen Stage 1 configuration")
+    s.add_argument("--allow-test", action="store_true", help="required: this reads the PMC test split")
+    s.add_argument("--again", action="store_true", help="repeat after a failed run (a frozen test run is already logged)")
+    s.add_argument("--pmc", default="pmc_eval/manifest_v1.json")
+    s.add_argument("--task-b", default="pmc_eval/checks_v1_task_b.csv", help="hand-check answers (dev and test rows)")
+    s.add_argument("--checks", default="data/pmc/checks", help="task C sheets, for precision estimated with dev judging")
+    s.add_argument("--sapbert-device", default="cpu")
+    s.add_argument("--out", default="results/pmc_test")
     s = sub.add_parser("hpo-index", help="SapBERT index of HPO labels/synonyms and the linker thresholds")
     s.add_argument("--model", default="cambridgeltl/SapBERT-from-PubMedBERT-fulltext")
     s.add_argument("--device", default="cpu")
@@ -1218,7 +1305,8 @@ def _logged(a):
          "llm-bench": cmd_llm_bench, "extract-eval": cmd_extract_eval, "pmc-build": cmd_pmc_build,
          "pmc-checks": cmd_pmc_checks, "pmc-score": cmd_pmc_score, "llm-extract": cmd_llm_extract,
          "hpo-index": cmd_hpo_index, "llm-eval": cmd_llm_eval,
-         "chooser-sheet": cmd_chooser_sheet, "chooser-score": cmd_chooser_score}[a.cmd](a)
+         "chooser-sheet": cmd_chooser_sheet, "chooser-score": cmd_chooser_score,
+         "pmc-test-run": cmd_pmc_test_run}[a.cmd](a)
     except KeyboardInterrupt:
         status = "stopped (Ctrl-C)"
         raise

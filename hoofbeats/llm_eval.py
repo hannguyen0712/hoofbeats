@@ -112,6 +112,64 @@ def evaluate_config(name, opts, manifest, ont, ext, names, task_b, reg_rows, ran
     return {"config": name, "rows": rows, "summary": summ}
 
 
+def evaluate_split(name, opts, manifest, ont, ext, names, task_b, split: str) -> dict:
+    # PMC metrics of one configuration on one split (the frozen test run): hand-checked recall on that split's task-B
+    # terms (label vs paraphrase), all-gold and vocabulary-visible recall, precision with extras not judged, by status,
+    # paper kind and method, and absent findings on their own
+    rows = evaluate_pmc(manifest, ont, ext, names, split, **opts)
+    summ = pmc_summary(rows)
+    summ["hand_checked"] = hand_checked(rows, [b for b in task_b if b["split"] == split])
+    summ["absent"] = absent_stats(rows)
+    summ["split"] = split
+    return {"config": name, "rows": rows, "summary": summ}
+
+
+def estimated_judged_precision(summ: dict, items: list[dict], rules_share: float, llm_share: float | None) -> dict:
+    # precision if extras were as often correct as on dev: rule-found extras at rules_share (task C), LLM-only extras
+    # at llm_share (task C for LLM extras). An estimate for test, which has no judged extras
+    extras = [r for r in items if r["kind"] == "extra"]
+    n_llm = sum(r["method"] == "llm" for r in extras)
+    add = rules_share * (len(extras) - n_llm) + (llm_share or 0.0) * n_llm
+    return {k: (summ["precision"][k] * summ["pred"] + add) / summ["pred"] if summ["pred"] else None
+            for k in ("strict", "lenient")}
+
+
+GAP_ROWS = (("hand-checked recall", lambda s: s["hand_checked"]["all"]),
+            ("… label", lambda s: s["hand_checked"]["label"]),
+            ("… paraphrase", lambda s: s["hand_checked"]["paraphrase"]),
+            ("all-gold recall", lambda s: s["recall_all_gold"]),
+            ("vocabulary-visible recall", lambda s: s["recall_vocab_visible"]),
+            ("present-gold recall", lambda s: s["by_status"]["present"]),
+            ("absent-gold recall", lambda s: s["by_status"]["absent"]),
+            ("single-patient recall", lambda s: s["by_paper_kind"]["single"]),
+            ("multi-patient recall", lambda s: s["by_paper_kind"]["multi"]),
+            ("precision, extras not judged", lambda s: {"n": s["pred"], **s["precision"]}),
+            ("precision, estimated with dev judging", lambda s: {"n": s["pred"], **s["precision_estimated"]}))
+
+
+def gap_table(results: dict) -> str:
+    # results[(config, split)] = summary; one block per configuration: dev, test and test - dev (points)
+    f = lambda x: "–" if x is None else f"{100 * x:.1f}"
+    d = lambda a, b: "–" if a is None or b is None else f"{100 * (b - a):+.1f}"
+    out = []
+    for name in dict.fromkeys(c for c, _ in results):
+        dev, test = results.get((name, "dev")), results.get((name, "test"))
+        out += [f"### {name}", "", "| measure | dev n | dev strict / lenient | test n | test strict / lenient | "
+                "gap strict / lenient |", "|---|---|---|---|---|---|"]
+        for label, get in GAP_ROWS:
+            a, b = get(dev), get(test)
+            out.append(f"| {label} | {a.get('n', '')} | {f(a['strict'])} / {f(a['lenient'])} | {b.get('n', '')} | "
+                       f"{f(b['strict'])} / {f(b['lenient'])} | {d(a['strict'], b['strict'])} / "
+                       f"{d(a['lenient'], b['lenient'])} |")
+        for split, s in (("dev", dev), ("test", test)):
+            ab = s["absent"]
+            out.append(f"\n{split}: {s['cases']} cases, {s['gold']} gold, {s['pred']} predictions, {s['extra']} extras; "
+                       f"absent predictions {ab['pred']} ({ab['extra']} not in gold); by method "
+                       + ", ".join(f"{m} {v['exact']}+{v['near']} found / {v['pred']} pred" for m, v in s["by_method"].items()))
+        out.append("")
+    return "\n".join(out)
+
+
 def absent_sample(rows: list[dict], n: int = 25, seed: int = 576) -> list[dict]:
     # LLM absent findings not in the gold, with quote and sentence, for hand-judging (dev only)
     ex = [(r["case"], p) for r in rows for p in r["extras"] if p["status"] == "absent" and "llm" in p["method"]]

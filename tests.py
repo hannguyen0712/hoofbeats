@@ -1957,6 +1957,22 @@ class TestIntake(unittest.TestCase):
         self.assertIn("1. Disease Alpha (OMIM:1)", text)
         self.assertIn("[stage1] no LLM endpoint given", text)                  # rules + numbers fallback, said so
 
+    def test_pmc_test_run_refuses_without_the_frozen_setup(self):
+        # every case here must stop before any test text is read (the fixture HPO also differs from the frozen one)
+        import contextlib, io
+        from hoofbeats.__main__ import main
+        cases = [([], "add --allow-test"), (["--prompt-version", "v2"], "--prompt-version v2 overrides"),
+                 (["--llm-offline", "--llm-cache", str(self.root)], "replays a logged frozen test run")]
+        for flags, why in cases:
+            argv = ["--kb", str(self.kb), *flags, "pmc-test-run", "--out", str(self.root / "t")]
+            if why != "add --allow-test":
+                argv.append("--allow-test")
+            with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit) as e:
+                main(argv)
+            self.assertIn(why, str(e.exception))
+            self.assertIn("HPO is hp/releases/test" if why != "add --allow-test" else "--allow-test", str(e.exception))
+        self.assertFalse((self.root / "t" / "test").exists())
+
     def test_diagnose_many_cases_writes_json(self):
         import contextlib, io
         from hoofbeats.__main__ import main

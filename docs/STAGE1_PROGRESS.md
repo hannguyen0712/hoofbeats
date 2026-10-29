@@ -142,6 +142,19 @@ written with an HPO label or synonym, but 4 of 27 paraphrased ones) without losi
   5 dev cases, and the prompt version, chooser and status policy were all chosen on dev. Every version is logged with
   its dev scores in `pmc_eval/runs.jsonl`; the test split stays unrun until the one-time frozen run.
 
+### One-time PMC test run (prepared, not run)
+
+`pmc-test-run` (Sol: `sbatch scripts/sol_pmc_test.sbatch`) runs the frozen configuration once on PMC test. It refuses
+unless HEAD contains `stage1-final-dev`, the frozen files (readers, linker, fusion, scoring, resources, the
+configuration and the manifest) are unchanged and committed since the tag, the HPO version and linker calibration
+match the configuration, no setting overrides it, and no frozen test run is logged yet. It reports, for rules, LLM
+alone and rules + LLM, on dev (replies from the cache) and test with the same code, and the gap test - dev:
+hand-checked recall (dev 69 / test 154 task-B terms) split label vs paraphrase; all-gold and vocabulary-visible
+recall; recall on present and absent gold and on single- and multi-patient cases; precision with extras not judged;
+precision estimated with the dev judging rates (task C 78% for rule-found extras, 64% for LLM-only extras); absent
+predictions; per-method counts. Output: `results/pmc_test/dev_vs_test.md`, items and summaries per split and
+configuration, the LLM log; every split/configuration is appended to `pmc_eval/runs.jsonl` (`kind: frozen-test`).
+
 ## 2. How to run
 
 ```bash
