@@ -72,11 +72,23 @@ def usage_line(llm) -> str:
 
 
 # helpers
-def get_llm(a):
+def stage1(a) -> dict:
+    # the frozen Stage 1 settings (configs/stage1_v1.json); --prompt-version, --chooser-version and --llm-model
+    # override them for experiments
+    from .config import load_stage1
+    cfg = load_stage1(a.stage1_config)
+    return {"config": a.stage1_config, "model": a.llm_model or cfg["llm"]["model"],
+            "prompt_version": int(a.prompt_version[1:]) if a.prompt_version else cfg["llm"]["prompt_version"],
+            "chooser_version": int(a.chooser_version[1:]) if a.chooser_version else cfg["linker"]["chooser_version"],
+            "status_policy": cfg["status_policy"], "max_chars": cfg["llm"]["max_chars"], "raw": cfg}
+
+
+def get_llm(a, model: str | None = None):
+    # model: the Stage 1 reader's model; other LLM steps (re-ranking, benchmarks) default to MedGemma
     if not a.llm:
         return None
     import os
-    from .llm import MedGemma
+    from .llm import DEFAULT_MODEL, MedGemma
     key = os.environ.get(a.llm_key_env) if a.llm_key_env else None
     if a.llm_key_env and not key:
         raise SystemExit(f"environment variable {a.llm_key_env} is not set")
@@ -85,8 +97,8 @@ def get_llm(a):
     cache = None if a.llm_cache == "none" else Path(a.llm_cache if a.llm_cache != "auto" else Path(_out_dir(a)) / "llm_cache")
     if a.llm_offline and cache is None:
         raise SystemExit("--llm-offline answers from the reply cache; pass --llm-cache")
-    llm = MedGemma(a.llm_model, a.llm_endpoint, a.llm_max_tokens, key, vision, extra, a.llm_rpm, cache, a.dry_run,
-                   offline=a.llm_offline)
+    llm = MedGemma(model or a.llm_model or DEFAULT_MODEL, a.llm_endpoint, a.llm_max_tokens, key, vision, extra, a.llm_rpm,
+                   cache, a.dry_run, offline=a.llm_offline)
     RUN["settings"].update({"model": llm.model, "endpoint": llm.endpoint or "in-process",
                             "max_tokens": a.llm_max_tokens, "extra": extra or {}, "offline": a.llm_offline})
     print(f"[llm] {llm.model} via {llm.endpoint or 'transformers (in-process)'}"
@@ -619,8 +631,9 @@ def cmd_llm_extract(a):
     from .llm_extract import extract_candidates
     from .pmc import load_case_text
     a.llm = True
-    version = int(a.prompt_version[1:])
-    llm = get_llm(a)
+    s1 = stage1(a)
+    version = s1["prompt_version"]
+    llm = get_llm(a, s1["model"])
     ont = Ontology(Path(a.kb) / "hp.obo")
     ext = Extractor(ont)
     manifest = json.loads(Path(a.pmc).read_text())
@@ -662,7 +675,8 @@ def cmd_llm_eval(a):
     from .llm_eval import absent_sample, configs, evaluate_config
     from .llm_reader import LLMReader
     a.llm = True
-    llm = get_llm(a)
+    s1 = stage1(a)
+    llm = get_llm(a, s1["model"])
     ont = Ontology(Path(a.kb) / "hp.obo")
     ext = Extractor(ont)
     db = AnnotationDB(Path(a.kb) / "phenotype.hpoa", ont, ("OMIM",), Path(a.kb) / "genes_to_disease.txt")
@@ -670,7 +684,7 @@ def cmd_llm_eval(a):
     manifest = json.loads(Path(a.pmc).read_text())
     task_b = [r for r in csv_rows(a.task_b) if r["split"] == "dev"]
     reg = csv_rows(a.regression)
-    chooser = int(a.chooser_version[1:])
+    chooser = s1["chooser_version"]
     linker, cal = build_linker(ont, ext, llm, Path(a.kb) / ".cache", SapBert(device=a.sapbert_device), a.llm_workers,
                                chooser)
     versions = [int(v[1:]) for v in a.prompt_versions]
@@ -937,7 +951,8 @@ def main(argv=None):
     p.add_argument("--pubmed-before-case", action="store_true",
                    help="only papers published before the case's own paper (stricter leakage control)")
     p.add_argument("--llm", action="store_true", help="use a language model (MedGemma by default; see README)")
-    p.add_argument("--llm-model", default="google/medgemma-1.5-4b-it")
+    p.add_argument("--llm-model", help="model name; default: the Stage 1 configuration's for reading text "
+                                       "(Qwen2.5-7B-Instruct), MedGemma for re-ranking and benchmarks")
     p.add_argument("--llm-endpoint", help="OpenAI-compatible chat URL, e.g. http://localhost:11434/v1/chat/completions; "
                                           "omit to load the model in-process with transformers")
     p.add_argument("--llm-key-env", help="name of the environment variable holding an API key, e.g. GEMINI_API_KEY")
@@ -949,9 +964,10 @@ def main(argv=None):
     p.add_argument("--llm-offline", action="store_true",
                    help="answer only from the reply cache (e.g. replies copied back from Sol); misses get no reply")
     p.add_argument("--llm-workers", type=int, default=32, help="model requests in flight at once (a vLLM server batches them)")
-    p.add_argument("--prompt-version", default="v2", choices=["v1", "v2"], help="finding-extraction prompt (llm_extract.py)")
-    p.add_argument("--chooser-version", default="v1", choices=["v1", "v2"],
-                   help="linker's LLM choice step: v2 adds the sentence and broader (parent) terms")
+    p.add_argument("--stage1-config", default="configs/stage1_v1.json", help="frozen Stage 1 configuration")
+    p.add_argument("--prompt-version", choices=["v1", "v2"], help="finding-extraction prompt (default: the configuration's)")
+    p.add_argument("--chooser-version", choices=["v1", "v2"],
+                   help="linker's LLM choice step (default: the configuration's); v2 adds the sentence and parent terms")
     p.add_argument("--llm-extra", help='extra JSON fields for the request body, e.g. \'{"reasoning_effort": "low"}\'')
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("download"); s.add_argument("--dest", default="data")
@@ -1092,7 +1108,8 @@ def _write_txt(path: Path, body: str, trace: str):
 def _logged(a):
     # run the command; save <out>/runs/<id>.txt (readable log) and <id>.json (settings + metrics)
     import traceback
-    model = re.sub(r"[^A-Za-z0-9.]+", "-", a.llm_model.split("/")[-1]).lower() if a.llm or a.cmd == "llm-bench" else ""
+    name = a.llm_model or ""                         # unset: the command's own default (Stage 1 or MedGemma)
+    model = re.sub(r"[^A-Za-z0-9.]+", "-", name.split("/")[-1]).lower() if name and (a.llm or a.cmd == "llm-bench") else ""
     RUN.update({"id": time.strftime("%Y%m%d-%H%M%S") + f"_{a.cmd}" + (f"_{model}" if model else ""),
                 "command": a.cmd, "argv": sys.argv[1:], "note": a.note, "started": time.strftime("%Y-%m-%d %H:%M:%S")})
     RUN["settings"].update({k: v for k, v in vars(a).items()

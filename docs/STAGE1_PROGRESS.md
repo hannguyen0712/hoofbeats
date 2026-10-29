@@ -111,15 +111,22 @@ Provenance records value, unit, converted value, the range or threshold and its 
 - `TestGoldFiles` fixes the accepted alternatives.
 - **PMC test set** (`hoofbeats/pmc.py`, `hoofbeats/pmc_checks.py`, `pmc_eval/`): real case-report text with Phenopacket Store gold; see section 3.
 
-### LLM text reader (in progress; results pending the first Sol run)
+### LLM text reader
+
+**Frozen configuration** (`configs/stage1_v1.json`, tag `stage1-final-dev`; the default for every command): rules +
+numbers + LLM reader, Qwen2.5-7B-Instruct, prompt v1, linker chooser v1, status policy llm, SapBERT thresholds 0.82 /
+0.05 margin / 0.62. Dev results with it: hand-checked recall 69.6 / 78.3 (rules alone 55.1 / 62.3), precision with
+every extra judged 75.2 / 81.7 (rules alone 79.9 / 88.0). Known limitation: the linker's LLM-choice step is only about
+51-58% precise on judged dev extras (chooser links are graded weak). No tuning after the freeze.
+
 
 Aim: recover paraphrased findings and normal statements (on PMC dev the rules find 39 of 42 hand-checked terms
 written with an HPO label or synonym, but 4 of 27 paraphrased ones) without losing precision or grounding.
 - **Model:** Qwen2.5-7B-Instruct through vLLM on Sol, bound to 127.0.0.1; extraction and linking refuse any other
   endpoint. `--llm-model` selects the model; replies are cached per model, and `--llm-offline` replays them.
 - **Extraction** (`llm_extract.py`): `{phrase, status, quote}` per text chunk under a JSON schema at temperature 0;
-  every quote must be found in the text and gets its offsets. Prompt v2 (default) follows the 5-case smoke run;
-  v1 stays available (`--prompt-version v1`).
+  every quote must be found in the text and gets its offsets. Prompt v1 is the frozen one; v2 (written after the
+  5-case smoke run) is no better on dev and stays available (`--prompt-version v2`).
 - **Linking** (`linker.py`): dictionary (the rule vocabulary, whole phrase), else SapBERT nearest labels/synonyms
   (accept at >= 0.82 with a 0.05 margin), else the LLM picks one of the top 10 ids or none (0.62-0.82). Thresholds
   from leave-one-synonym-out on HPO itself: 54% accepted at 90.0% exact; true term in the top 10 for 93%.
@@ -132,8 +139,8 @@ written with an HPO label or synonym, but 4 of 27 paraphrased ones) without losi
   label vs paraphrase, all-gold recall, precision with extras not judged, absent findings on their own (with their
   effect on the example ranks), and the 15-row regression set.
 - **Caveat: dev LLM numbers will be optimistic.** The v2 prompt was written after reading the smoke-run output on
-  5 dev cases, and any later prompt change will also be judged on dev. Every prompt version is logged with its dev
-  scores in `pmc_eval/runs.jsonl`; the test split stays unrun.
+  5 dev cases, and the prompt version, chooser and status policy were all chosen on dev. Every version is logged with
+  its dev scores in `pmc_eval/runs.jsonl`; the test split stays unrun until the one-time frozen run.
 
 ## 2. How to run
 

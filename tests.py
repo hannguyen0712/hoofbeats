@@ -1691,6 +1691,19 @@ class TestPmcLocator(unittest.TestCase):
         self.assertAlmostEqual(res["task_c"]["precision_adjusted"]["strict"], 0.7)
         self.assertTrue(any("maybe" in x for x in res["problems"]))
 
+    def test_frozen_stage1_config(self):
+        from hoofbeats.config import DEFAULT, load_stage1
+        cfg = load_stage1(DEFAULT, "hp/releases/2026-09-01")
+        self.assertEqual((cfg["readers"], cfg["llm"]["prompt_version"], cfg["linker"]["chooser_version"],
+                          cfg["status_policy"]), (["rules", "numbers", "llm"], 1, 1, "llm"))
+        self.assertTrue(any("HPO is" in p for p in load_stage1(DEFAULT, "hp/releases/2099-01-01")["problems"]))
+        d = Path(tempfile.mkdtemp())
+        bad = json.loads(Path(DEFAULT).read_text())
+        (d / "cal.json").write_text(json.dumps({"hi": 0.9, "margin": 0.05, "lo": 0.62, "k": 10}))
+        bad["linker"]["calibration"] = str(d / "cal.json")
+        (d / "cfg.json").write_text(json.dumps(bad))
+        self.assertTrue(any("differs from the frozen thresholds in hi" in p for p in load_stage1(d / "cfg.json")["problems"]))
+
     def test_chooser_comparison(self):
         import csv
         from hoofbeats.chooser_eval import make_sheet, score

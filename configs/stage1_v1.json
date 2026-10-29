@@ -1,0 +1,38 @@
+{
+ "name": "stage1_v1",
+ "description": "Stage 1 frozen on PMC dev: rules + numbers + LLM reader. No tuning after this point.",
+ "readers": ["rules", "numbers", "llm"],
+ "llm": {
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "server": "vLLM on the same node, 127.0.0.1 only (scripts/sol_run.sh)",
+  "decoding": {"temperature": 0, "json_schema": true, "generation_config": "vllm"},
+  "prompt_version": 1,
+  "max_chars": 2500
+ },
+ "linker": {
+  "chooser_version": 1,
+  "embedder": "cambridgeltl/SapBERT-from-PubMedBERT-fulltext",
+  "hpo_version": "hp/releases/2026-09-01",
+  "calibration": "data/kb/.cache/sapbert-from-pubmedbert-fulltext-hp-releases-2026-09-01.calibration.json",
+  "hi": 0.82,
+  "margin": 0.05,
+  "lo": 0.62,
+  "k": 10
+ },
+ "status_policy": "llm",
+ "emit_normal_vitals": false,
+ "dev_results": {
+  "source": "PMC dev, 64 cases (optimistic: chosen on dev)",
+  "hand_checked_recall": {"strict": 0.696, "lenient": 0.783, "n": 69},
+  "hand_checked_recall_paraphrase": {"strict": 0.370, "lenient": 0.556, "n": 27},
+  "all_gold_recall": {"strict": 0.279, "lenient": 0.349},
+  "precision_judged": {"strict": 0.752, "lenient": 0.817},
+  "rules_only": {"hand_checked_recall_strict": 0.551, "precision_judged_strict": 0.799}
+ },
+ "known_limitations": [
+  "The linker's LLM-choice step is about 51-58% precise on judged dev extras (35/69 pooled over prompt versions; 19/33 for prompt v1); chooser links are graded weak.",
+  "Dev numbers are optimistic: prompt, chooser and status policy were chosen on PMC dev.",
+  "Hand-checked recall rests on 69 dev terms from one annotator (no agreement measured).",
+  "Correct but diagnostically irrelevant findings (e.g. a seasonal allergy) can move a disease rank by several places."
+ ]
+}
