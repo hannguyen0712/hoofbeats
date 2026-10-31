@@ -1,0 +1,276 @@
+# Common clinical abbreviations (general clinical usage, not taken from any case file).
+# abbr: matched as a whole token; case-sensitive if it contains a capital letter, otherwise case-insensitive.
+# context: optional; "|"-separated words that must appear in the same sentence (a trailing * means prefix).
+# When an abbreviation has several rows, rows with a matching context win; a row without context is the default.
+# other_meanings: common other readings (not expanded); such an abbreviation alone in a comma-separated list,
+#   with no context word in its own list item, is linked with grounding "weak".
+abbr	expansion	context	other_meanings
+CP	chest pain		cerebral palsy
+SOB	shortness of breath
+SOBOE	shortness of breath on exertion
+DOE	dyspnea on exertion
+PND	paroxysmal nocturnal dyspnea
+N/V	nausea and vomiting
+N/V/D	nausea, vomiting and diarrhea
+abd	abdominal
+HA	headache
+H/A	headache
+LOC	loss of consciousness		level of consciousness
+AMS	altered mental status
+LBP	low back pain
+BRBPR	bright red blood per rectum
+GIB	gastrointestinal bleeding
+UGIB	upper gastrointestinal bleeding
+LGIB	lower gastrointestinal bleeding
+FTT	failure to thrive
+GDD	global developmental delay
+DD	developmental delay	developmental|delay*|milestone*|speech|motor|autis*|walk*|talk*	differential diagnosis
+ID	intellectual disability	developmental|delay*|iq|school|learning|cognitive|autis*|intellectual|special	infectious disease
+HSM	hepatosplenomegaly
+LAD	lymphadenopathy	lymph*|node*|cervical|axillary|inguinal|neck|supraclavicular	left anterior descending artery
+JVD	jugular venous distension
+LE	lower extremity
+LEs	lower extremities
+UE	upper extremity
+UEs	upper extremities
+BLE	bilateral lower extremities
+LLE	left lower extremity
+RLE	right lower extremity
+LUE	left upper extremity
+RUE	right upper extremity
+LEE	lower extremity edema
+HTN	hypertension
+DM	diabetes mellitus		dermatomyositis
+T1DM	type 1 diabetes mellitus
+T2DM	type 2 diabetes mellitus
+CKD	chronic kidney disease
+ESRD	end stage renal disease
+AKI	acute kidney injury
+CHF	congestive heart failure
+CAD	coronary artery disease
+MI	myocardial infarction		mitral insufficiency
+CVA	stroke		costovertebral angle
+TIA	transient ischemic attack
+DVT	deep vein thrombosis
+PE	pulmonary embolism	embol*|clot*|anticoag*|dvt|cta|thromb*|heparin|saddle	physical exam; pleural effusion
+AFib	atrial fibrillation
+A-fib	atrial fibrillation
+afib	atrial fibrillation
+SVT	supraventricular tachycardia
+VT	ventricular tachycardia	ekg|ecg|tele*|rhythm|arrhythm*|tachy*	venous thrombosis
+MVP	mitral valve prolapse
+MR	mitral regurgitation	echo*|murmur*|valv*|mitral|cardi*|tte|tee|ef|lvef	mental retardation; magnetic resonance
+AR	aortic regurgitation	echo*|murmur*|valv*|aort*|cardi*|tte|tee|ef|lvef	allergic rhinitis; autosomal recessive
+AS	aortic stenosis	echo*|murmur*|valv*|aort*|cardi*|tte|tee|ef|lvef	ankylosing spondylitis
+TR	tricuspid regurgitation	echo*|murmur*|valv*|tricusp*|cardi*|tte|tee|ef|lvef
+MS	mitral stenosis	echo*|murmur*|valv*|mitral|cardi*|tte|tee	multiple sclerosis; mental status
+ASD	atrial septal defect	echo*|murmur*|shunt*|cardi*|septal|heart|tte|tee
+ASD	autism spectrum disorder	autis*|behavio*|developmental|social|speech|stimming
+VSD	ventricular septal defect
+PDA	patent ductus arteriosus
+TOF	tetralogy of Fallot
+HCM	hypertrophic cardiomyopathy
+DCM	dilated cardiomyopathy
+LVH	left ventricular hypertrophy
+CHD	congenital heart disease
+AV	atrioventricular			arteriovenous
+AVM	arteriovenous malformation
+AVMs	arteriovenous malformations
+SAH	subarachnoid hemorrhage
+ICH	intracranial hemorrhage
+IVH	intraventricular hemorrhage
+SDH	subdural hematoma
+HIE	hypoxic ischemic encephalopathy
+Sz	seizure
+sz	seizure
+szs	seizures
+GTC	generalized tonic clonic
+GERD	gastroesophageal reflux disease
+GI	gastrointestinal
+GU	genitourinary
+UTI	urinary tract infection
+URI	upper respiratory infection
+PNA	pneumonia
+COPD	chronic obstructive pulmonary disease
+OSA	obstructive sleep apnea
+ADHD	attention deficit hyperactivity disorder
+OCD	obsessive compulsive disorder
+MDD	major depressive disorder
+IUGR	intrauterine growth restriction
+SGA	small for gestational age
+LGA	large for gestational age
+NICU	neonatal intensive care unit
+VUR	vesicoureteral reflux
+IDA	iron deficiency anemia
+LFTs	liver function tests
+LFT	liver function test
+Hgb	hemoglobin
+Hb	hemoglobin
+Hct	hematocrit
+plt	platelets
+WBC	white blood cell count
+RBC	red blood cells
+Cr	creatinine
+BUN	blood urea nitrogen
+Na	sodium
+ALP	alkaline phosphatase
+CK	creatine kinase
+CRP	C reactive protein
+ESR	erythrocyte sedimentation rate
+TSH	thyroid stimulating hormone
+HbA1c	hemoglobin A1c
+A1c	hemoglobin A1c
+TG	triglycerides
+LDL	low density lipoprotein
+HDL	high density lipoprotein
+INR	international normalized ratio
+PTT	partial thromboplastin time
+AFP	alpha fetoprotein
+CEA	carcinoembryonic antigen
+PSA	prostate specific antigen
+ANA	antinuclear antibody
+CBC	complete blood count
+BMP	basic metabolic panel
+CMP	comprehensive metabolic panel
+UA	urinalysis
+UDS	urine drug screen
+CXR	chest x ray
+US	ultrasound	renal|abd*|pelvi*|doppler|kidney*|liver|imaging|scan|thyroid	United States
+ECG	electrocardiogram
+EKG	electrocardiogram
+EEG	electroencephalogram
+EMG	electromyography
+NCS	nerve conduction study
+LP	lumbar puncture
+CSF	cerebrospinal fluid
+MRI	magnetic resonance imaging
+CT	computed tomography
+TTE	transthoracic echocardiogram
+TEE	transesophageal echocardiogram
+EF	ejection fraction
+LVEF	left ventricular ejection fraction
+c/o	complains of
+s/p	status post
+hx	history
+h/o	history of
+FHx	family history
+FH	family history
+PMH	past medical history
+PSH	past surgical history
+SHx	social history
+ROS	review of systems
+HPI	history of present illness
+CC	chief complaint
+w/	with
+w/o	without
+c/w	consistent with
+r/o	rule out
+y/o	year old
+yo	year old
+pt	patient
+pts	patients
+prn	as needed
+EtOH	alcohol
+IVDU	intravenous drug use
+AML	angiomyolipoma	renal|kidney*|angio*|tuberous|tsc
+AML	acute myeloid leukemia	leuk*|marrow|blast*|chemo*|heme*|onc*
+bilat	bilateral
+b/l	bilateral
+OU	both eyes
+OD	right eye	eye*|vision|visual|lens*|pupil*|cornea*|retina*|acuity|ophth*|optic	overdose
+OS	left eye	eye*|vision|visual|lens*|pupil*|cornea*|retina*|acuity|ophth*|optic	overall survival
+R	right
+L	left
+R/L	right and left
+d/t	due to
+2/2	secondary to
+f/u	follow up
+NAD	no acute distress
+WNL	within normal limits
+nl	normal
+abnl	abnormal
+NT	nontender
+ND	nondistended
+BS	bowel sounds	abd*|bowel*|soft	breath sounds; blood sugar
+RRR	regular rate and rhythm
+CTAB	clear to auscultation bilaterally
+DTR	deep tendon reflexes
+DTRs	deep tendon reflexes
+CN	cranial nerves
+EOMI	extraocular movements intact
+PERRL	pupils equal round and reactive to light
+PERRLA	pupils equal round and reactive to light and accommodation
+AOx3	alert and oriented
+HEENT	head eyes ears nose throat
+MSK	musculoskeletal
+ROM	range of motion
+MVA	motor vehicle accident
+MVC	motor vehicle collision
+GSW	gunshot wound
+fx	fracture
+RUQ	right upper quadrant
+LUQ	left upper quadrant
+RLQ	right lower quadrant
+LLQ	left lower quadrant
+BMI	body mass index
+HR	heart rate
+BP	blood pressure
+RR	respiratory rate	vital*|bp|hr|temp*|spo2|sat*|breath*	regular rhythm; relative risk
+SpO2	oxygen saturation
+O2	oxygen
+temp	temperature
+wt	weight
+ht	height
+OFC	occipitofrontal circumference
+HC	head circumference
+dx	diagnosis
+tx	treatment
+sx	symptoms
+rx	prescription
+OTC	over the counter
+PCP	primary care physician
+ED	emergency department	er|visit*|present*|seen|triage|admit*|transfer*|went|brought	erectile dysfunction
+ER	emergency room
+ICU	intensive care unit
+SNF	skilled nursing facility
+PT	physical therapy	therap*|rehab*|session*|strength*|gait|exercis*	prothrombin time; patient
+OT	occupational therapy	therap*|rehab*|session*|fine|adl*
+SLP	speech language pathology
+IM	intramuscular
+po	by mouth
+bid	twice daily
+tid	three times daily
+qd	daily
+qhs	at bedtime
+wk	week
+wks	weeks
+mo	month
+mos	months
+yr	year
+yrs	years
+hrs	hours
+neg	negative
+pos	positive
+incr	increased
+decr	decreased
+LMP	last menstrual period
+UOP	urine output
+CVS	cardiovascular
+resp	respiratory
+neuro	neurologic
+psych	psychiatric
+derm	dermatologic
+ophtho	ophthalmology
+HCV	hepatitis C virus
+HBV	hepatitis B virus
+TB	tuberculosis
+VS	vital signs
+VSS	vital signs stable
+ADLs	activities of daily living
+GA	gestational age	week*|wk*|preterm|term|born|delivery|nicu|gestation*	general anesthesia
+FT	full term	born|delivery|birth|gestation*|baby|infant
+NSVD	normal spontaneous vaginal delivery
+C/S	cesarean section
+PTB	preterm birth
+NBS	newborn screen
+DOL	day of life

@@ -1,0 +1,22 @@
+# Adult thresholds for vital signs, ECG intervals and growth/size measures used by the numbers reader.
+# A value meeting the condition gives the term present; a value that does not gives it absent.
+# adult_only: 1 = no finding when the patient is known to be < 18 (age bands are future work).
+measure	op	threshold	hpo_id	adult_only	source
+temperature_c	>=	38.0	HP:0001945	1	MedlinePlus, "Fever" (adult fever 100.4 F / 38.0 C)
+temperature_c	<	35.0	HP:0002045	1	Brown DJA et al., Accidental hypothermia. N Engl J Med 2012;367:1930-8 (core temperature < 35 C)
+heart_rate	>	100	HP:0001649	1	American Heart Association, "Tachycardia: fast heart rate" (> 100 bpm at rest)
+heart_rate	<	60	HP:0001662	1	American Heart Association, "Bradycardia: slow heart rate" (< 60 bpm)
+respiratory_rate	>	20	HP:0002789	1	Cleveland Clinic, "Vital signs" (adult respiratory rate 12-20 per minute)
+respiratory_rate	<	12	HP:0046507	1	Cleveland Clinic, "Vital signs" (adult respiratory rate 12-20 per minute)
+systolic_bp	>=	140	HP:0000822	1	Williams B et al., 2018 ESC/ESH Guidelines for arterial hypertension. Eur Heart J 2018;39:3021-104 (office SBP >= 140 and/or DBP >= 90)
+diastolic_bp	>=	90	HP:0000822	1	Williams B et al., 2018 ESC/ESH Guidelines for arterial hypertension. Eur Heart J 2018;39:3021-104 (office SBP >= 140 and/or DBP >= 90)
+systolic_bp	<	90	HP:0002615	1	MedlinePlus, "Low blood pressure" (below 90/60 mm Hg)
+spo2	<	90	HP:0012418	1	WHO Pulse Oximetry Training Manual, 2011 (SpO2 below 90% is hypoxaemia)
+pr_ms	>	200	HP:0011705	1	Kusumoto FM et al., 2018 ACC/AHA/HRS bradycardia guideline. Circulation 2019;140:e382-482 (first-degree AV block: PR > 200 ms)
+qtc_ms	>=	460	HP:0005184	1	Rautaharju PM et al., AHA/ACCF/HRS recommendations on the ECG, part IV. Circulation 2009;119:e241-50 (prolonged QTc >= 450 ms men, >= 460 ms women; 460 used when sex is unknown)
+aortic_root_z	>=	2	HP:0002616	0	Loeys BL et al., The revised Ghent nosology for the Marfan syndrome. J Med Genet 2010;47:476-85 (aortic root Z >= 2)
+height_z	>=	2	HP:0000098	0	HPO definition of Tall stature (height > 97th centile or +2 SD)
+height_z	<=	-2	HP:0004322	0	HPO definition of Short stature (height < 3rd centile or -2 SD)
+head_z	<=	-2	HP:0000252	0	HPO definition of Microcephaly (OFC < -2 SD / below the 3rd centile)
+head_z	>=	2	HP:0000256	0	HPO definition of Macrocephaly (OFC > +2 SD / above the 97th centile)
+arm_span_ratio	>	1.05	HP:0012771	0	Loeys BL et al., J Med Genet 2010;47:476-85 (arm span to height ratio > 1.05 as a systemic feature)

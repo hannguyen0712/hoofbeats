@@ -18,6 +18,7 @@ import re
 
 from .data import (DiseaseMatcher, Extractor, download, learn_common, load_medpix, load_mimic,
                    load_phenopackets, orphadata_icd10)
+from .grounding import level_of
 from .model import (AnnotationDB, Case, Finding, LRRanker, Ontology, Status, explain,
                     most_frequent_test, suggest_tests, verify_claim)
 from .context import add_arguments as add_context_arguments, commands as context_commands
@@ -66,16 +67,31 @@ def usage_line(llm) -> str:
     note("requests", **u)
     if llm.dry_run:
         return f"[llm] dry run: would send {u['would_send']} requests; {u['cache_hits']} already answered from the cache"
+    if getattr(llm, "offline", False):
+        return f"[llm] offline: {u['cache_hits']} answered from the cache, {u['offline_misses']} not in the cache (no reply)"
     return (f"[llm] requests sent {u['requests']} (retries {u['retries']}), answered from cache {u['cache_hits']}, "
             f"{u['sec_per_request']} s per request")
 
 
 # helpers
-def get_llm(a):
-    if not a.llm:
+def stage1(a) -> dict:
+    # the frozen Stage 1 settings (configs/stage1_v1.json); --prompt-version, --chooser-version and --llm-model
+    # override them for experiments
+    from .config import load_stage1
+    cfg = load_stage1(a.stage1_config)
+    return {"config": a.stage1_config, "model": a.llm_model or cfg["llm"]["model"],
+            "prompt_version": int(a.prompt_version[1:]) if a.prompt_version else cfg["llm"]["prompt_version"],
+            "chooser_version": int(a.chooser_version[1:]) if a.chooser_version else cfg["linker"]["chooser_version"],
+            "status_policy": cfg["status_policy"], "max_chars": cfg["llm"]["max_chars"], "raw": cfg}
+
+
+def get_llm(a, model: str | None = None, force: bool = False):
+    # model: the Stage 1 reader's model; other LLM steps (re-ranking, benchmarks) default to MedGemma.
+    # force: build it without --llm (the Stage 1 reader turns on with --llm-endpoint alone)
+    if not (a.llm or force):
         return None
     import os
-    from .llm import MedGemma, with_json_mode
+    from .llm import DEFAULT_MODEL, MedGemma, with_json_mode
     key = os.environ.get(a.llm_key_env) if a.llm_key_env else None
     if a.llm_key_env and not key:
         raise SystemExit(f"environment variable {a.llm_key_env} is not set")
@@ -83,13 +99,18 @@ def get_llm(a):
     extra = json.loads(a.llm_extra) if a.llm_extra else None
     extra = with_json_mode(a.json_mode, a.llm_endpoint, extra, a.llm_model)
     cache = None if a.llm_cache == "none" else Path(a.llm_cache if a.llm_cache != "auto" else Path(_out_dir(a)) / "llm_cache")
-    llm = MedGemma(a.llm_model, a.llm_endpoint, a.llm_max_tokens, key, vision, extra, a.llm_rpm, cache, a.dry_run,
-                   a.llm_timeout)
+    if a.llm_offline and cache is None:
+        raise SystemExit("--llm-offline answers from the reply cache; pass --llm-cache")
+    model = model or a.llm_model or DEFAULT_MODEL
+    extra = with_json_mode(a.json_mode, a.llm_endpoint, extra, model)
+    llm = MedGemma(model, a.llm_endpoint, a.llm_max_tokens, key, vision, extra, a.llm_rpm, cache, a.dry_run,
+                   a.llm_timeout, offline=a.llm_offline)
     RUN["settings"].update({"model": llm.model, "endpoint": llm.endpoint or "in-process",
-                            "max_tokens": a.llm_max_tokens, "extra": extra or {}})
+                            "max_tokens": a.llm_max_tokens, "extra": extra or {}, "offline": a.llm_offline})
     print(f"[llm] {llm.model} via {llm.endpoint or 'transformers (in-process)'}"
           + (f"; {len(llm._cache)} cached replies in {cache}" if cache else "")
-          + ("; DRY RUN, nothing is sent" if a.dry_run else ""))
+          + ("; DRY RUN, nothing is sent" if a.dry_run else "")
+          + ("; OFFLINE, cached replies only" if a.llm_offline else ""))
     if not llm.is_local:
         print("[llm] remote service: only public datasets will be sent; credentialed data is refused")
     return llm
@@ -186,27 +207,136 @@ def fmt(m: dict) -> str:
 
 
 # commands
-def cmd_diagnose(a):
-    r = load_kb(a)
-    found = load_phenopackets(a.case) if Path(a.case).exists() else []
+def read_case(path, r: LRRanker, reader=None, status_policy: str = "llm") -> tuple[Case, frozenset[str]]:
+    # a hoofbeats case file (intake format) or a phenopacket; case files have no PMIDs to exclude. reader: the Stage 1
+    # LLM reader (llm_reader.py) for the case file's text, or None for rules + numbers only
+    from .intake import IntakeError, intake_summary, is_intake, load_case
+    path = Path(path)
+    try:
+        obj = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        obj = None
+    if is_intake(obj):
+        try:
+            c = load_case(path, r.ont, Extractor(r.ont), disease_names=r.db.names, llm_reader=reader,
+                          status_policy=status_policy)
+        except IntakeError as e:
+            raise SystemExit(str(e))
+        print(intake_summary(c, r.ont))
+        note("intake", case=c.case_id, findings=len(c.findings), warnings=len(c.meta["intake_warnings"]),
+             subsumed=len(c.meta["provenance"]["subsumed_by"]))
+        return c, frozenset()
+    found = load_phenopackets(str(path)) if path.exists() else []
     if not found:
-        raise SystemExit(f"no phenopacket found at {a.case}")
-    c = found[0]
-    ex = leak(c)
+        raise SystemExit(f"no phenopacket or hoofbeats case found at {path}")
+    return found[0], leak(found[0])
+
+
+def stage1_reader(a, ont: Ontology):
+    # the LLM reader of the frozen Stage 1 configuration when an endpoint (or an offline reply cache) is given;
+    # otherwise None, and Stage 1 runs with rules + numbers only
+    s1 = stage1(a)
+    from .config import load_stage1
+    for p in load_stage1(a.stage1_config, ont.version)["problems"]:
+        print(f"[stage1] warning: {p}")
+    if not (a.llm_endpoint or a.llm_offline):
+        print("[stage1] no LLM endpoint given: reading text with rules + numbers only. For the full Stage 1, start a "
+              "local server and pass --llm-endpoint http://127.0.0.1:<port>/v1/chat/completions (see README).")
+        return None, s1
+    try:
+        from .linker import SapBert, build_linker
+        from .llm_reader import LLMReader
+        import torch, transformers  # noqa: F401  (SapBERT needs them)
+    except ImportError as e:
+        raise SystemExit(f"the LLM reader needs torch and transformers (pip install -r requirements-llm.txt): {e}")
+    llm = get_llm(a, s1["model"], force=True)
+    if llm.model != s1["raw"]["llm"]["model"]:
+        print(f"[stage1] warning: reading text with {llm.model}, not the frozen {s1['raw']['llm']['model']}")
+    ext = Extractor(ont)
+    linker, cal = build_linker(ont, ext, llm, Path(a.kb) / ".cache", SapBert(), a.llm_workers, s1["chooser_version"])
+    print(f"[stage1] {a.stage1_config}: rules + numbers + LLM ({llm.model}, prompt v{s1['prompt_version']}, "
+          f"chooser v{s1['chooser_version']}, status policy {s1['status_policy']})")
+    RUN["settings"].update({"stage1": {k: v for k, v in s1.items() if k != "raw"}})
+    return LLMReader(llm, linker, ont, ext, s1["prompt_version"], s1["max_chars"], a.llm_workers), s1
+
+
+def findings_table(c: Case, ont: Ontology) -> list[dict]:
+    # one row per fused finding: term, status, quote, readers (every reader that gave this status), grounding
+    prov = c.meta.get("provenance", {})
+    rows = []
+    for f in c.findings:
+        es = [e for e in prov.get(f.hpo_id, []) if e["status"] == f.status.value]
+        readers = sorted({r for e in es for r in (e.get("readers") or [e["source"]])})
+        rows.append({"hpo_id": f.hpo_id, "term": ont.name(f.hpo_id), "status": f.status.value,
+                     "quote": getattr(f, "quote", "") or f.evidence, "readers": readers, "grounding": level_of(f)})
+    return sorted(rows, key=lambda x: (x["status"] != "present", x["term"].lower()))
+
+
+def cmd_diagnose(a):
+    from .intake import is_intake
+    r = load_kb(a)
+    texts = []
+    for path in a.case:
+        try:
+            obj = json.loads(Path(path).read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if is_intake(obj) and (obj.get("note_text") or obj.get("image_context")):
+            texts.append(path)
+    reader, s1 = stage1_reader(a, r.ont) if texts else (None, stage1(a))
+    if reader is not None:      # every case file's text in one concurrent batch
+        items = []
+        for path in a.case:
+            try:
+                obj = json.loads(Path(path).read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                continue
+            if is_intake(obj):
+                items += [(obj.get("note_text") or "", "note", "note_text", str(obj.get("case_id", ""))),
+                          (obj.get("image_context") or "", "image_context", "image_context", str(obj.get("case_id", "")))]
+        reader.prefetch(items)
+    out = Path(a.out) / "diagnose"
+    for path in a.case:
+        diagnose_one(a, r, path, reader, s1, out)
+    if reader is not None:
+        print(usage_line(reader.llm))
+
+
+def diagnose_one(a, r: LRRanker, path, reader, s1: dict, out: Path):
+    c, ex = read_case(path, r, reader, s1["status_policy"])
+    rows = findings_table(c, r.ont)
+    print(f"\nFindings ({len(rows)}):")
+    for x in rows:
+        print(f"   {x['status']:9s} {x['term']} ({x['hpo_id']}) [{'+'.join(x['readers'])}, {x['grounding']}]"
+              + (f" <- {x['quote'][:80]!r}" if x["quote"] else ""))
     ranking = r.score(c, ex)
-    print(f"\n{c.case_id}: truth {c.truth}, rank {ranking.rank_of(c.truth)}\n")
+    rank = ranking.rank_of(c.truth)
+    print(f"\n{c.case_id}: truth {c.truth}, rank {rank}\n")
     n_ok = n_all = 0
+    top = []
     for i, (d, p, claims) in enumerate(explain(r, c, ranking, a.k, ex), 1):
         print(f"{i}. {label(r, d)} posterior {p:.1%}")
+        cl_out = []
         for cl in claims:
-            n_all += 1
-            n_ok += verify_claim(r, c, cl, ex)[0]
+            ok = verify_claim(r, c, cl, ex)[0]
+            n_all, n_ok = n_all + 1, n_ok + ok
+            cl_out.append({"text": cl.text, "verified": bool(ok)})
             print("   -", cl.text)
-    note("diagnose", case=c.case_id, truth=c.truth[0], rank=ranking.rank_of(c.truth), claims=n_all, claims_verified=n_ok)
+        top.append({"rank": i, "id": d, "name": r.db.names[d], "posterior": float(p), "claims": cl_out})
+    note("diagnose", case=c.case_id, truth=c.truth[0] if c.truth else None, rank=rank, claims=n_all, claims_verified=n_ok)
     print(f"\n{n_ok}/{n_all} claims verified against the record and knowledge base\n\nNext checks:")
+    checks = []
     for t, eig, by in suggest_tests(r, ranking, c, ex):
+        checks.append({"hpo_id": t, "term": r.ont.name(t), "bits": float(eig)})
         print(f"   - {r.ont.name(t)} ({t}), {eig:.2f} bits; " +
               ", ".join(f"{r.db.names[d][:30]} {f:.0%}" for d, f in by[:3]))
+    out.mkdir(parents=True, exist_ok=True)
+    (out / f"{c.case_id}.json").write_text(json.dumps(
+        {"case_id": c.case_id, "source": str(path), "stage1": {k: v for k, v in s1.items() if k != "raw"},
+         "llm_reader": reader is not None, "findings": rows, "truth": c.truth, "truth_rank": rank, "top": top,
+         "claims_verified": f"{n_ok}/{n_all}", "next_checks": checks,
+         "warnings": c.meta.get("intake_warnings", [])}, indent=1))
+    wrote(out / f"{c.case_id}.json")
     pm, lit = get_pubmed(a), {}
     if pm:
         lit = gather_literature(a, pm, r, Extractor(r.ont), c, ranking, ex)
@@ -217,19 +347,18 @@ def cmd_diagnose(a):
                 print(f"   - {lc.text}")
             if not lit.get(d):
                 print("   - none found")
-    llm = get_llm(a)
+    llm = get_llm(a)          # --llm: re-rank the shortlist (MedGemma unless --llm-model says otherwise)
     if llm:
         from .llm import rerank
         print(f"\n[llm] asking {llm.model} to re-rank the top 10 (can take a minute for thinking models)...", flush=True)
         res = rerank(llm, r, c, ranking, ex, k=10, literature=lit)
         if not res.parsed:
-            print(f"\n[llm] could not read MedGemma's reply; it began:\n{res.raw[:1500]}\n")
+            print(f"\n[llm] could not read the model's reply; it began:\n{res.raw[:1500]}\n")
         print(usage_line(llm))
-        note("diagnose", case=c.case_id, rank=ranking.rank_of(c.truth),
-             rerank=res.ranking.index(c.truth[0]) + 1 if c.truth[0] in res.ranking else None,
-             faithfulness=res.faithfulness, parsed=res.parsed)
-        print(f"\n{llm.model} re-ranking (truth now at {res.ranking.index(c.truth[0]) + 1 if c.truth[0] in res.ranking else '>10'}), "
-              f"faithfulness {res.faithfulness:.0%}:")
+        pos = next((i for i, d in enumerate(res.ranking, 1) if d in c.truth), None)
+        note("diagnose", case=c.case_id, rank=rank, rerank=pos, faithfulness=res.faithfulness, parsed=res.parsed)
+        where = f"truth now at {pos or '>10'}" if c.truth else "no truth given"
+        print(f"\n{llm.model} re-ranking ({where}), faithfulness {res.faithfulness:.0%}:")
         for i, d in enumerate(res.ranking[: a.k], 1):
             print(f"{i}. {label(r, d)}")
             for sent in res.explanations.get(d, []):
@@ -489,6 +618,390 @@ def cmd_mimic(a):
                   f"Top-10 {topk(ranks)['top10']:.3f}")
 
 
+def cmd_extract_eval(a):
+    # reader outputs vs gold findings, per case file and reader
+    from .extract_eval import TEXT_READERS, evaluate, report, summarize
+    ont = Ontology(Path(a.kb) / "hp.obo")
+    names = AnnotationDB(Path(a.kb) / "phenotype.hpoa", ont).names     # same disease names as diagnose (OMIM)
+    if a.pmc:
+        return pmc_extract_eval(a, ont, names)
+    RUN["settings"].update({"hpo": ont.version, "cases": a.cases, "gold": a.gold})
+    rows, problems = evaluate(a.cases, a.gold, ont, Extractor(ont), names)
+    print(f"[extract-eval] {len({r['case'] for r in rows})} cases from {a.cases}, gold {a.gold}\n")
+    print(report(rows, ont, a.details))
+    for p in problems:
+        print("[gold]", p)
+    for name, sel in (("text", [r for r in rows if r["reader"] in TEXT_READERS]), ("all", rows)):
+        s = summarize(sel)
+        note("extract_eval", **{name: {k: v for k, v in s.items()}})
+    items = [{"case": r["case"], "reader": r["reader"], "kind": "gold", "hpo_id": it["hpo_id"], "label": it["label"],
+              "status": it["status"], "result": it["result"], "got": ";".join(it["got"]), "quote": it.get("quote"),
+              "span_overlap": it["span_overlap"]} for r in rows for it in r["items"]]
+    items += [{"case": r["case"], "reader": r["reader"], "kind": "extra", "hpo_id": p["hpo_id"], "label": ont.name(p["hpo_id"]),
+               "status": p["status"], "result": "extra", "quote": p["evidence"]} for r in rows for p in r["extras"]]
+    Path(a.out).mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(items).to_csv(wrote(Path(a.out) / "extract_eval.csv"), index=False)
+
+
+def pmc_extract_eval(a, ont, names):
+    # the note reader on the frozen PMC manifest; the test split only with --allow-test, every run logged with its commit
+    from .extract_eval import evaluate_pmc, pmc_report, pmc_summary
+    if a.split == "test" and not a.allow_test:
+        raise SystemExit("the PMC test split is run only at agreed milestones; add --allow-test")
+    manifest = json.loads(Path(a.pmc).read_text())
+    RUN["settings"].update({"hpo": ont.version, "pmc_manifest": a.pmc, "locator_version": manifest["locator_version"],
+                            "split": a.split})
+    rows = evaluate_pmc(manifest, ont, Extractor(ont), names, a.split)
+    summ = pmc_summary(rows)
+    print(f"[extract-eval] PMC manifest v{manifest['locator_version']} ({a.pmc}), split {a.split}\n")
+    print(pmc_report(summ))
+    note("extract_eval_pmc", **summ)
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(pmc_items(rows, ont)).to_csv(wrote(out / f"pmc_{a.split}_items.csv"), index=False)
+    (out / f"pmc_{a.split}_summary.json").write_text(json.dumps(summ, indent=1))
+    wrote(out / f"pmc_{a.split}_summary.json")
+    log_pmc_run(a.pmc, {"manifest": a.pmc, "locator_version": manifest["locator_version"], "split": a.split,
+                        "recall_all_gold": summ["recall_all_gold"], "recall_vocab_visible": summ["recall_vocab_visible"],
+                        "precision": summ["precision"], "pred": summ["pred"], "extra": summ["extra"]})
+
+
+def pmc_items(rows: list[dict], ont) -> list[dict]:
+    # one row per gold term (with the readers that found it) and per extra (with quote and sentence)
+    items = [{"case": r["case"], "kind": "gold", "hpo_id": it["hpo_id"], "label": it["label"], "status": it["status"],
+              "result": it["result"], "got": ";".join(it["got"]), "vocab_visible": it["vocab_visible"],
+              "method": ";".join(it["found_by"]),
+              "quote": "", "evidence": ""} for r in rows for it in r["items"]]
+    items += [{"case": r["case"], "kind": "extra", "hpo_id": p["hpo_id"], "label": ont.name(p["hpo_id"]), "status": p["status"],
+               "result": "extra", "got": "", "vocab_visible": "", "method": p["method"], "quote": p.get("quote", ""),
+               "evidence": p.get("sentence") or p["evidence"]} for r in rows for p in r["extras"]]
+    return items
+
+
+def log_pmc_run(manifest_path, record: dict):
+    # every PMC run, appended to pmc_eval/runs.jsonl with the commit and whether the code was changed since
+    import subprocess
+    git = lambda *x: subprocess.run(["git", *x], capture_output=True, text=True).stdout.strip()
+    with open(Path(manifest_path).parent / "runs.jsonl", "a") as fh:
+        fh.write(json.dumps({"time": time.strftime("%Y-%m-%d %H:%M:%S"), "commit": git("rev-parse", "HEAD"),
+                             "dirty": bool(git("status", "--porcelain", "hoofbeats")), **record}) + "\n")
+
+
+def cmd_pmc_build(a):
+    # fetch (cached), locate and freeze the PMC manifest; refuses uncommitted locator code
+    from .pmc import LOCATOR_VERSION, build_manifest
+    ont = Ontology(Path(a.kb) / "hp.obo")
+    manifest, excluded = build_manifest(a.phenopackets, ont)
+    out = Path(a.dest)
+    out.mkdir(parents=True, exist_ok=True)
+    path = out / f"manifest_v{LOCATOR_VERSION}.json"
+    if path.exists() and not a.force:
+        raise SystemExit(f"{path} exists (frozen); bump LOCATOR_VERSION to rebuild, or --force before it is used")
+    path.write_text(json.dumps(manifest, indent=1))
+    pd.DataFrame(excluded).to_csv(wrote(out / f"excluded_v{LOCATOR_VERSION}.csv"), index=False)
+    print(json.dumps(manifest["counts"], indent=1))
+    note("pmc_build", **manifest["counts"])
+    print(f"[pmc] manifest: {wrote(path)}")
+
+
+def cmd_pmc_checks(a):
+    # pre-filled hand-check sheets: A and B from the manifest; C from an extract-eval items file (dev run)
+    from .pmc_checks import make_task_a, make_task_b, make_task_c, make_task_c_llm
+    manifest = json.loads(Path(a.manifest).read_text())
+    out = Path(a.dest)
+    if a.llm_items:     # task C for LLM-only extras, one blind sheet over prompt versions
+        made = make_task_c_llm(dict(x.split("=", 1) for x in a.llm_items), out)
+    else:
+        made = [] if a.items else [make_task_a(manifest, out), *make_task_b(manifest, out)]
+    if a.items:
+        made.append(make_task_c(a.items, out))
+    for f in made:
+        print(f"[pmc] wrote {wrote(f)}")
+
+
+def cmd_llm_extract(a):
+    # LLM finding candidates on the first PMC dev cases (smoke test; no linking or scoring yet)
+    from dataclasses import asdict
+    from .llm_extract import extract_candidates
+    from .pmc import load_case_text
+    a.llm = True
+    s1 = stage1(a)
+    version = s1["prompt_version"]
+    llm = get_llm(a, s1["model"])
+    ont = Ontology(Path(a.kb) / "hp.obo")
+    ext = Extractor(ont)
+    manifest = json.loads(Path(a.pmc).read_text())
+    cases = [c for c in manifest["cases"] if c["split"] == "dev"][: a.limit]
+    RUN["settings"].update({"pmc_manifest": a.pmc, "prompt_version": version, "max_chars": a.max_chars, "cases": len(cases)})
+    rows, reps, t0 = [], [], time.time()
+    for i, c in enumerate(cases, 1):
+        text = load_case_text(c)
+        found, rep = extract_candidates(llm, text, "note_text", a.max_chars, a.llm_workers, version)
+        reps.append({"case": c["case_id"], "words": len(text.split()), **asdict(rep)})
+        for f in found:
+            hits = ext.findings(f.phrase)
+            rows.append({"case": c["case_id"], "chunk": f.chunk, "phrase": f.phrase, "status": f.status.value, "quote": f.quote,
+                         "start": f.start, "end": f.end, "match": f.match,
+                         "dictionary": "; ".join(dict.fromkeys(f"{h.hpo_id} {ont.name(h.hpo_id)}" for h in hits))})
+        print(f"\r[llm-extract] {i}/{len(cases)} cases", end="", flush=True)
+    secs = time.time() - t0
+    keys = ("chunks", "unreadable", "proposed", "bad_item", "quote_not_found", "duplicates", "kept")
+    tot = {k: sum(r[k] for r in reps) for k in keys}
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(rows).to_csv(wrote(out / f"llm_candidates_{llm.slug}.csv"), index=False)
+    (out / f"llm_extract_{llm.slug}.json").write_text(json.dumps(
+        {"model": llm.model, "prompt_version": version, "seconds": round(secs, 1), "totals": tot, "usage": llm.usage(),
+         "cases": reps}, indent=1))
+    wrote(out / f"llm_extract_{llm.slug}.json")
+    note("llm_extract", seconds=round(secs, 1), **tot)
+    print(f"\n[llm-extract] {llm.model}, prompt v{version}, {len(cases)} cases in {secs:.0f} s")
+    print("  " + ", ".join(f"{k} {v}" for k, v in tot.items()))
+    linked = sum(bool(r["dictionary"]) for r in rows)
+    print(f"  {linked} of {len(rows)} kept phrases match the rule dictionary as written (the rest need the linker)")
+    print(usage_line(llm))
+
+
+def cmd_llm_eval(a):
+    # rules / LLM / rules+LLM (status policy llm and rules) per prompt version on PMC dev, the six examples and the
+    # regression set; one set of LLM requests per prompt version (the reader remembers each text)
+    from .linker import SapBert, build_linker
+    from .llm_eval import absent_sample, configs, evaluate_config
+    from .llm_reader import LLMReader
+    a.llm = True
+    s1 = stage1(a)
+    llm = get_llm(a, s1["model"])
+    ont = Ontology(Path(a.kb) / "hp.obo")
+    ext = Extractor(ont)
+    db = AnnotationDB(Path(a.kb) / "phenotype.hpoa", ont, ("OMIM",), Path(a.kb) / "genes_to_disease.txt")
+    ranker = LRRanker(ont, db, prior_weight=1.0, rare_mass=0.04)          # the --common none setup of earlier ranks
+    manifest = json.loads(Path(a.pmc).read_text())
+    task_b = [r for r in csv_rows(a.task_b) if r["split"] == "dev"]
+    reg = csv_rows(a.regression)
+    chooser = s1["chooser_version"]
+    linker, cal = build_linker(ont, ext, llm, Path(a.kb) / ".cache", SapBert(device=a.sapbert_device), a.llm_workers,
+                               chooser)
+    versions = [int(v[1:]) for v in a.prompt_versions]
+    RUN["settings"].update({"pmc_manifest": a.pmc, "locator_version": manifest["locator_version"], "split": "dev",
+                            "prompt_versions": versions, "status_policy": a.status_policy, "chooser_version": chooser, "linker": {k: cal[k] for k in ("hi", "margin", "lo", "k")}})
+    out = Path(a.out)
+    results = []
+
+    def save(res, folder: Path, version):
+        folder.mkdir(parents=True, exist_ok=True)
+        s = res["summary"]
+        pd.DataFrame(pmc_items(res["rows"], ont)).to_csv(wrote(folder / "pmc_dev_items.csv"), index=False)
+        pd.DataFrame(s["regression"]).to_csv(wrote(folder / "regression.csv"), index=False)
+        (folder / "summary.json").write_text(json.dumps(s, indent=1, default=str))
+        wrote(folder / "summary.json")
+        log_pmc_run(a.pmc, {"kind": "llm-eval", "manifest": a.pmc, "locator_version": manifest["locator_version"],
+                            "split": "dev", "config": res["config"], "model": llm.model if version else None,
+                            "prompt_version": version, "chooser_version": chooser if version else None,
+                            "offline": a.llm_offline,
+                            "linker": {k: cal[k] for k in ("hi", "margin", "lo")} if version else None,
+                            **{k: s[k] for k in ("recall_all_gold", "recall_vocab_visible", "precision", "pred", "extra",
+                                                 "hand_checked", "absent", "regression_outcomes", "examples", "ranks")}})
+        results.append((version, res["config"], s))
+
+    t0 = time.time()
+    rules = evaluate_config("rules", {}, manifest, ont, ext, db.names, task_b, reg, ranker)
+    save(rules, out / "rules", None)
+    for v in versions:
+        reader = LLMReader(llm, linker, ont, ext, v, a.max_chars, a.llm_workers)
+        t1 = time.time()
+        reader.prefetch(eval_texts(manifest))        # every request of this version as one concurrent batch
+        print(f"[llm-eval] prompt v{v}: all texts read in {time.time() - t1:.0f} s")
+        policies = ("llm", "rules") if a.status_policy == "both" else (a.status_policy,)
+        for name, opts in configs(reader, policies).items():
+            if name == "rules":
+                continue
+            res = evaluate_config(name, opts, manifest, ont, ext, db.names, task_b, reg, ranker)
+            save(res, out / f"v{v}" / name.replace("/", "_").replace("=", "-"), v)
+            if name == f"rules+llm/status={policies[0]}":
+                pd.DataFrame(absent_sample(res["rows"])).to_csv(wrote(out / f"v{v}" / "absent_sample.csv"), index=False)
+        log = pd.DataFrame(reader.log)
+        log.to_csv(wrote(out / f"v{v}" / "llm_log.csv"), index=False)
+        if len(log):
+            log[log.verdict == "explained_by_other_terms"].to_csv(wrote(out / f"v{v}" / "crosscheck_drops.csv"), index=False)
+        (out / f"v{v}" / "extract_reports.json").write_text(json.dumps(reader.reports, indent=1))
+        print(f"[llm-eval] prompt v{v} done ({time.time() - t0:.0f} s)")
+    table = llm_eval_table(results)
+    (out / "comparison.md").write_text(table + "\n")
+    wrote(out / "comparison.md")
+    print("\n" + table)
+    print(usage_line(llm))
+
+
+def cmd_pmc_test_run(a):
+    # the one-time PMC test run with the frozen Stage 1 configuration: rules, LLM alone and rules + LLM on dev (replies
+    # from the cache) and test, the same metrics on both, and the dev-vs-test gap. Refuses unless the frozen files are
+    # unchanged since the tag, nothing overrides the configuration, and no frozen test run is logged yet
+    from .config import TAG, frozen_problems, load_stage1
+    from .linker import SapBert, build_linker
+    from .llm_eval import configs, estimated_judged_precision, evaluate_split, gap_table
+    from .llm_reader import LLMReader
+    from .pmc import load_case_text
+    from .pmc_checks import score as pmc_score
+    if not a.allow_test:
+        raise SystemExit("the PMC test split is run once, with the frozen configuration; add --allow-test")
+    ont = Ontology(Path(a.kb) / "hp.obo")
+    problems = frozen_problems() + load_stage1(a.stage1_config, ont.version)["problems"]
+    frozen = load_stage1(a.stage1_config)
+    want = {"prompt_version": f"v{frozen['llm']['prompt_version']}", "chooser_version":
+            f"v{frozen['linker']['chooser_version']}", "llm_model": frozen["llm"]["model"]}
+    problems += [f"--{k.replace('_', '-')} {getattr(a, k)} overrides the frozen configuration ({v})"
+                 for k, v in want.items() if getattr(a, k) and getattr(a, k) != v]
+    runs = Path(a.pmc).parent / "runs.jsonl"
+    done = [json.loads(x) for x in runs.read_text().splitlines() if '"frozen-test"' in x] if runs.exists() else []
+    if a.llm_offline and not done:     # offline has no test replies: it would score the rules alone on test
+        problems.append("--llm-offline replays a logged frozen test run; there is none yet")
+    if done and not a.again and not a.llm_offline:
+        problems.append(f"a frozen test run is already logged ({done[-1]['time']}, commit {done[-1]['commit'][:7]}); "
+                        "--again only to repeat it after a failure")
+    if problems:
+        raise SystemExit("not running the test split:\n  " + "\n  ".join(problems))
+    s1 = stage1(a)
+    a.llm = True
+    llm = get_llm(a, s1["model"])
+    ext = Extractor(ont)
+    names = AnnotationDB(Path(a.kb) / "phenotype.hpoa", ont).names
+    manifest = json.loads(Path(a.pmc).read_text())
+    task_b = csv_rows(a.task_b)
+    linker, cal = build_linker(ont, ext, llm, Path(a.kb) / ".cache", SapBert(device=a.sapbert_device), a.llm_workers,
+                               s1["chooser_version"])
+    reader = LLMReader(llm, linker, ont, ext, s1["prompt_version"], s1["max_chars"], a.llm_workers)
+    RUN["settings"].update({"stage1": {k: v for k, v in s1.items() if k != "raw"}, "tag": TAG, "pmc_manifest": a.pmc})
+    t0 = time.time()
+    reader.prefetch([(load_case_text(c), "note", "note_text", c["case_id"]) for c in manifest["cases"]
+                     if c["split"] in ("dev", "test")])
+    print(f"[pmc-test-run] dev and test texts read in {time.time() - t0:.0f} s")
+    rules_share = pmc_score(Path(a.checks))["task_c"]["correct_share"]
+    from .pmc_checks import score_task_c_llm
+    tc = score_task_c_llm(Path(a.checks), rules_share) if (Path(a.checks) / "task_c_llm_key.json").exists() else {}
+    llm_share = (tc.get(f"v{s1['prompt_version']}") or {}).get("llm_extras_correct")
+    chosen = {k: v for k, v in configs(reader, (s1["status_policy"],)).items()}
+    results, out = {}, Path(a.out)
+    for split in ("dev", "test"):
+        for name, opts in chosen.items():
+            res = evaluate_split(name, opts, manifest, ont, ext, names, task_b, split)
+            summ, items = res["summary"], pmc_items(res["rows"], ont)
+            summ["precision_estimated"] = estimated_judged_precision(summ, items, rules_share, llm_share)
+            folder = out / split / name.replace("/", "_").replace("=", "-")
+            folder.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(items).to_csv(wrote(folder / f"pmc_{split}_items.csv"), index=False)
+            (folder / "summary.json").write_text(json.dumps(summ, indent=1, default=str))
+            wrote(folder / "summary.json")
+            results[(name, split)] = summ
+            log_pmc_run(a.pmc, {"kind": ("frozen-test-replay" if a.llm_offline else "frozen-test") if split == "test"
+                                else "frozen-test-dev",
+                                "manifest": a.pmc, "locator_version": manifest["locator_version"], "split": split,
+                                "config": name, "stage1_config": a.stage1_config, "tag": TAG, "model": llm.model,
+                                "prompt_version": s1["prompt_version"], "chooser_version": s1["chooser_version"],
+                                "offline": a.llm_offline,
+                                **{k: summ[k] for k in ("recall_all_gold", "recall_vocab_visible", "precision",
+                                                        "precision_estimated", "pred", "extra", "hand_checked",
+                                                        "absent", "by_status", "by_paper_kind")}})
+    pd.DataFrame(reader.log).to_csv(wrote(out / "llm_log.csv"), index=False)
+    (out / "extract_reports.json").write_text(json.dumps(reader.reports, indent=1))
+    table = gap_table(results) + (f"\nPrecision estimated with dev judging: rule-found extras at {rules_share:.0%}, "
+                                  f"LLM-only extras at {llm_share:.0%} (task C on dev)." if llm_share else "")
+    (out / "dev_vs_test.md").write_text(table + "\n")
+    wrote(out / "dev_vs_test.md")
+    print("\n" + table)
+    print(usage_line(llm))
+
+
+def eval_texts(manifest: dict) -> list[tuple[str, str, str, str]]:
+    # (text, source, field, case id) of every text llm-eval reads: PMC dev cases (the regression rows are dev cases
+    # too) and the example case files
+    from .llm_eval import EXAMPLES
+    from .pmc import load_case_text
+    out = [(load_case_text(c), "note", "note_text", c["case_id"]) for c in manifest["cases"] if c["split"] == "dev"]
+    for folder, _ in EXAMPLES:
+        for fn in json.loads(Path(folder, "intended_findings.json").read_text()):
+            if not fn.startswith("_"):
+                raw = json.loads(Path(folder, fn).read_text())
+                out += [(raw.get("note_text") or "", "note", "note_text", fn),
+                        (raw.get("image_context") or "", "image_context", "image_context", fn)]
+    return out
+
+
+def csv_rows(path) -> list[dict]:
+    import csv
+    with open(path, newline="", encoding="utf-8") as fh:
+        return list(csv.DictReader(fh))
+
+
+def llm_eval_table(results) -> str:
+    # one row per (prompt version, configuration)
+    f = lambda x: "–" if x is None else f"{100 * x:.1f}"
+    rc = lambda r: f"{f(r['strict'])} / {f(r['lenient'])}"
+    out = ["| prompt | configuration | hand-checked (n) | label | paraphrase | all gold | precision* | pred | extras | "
+           "absent pred / extra | regression fixed / partly / not | examples F1 dev / held-out** | ranks |",
+           "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    for v, name, s in results:
+        h, ab, ro = s["hand_checked"], s["absent"], s["regression_outcomes"]
+        ex = s["examples"]
+        out.append(f"| {'v' + str(v) if v else '–'} | {name} | {rc(h['all'])} ({h['all']['n']}) | {rc(h['label'])} | "
+                   f"{rc(h['paraphrase'])} | {rc(s['recall_all_gold'])} | {f(s['precision']['strict'])} / "
+                   f"{f(s['precision']['lenient'])} | {s['pred']} | {s['extra']} | {ab['pred']} / {ab['extra']} | "
+                   f"{ro.get('fixed', 0)} / {ro.get('partly', 0)} / {ro.get('not fixed', 0)} | "
+                   f"{f(ex['dev']['all']['strict'][2])} / {f(ex['held_out']['all']['strict'][2])} | "
+                   f"{', '.join(str(x) for x in s['ranks'].values())} |")
+    out += ["", "Recall columns: strict / lenient %. *precision with extras not judged (strict / lenient). "
+            "**strict F1, all readers. Ranks: truth rank per example case (OMIM, --common none)."]
+    return "\n".join(out)
+
+
+def cmd_chooser_sheet(a):
+    # blind sheet of the extras whose term the new chooser changed, plus a sample of newly linked ones
+    from .chooser_eval import make_sheet
+    res = make_sheet(a.old, a.new, a.checks, a.version, a.n_new)
+    note("chooser_sheet", **res)
+    print(json.dumps(res, indent=1))
+    print(f"[pmc] wrote {wrote(Path(a.checks) / 'task_c_chooser.csv')}")
+
+
+def cmd_chooser_score(a):
+    from .chooser_eval import score
+    from .pmc_checks import score as pmc_score
+    rules_share = pmc_score(Path(a.checks))["task_c"]["correct_share"]    # task C: rule extras judged correct
+    res = score(Path(a.checks), rules_share)
+    note("chooser_score", **res)
+    print(json.dumps(res, indent=1))
+
+
+def cmd_hpo_index(a):
+    # SapBERT vectors of all phenotype labels and synonyms, and the linker thresholds (leave-one-synonym-out)
+    from .linker import HpoIndex, SapBert, calibrated
+    ont = Ontology(Path(a.kb) / "hp.obo")
+    t0 = time.time()
+    index = HpoIndex(ont, SapBert(a.model, a.device), Path(a.kb) / ".cache")
+    print(f"[hpo-index] {len(index.strings)} labels and synonyms of {len(index.term_ids)} terms "
+          f"({time.time() - t0:.0f} s): {index.path}")
+    cal = calibrated(index, rebuild=a.recalibrate)
+    note("hpo_index", strings=len(index.strings), terms=len(index.term_ids), **{k: v for k, v in cal.items() if k != "bands"})
+    print(f"[hpo-index] leave-one-synonym-out, {cal['n']} queries: top-1 correct {cal['top1_correct']:.1%}, "
+          f"true term in top {cal['k']} {cal['in_top_k']:.1%}")
+    print(f"[hpo-index] accept at >= {cal['hi']:.2f} with a margin >= {cal['margin']:.2f} over the next term "
+          f"({cal['accepted_share']:.1%} of queries, {cal['accepted_correct']:.1%} "
+          f"correct); LLM chooses between {cal['lo']:.2f} and {cal['hi']:.2f}; below {cal['lo']:.2f} unlinked")
+    print("  score band  n  top-1 correct  in top k")
+    for b in cal["bands"]:
+        if b["n"]:
+            print(f"  {b['from']:.2f}  {b['n']:4d}  {b['correct'] / b['n']:6.1%}  {b['in_top_k'] / b['n']:6.1%}")
+
+
+def cmd_pmc_score(a):
+    from .pmc_checks import score, score_task_c_llm
+    res = score(Path(a.checks), a.items, a.summary, a.manifest)
+    if (Path(a.checks) / "task_c_llm_key.json").exists():
+        res["task_c_llm"] = score_task_c_llm(Path(a.checks), res.get("task_c", {}).get("correct_share"),
+                                             dict(x.split("=", 1) for x in a.llm_summaries or []))
+    print(json.dumps(res, indent=1))
+    note("pmc_score", **res)
+
+
 def image_agreement(r: LRRanker, predicted: set[str], reference: set[str]) -> tuple[float | None, float | None]:
     # precision/recall of image findings vs radiologist (ancestor matches count)
     agree = lambda a, b: a in r.ont.ancestors(b) or b in r.ont.ancestors(a)
@@ -611,7 +1124,8 @@ def main(argv=None):
     p.add_argument("--pubmed-before-case", action="store_true",
                    help="only papers published before the case's own paper (stricter leakage control)")
     p.add_argument("--llm", action="store_true", help="use a language model (MedGemma by default; see README)")
-    p.add_argument("--llm-model", default="google/medgemma-1.5-4b-it")
+    p.add_argument("--llm-model", help="model name; default: the Stage 1 configuration's for reading text "
+                                       "(Qwen2.5-7B-Instruct), MedGemma for re-ranking and benchmarks")
     p.add_argument("--llm-endpoint", help="OpenAI-compatible chat URL, e.g. http://localhost:11434/v1/chat/completions; "
                                           "omit to load the model in-process with transformers")
     p.add_argument("--llm-key-env", help="name of the environment variable holding an API key, e.g. GEMINI_API_KEY")
@@ -620,11 +1134,21 @@ def main(argv=None):
     p.add_argument("--llm-rpm", type=float, help="max model requests per minute (match your free-tier limit, e.g. 5)")
     p.add_argument("--llm-cache", default="auto", help="folder of saved model replies (default <out>/llm_cache; 'none' to disable)")
     p.add_argument("--dry-run", action="store_true", help="count the model requests a command would send, send none")
+    p.add_argument("--llm-offline", action="store_true",
+                   help="answer only from the reply cache (e.g. replies copied back from Sol); misses get no reply")
+    p.add_argument("--llm-workers", type=int, default=32, help="model requests in flight at once (a vLLM server batches them)")
+    p.add_argument("--stage1-config", default="configs/stage1_v1.json", help="frozen Stage 1 configuration")
+    p.add_argument("--prompt-version", choices=["v1", "v2"], help="finding-extraction prompt (default: the configuration's)")
+    p.add_argument("--chooser-version", choices=["v1", "v2"],
+                   help="linker's LLM choice step (default: the configuration's); v2 adds the sentence and parent terms")
     p.add_argument("--llm-extra", help='extra JSON fields for the request body, e.g. \'{"reasoning_effort": "low"}\'')
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("download"); s.add_argument("--dest", default="data")
-    s = sub.add_parser("diagnose"); s.add_argument("case"); s.add_argument("-k", type=int, default=5)
-    s.add_argument("--out", default="results", help="run log goes to <out>/runs/")
+    s = sub.add_parser("diagnose", help="Stage 1 (rules + numbers; + LLM reader with --llm-endpoint), ranking; "
+                                        "--llm also re-ranks")
+    s.add_argument("case", nargs="+", help="phenopacket JSON or hoofbeats case files (see examples/)")
+    s.add_argument("-k", type=int, default=10, help="diseases shown")
+    s.add_argument("--out", default="results", help="per-case JSON in <out>/diagnose/, run log in <out>/runs/")
     for name in ("benchmark", "sequential", "llm-bench"):
         s = sub.add_parser(name)
         s.add_argument("--phenopackets", default="data/phenopacket-store")
@@ -659,6 +1183,71 @@ def main(argv=None):
     s.add_argument("--only-labeled", action="store_true", help="only cases whose diagnosis is in the knowledge base")
     s.add_argument("--limit", type=int, help="first N cases (quick runs)")
     s.add_argument("--cache", help="jsonl of raw image reads (default: <out>/medpix_image_reads_<model>.jsonl)")
+    s.add_argument("--out", default="results")
+    s = sub.add_parser("extract-eval", help="score reader outputs on case files against gold findings")
+    s.add_argument("--cases", default="examples", help="folder with the case files named in the gold file")
+    s.add_argument("--gold", default="examples/intended_findings.json")
+    s.add_argument("--details", action="store_true", help="list every gold finding and extra")
+    s.add_argument("--out", default="results/extract_eval")
+    s.add_argument("--pmc", help="PMC manifest (pmc_eval/manifest_v1.json): score the note reader on its located text")
+    s.add_argument("--split", default="dev", choices=["dev", "test"])
+    s.add_argument("--allow-test", action="store_true", help="needed to run on the PMC test split")
+    s = sub.add_parser("pmc-build", help="fetch, locate and freeze the PMC test-set manifest")
+    s.add_argument("--phenopackets", default="data/phenopacket-store")
+    s.add_argument("--dest", default="pmc_eval")
+    s.add_argument("--force", action="store_true", help="overwrite an existing manifest of the same version")
+    s = sub.add_parser("pmc-checks", help="write the pre-filled hand-check CSVs")
+    s.add_argument("--manifest", default="pmc_eval/manifest_v1.json")
+    s.add_argument("--items", help="extract-eval pmc_dev_items.csv: write task C (extras) instead of A and B")
+    s.add_argument("--llm-items", nargs="+", metavar="VERSION=ITEMS",
+                   help="llm-eval items per prompt version (e.g. v1=results/llm_eval/v1/rules+llm_status-llm/"
+                        "pmc_dev_items.csv): one blind task-C sheet of LLM-only extras")
+    s.add_argument("--dest", default="data/pmc/checks")
+    s = sub.add_parser("pmc-score", help="scores from the filled-in hand-check CSVs")
+    s.add_argument("--checks", default="data/pmc/checks")
+    s.add_argument("--items", help="extract-eval pmc_<split>_items.csv, for hand-checked recall")
+    s.add_argument("--summary", help="extract-eval pmc_<split>_summary.json, for precision with adjudicated extras")
+    s.add_argument("--manifest", default="pmc_eval/manifest_v1.json", help="for recall by single/multi-patient paper")
+    s.add_argument("--llm-summaries", nargs="+", metavar="VERSION=SUMMARY",
+                   help="llm-eval summary.json per prompt version, for precision with the LLM extras judged")
+    s.add_argument("--out", default="results")
+    s = sub.add_parser("llm-extract", help="LLM finding candidates on the first PMC dev cases (smoke test)")
+    s.add_argument("--pmc", default="pmc_eval/manifest_v1.json")
+    s.add_argument("--limit", type=int, default=5, help="number of dev cases")
+    s.add_argument("--max-chars", type=int, default=2500, help="longest text chunk sent in one request")
+    s.add_argument("--out", default="results/llm_extract")
+    s = sub.add_parser("llm-eval", help="rules vs LLM vs rules+LLM on PMC dev, the examples and the regression set")
+    s.add_argument("--prompt-versions", nargs="+", default=["v1", "v2"], choices=["v1", "v2"])
+    s.add_argument("--pmc", default="pmc_eval/manifest_v1.json")
+    s.add_argument("--task-b", default="pmc_eval/checks_v1_task_b.csv", help="hand-check answers (dev rows are used)")
+    s.add_argument("--regression", default="pmc_eval/regression_v1_status_term.csv")
+    s.add_argument("--max-chars", type=int, default=2500)
+    s.add_argument("--sapbert-device", default="cpu")
+    s.add_argument("--status-policy", default="both", choices=["llm", "rules", "both"],
+                   help="whose status wins when rules and LLM disagree on the same words (parse_case default: llm)")
+    s.add_argument("--out", default="results/llm_eval")
+    s = sub.add_parser("chooser-sheet", help="task C sheet for the linker's new LLM-choice step (changed terms only)")
+    s.add_argument("--old", default="results/llm_eval/v1", help="llm-eval folder of one prompt version, old chooser")
+    s.add_argument("--new", default="results/llm_eval_chooser2/v1", help="the same with the new chooser")
+    s.add_argument("--checks", default="data/pmc/checks")
+    s.add_argument("--version", default="v1", help="prompt version whose task-C sample is reused")
+    s.add_argument("--n-new", type=int, default=20, help="newly linked chooser extras to judge")
+    s.add_argument("--out", default="results")
+    s = sub.add_parser("chooser-score", help="chooser precision old vs new, and precision with every extra judged")
+    s.add_argument("--checks", default="data/pmc/checks")
+    s.add_argument("--out", default="results")
+    s = sub.add_parser("pmc-test-run", help="the one-time PMC test run with the frozen Stage 1 configuration")
+    s.add_argument("--allow-test", action="store_true", help="required: this reads the PMC test split")
+    s.add_argument("--again", action="store_true", help="repeat after a failed run (a frozen test run is already logged)")
+    s.add_argument("--pmc", default="pmc_eval/manifest_v1.json")
+    s.add_argument("--task-b", default="pmc_eval/checks_v1_task_b.csv", help="hand-check answers (dev and test rows)")
+    s.add_argument("--checks", default="data/pmc/checks", help="task C sheets, for precision estimated with dev judging")
+    s.add_argument("--sapbert-device", default="cpu")
+    s.add_argument("--out", default="results/pmc_test")
+    s = sub.add_parser("hpo-index", help="SapBERT index of HPO labels/synonyms and the linker thresholds")
+    s.add_argument("--model", default="cambridgeltl/SapBERT-from-PubMedBERT-fulltext")
+    s.add_argument("--device", default="cpu")
+    s.add_argument("--recalibrate", action="store_true")
     s.add_argument("--out", default="results")
     s = sub.add_parser("report", help="tables, figures and notes from saved runs")
     s.add_argument("--results", default="results", help="folder searched (recursively) for runs and CSVs")
@@ -703,8 +1292,10 @@ def _write_txt(path: Path, body: str, trace: str):
 def _logged(a):
     # run the command; save <out>/runs/<id>.txt (readable log) and <id>.json (settings + metrics)
     import traceback
+    from .llm import DEFAULT_MODEL
     uses_llm = a.llm or a.cmd in ("llm-bench", "multimodal", "medpix-context")
-    model = re.sub(r"[^A-Za-z0-9.]+", "-", a.llm_model.split("/")[-1]).lower() if uses_llm else ""
+    name = a.llm_model or (DEFAULT_MODEL if uses_llm else "")    # unset: MedGemma, the default of these commands
+    model = re.sub(r"[^A-Za-z0-9.]+", "-", name.split("/")[-1]).lower() if uses_llm and name else ""
     RUN.update({"id": time.strftime("%Y%m%d-%H%M%S") + f"_{a.cmd}" + (f"_{model}" if model else ""),
                 "command": a.cmd, "argv": sys.argv[1:], "note": a.note, "started": time.strftime("%Y-%m-%d %H:%M:%S")})
     RUN["settings"].update({k: v for k, v in vars(a).items()
@@ -718,7 +1309,11 @@ def _logged(a):
     try:
         {"diagnose": cmd_diagnose, "benchmark": cmd_benchmark, "sequential": cmd_sequential,
          "learn-common": cmd_learn_common, "mimic": cmd_mimic, "medpix": cmd_medpix,
-         "llm-bench": cmd_llm_bench, **context_commands(sys.modules[__name__])}[a.cmd](a)
+         "llm-bench": cmd_llm_bench, "extract-eval": cmd_extract_eval, "pmc-build": cmd_pmc_build,
+         "pmc-checks": cmd_pmc_checks, "pmc-score": cmd_pmc_score, "llm-extract": cmd_llm_extract,
+         "hpo-index": cmd_hpo_index, "llm-eval": cmd_llm_eval,
+         "chooser-sheet": cmd_chooser_sheet, "chooser-score": cmd_chooser_score,
+         "pmc-test-run": cmd_pmc_test_run, **context_commands(sys.modules[__name__])}[a.cmd](a)
     except KeyboardInterrupt:
         status = "stopped (Ctrl-C)"
         raise

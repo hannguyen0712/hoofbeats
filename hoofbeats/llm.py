@@ -4,6 +4,7 @@ import base64
 import hashlib
 import json
 import re
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -74,20 +75,22 @@ def with_json_mode(json_mode: bool, endpoint, extra, model: str):
 
 
 class MedGemma:
-    # endpoint=None loads the model in-process; otherwise any OpenAI-compatible server (Ollama, vLLM, Gemini)
+    # any chat model: endpoint=None loads it in-process; otherwise any OpenAI-compatible server (vLLM, Ollama, Gemini)
 
     def __init__(self, model: str = DEFAULT_MODEL, endpoint: str | None = None, max_new_tokens: int = 2048,
                  api_key: str | None = None, vision: bool | None = None, extra: dict | None = None,
                  rpm: float | None = None, cache_dir: str | Path | None = None, dry_run: bool = False,
-                 timeout: float = 600):
+                 timeout: float = 600, offline: bool = False):
         self.model, self.endpoint, self.max_new_tokens = model, endpoint, max_new_tokens
         self.timeout = timeout                          # seconds to wait for one reply (CPU models can need more)
         self.api_key, self.vision, self.extra = api_key, vision, extra or {}
         self.rpm, self._last = rpm, 0.0                 # rpm: max requests per minute (free tiers)
         self.dry_run = dry_run                          # count requests that would be sent, send none
+        self.offline = offline                          # answer from the cache only; a miss is counted and gives ""
         self.n_calls, self.seconds, self.errors = 0, 0.0, 0
-        self.requests, self.cache_hits, self.retries, self.planned = 0, 0, 0, 0
+        self.requests, self.cache_hits, self.retries, self.planned, self.missed = 0, 0, 0, 0, 0
         self._pipe, self._cache, self._cache_file = None, {}, None
+        self._lock = threading.Lock()                   # chat() may run in several threads (chat_many)
         if cache_dir:                                   # replies keyed by a hash of everything sent
             self._cache_file = Path(cache_dir) / f"{self.slug}.jsonl"
             if self._cache_file.exists():
@@ -119,39 +122,46 @@ class MedGemma:
     def slug(self) -> str:
         return re.sub(r"[^A-Za-z0-9.]+", "-", self.model.split("/")[-1]).strip("-").lower()
 
-    def _key(self, user, system, images) -> str:
+    def _key(self, user, system, images, schema=None) -> str:
         imgs = [hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in images]
-        blob = json.dumps([self.model, self.max_new_tokens, self.extra, system, user, imgs], sort_keys=True)
-        return hashlib.sha256(blob.encode()).hexdigest()
+        parts = [self.model, self.max_new_tokens, self.extra, system, user, imgs] + ([schema] if schema else [])
+        return hashlib.sha256(json.dumps(parts, sort_keys=True).encode()).hexdigest()
 
-    def chat(self, user: str, system: str = SYSTEM, images: tuple[str, ...] = ()) -> str:
-        # images: local file paths (image models only); identical requests are answered from the cache
+    def chat(self, user: str, system: str = SYSTEM, images: tuple[str, ...] = (), schema: dict | None = None) -> str:
+        # images: local file paths (image models only); schema: a JSON schema the server must follow (guided decoding;
+        # an in-process model ignores it); identical requests are answered from the cache
         if images and not self.sees_images:
             raise ValueError(f"{self.model} is text-only; pick a vision model for images")
-        key = self._key(user, system, images)
-        if key in self._cache:
-            self.cache_hits += 1
-            return self._cache[key]
-        if self.dry_run:
-            self.planned += 1
-            return ""
+        key = self._key(user, system, images, schema)
+        with self._lock:
+            if key in self._cache:
+                self.cache_hits += 1
+                return self._cache[key]
+            if self.dry_run or self.offline:
+                self.planned += self.dry_run
+                self.missed += self.offline
+                return ""
         t0 = time.time()
         try:
-            reply = self._endpoint_chat(user, system, images) if self.endpoint else self._local_chat(user, system, images)
+            reply = (self._endpoint_chat(user, system, images, **({"schema": schema} if schema else {})) if self.endpoint
+                     else self._local_chat(user, system, images))
         finally:
-            self.n_calls, self.seconds = self.n_calls + 1, self.seconds + time.time() - t0
-        self._cache[key] = reply
-        if self._cache_file:
-            self._cache_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(self._cache_file, "a") as fh:
-                fh.write(json.dumps({"key": key, "reply": reply}) + "\n")
+            with self._lock:
+                self.n_calls, self.seconds = self.n_calls + 1, self.seconds + time.time() - t0
+        with self._lock:
+            self._cache[key] = reply
+            if self._cache_file:
+                self._cache_file.parent.mkdir(parents=True, exist_ok=True)
+                with open(self._cache_file, "a") as fh:
+                    fh.write(json.dumps({"key": key, "reply": reply}) + "\n")
         return reply
 
     def usage(self) -> dict:
         return {"requests": self.requests, "retries": self.retries, "cache_hits": self.cache_hits,
-                "would_send": self.planned, "sec_per_request": round(self.seconds / max(self.n_calls, 1), 2)}
+                "would_send": self.planned, "offline_misses": self.missed,
+                "sec_per_request": round(self.seconds / max(self.n_calls, 1), 2)}
 
-    def _endpoint_chat(self, user, system, images) -> str:
+    def _endpoint_chat(self, user, system, images, schema=None) -> str:
         content = user
         if images:   # OpenAI-compatible servers take images as base64 data URLs
             content = [{"type": "image_url", "image_url": {"url": f"data:{image_type(p)};base64," +
@@ -159,6 +169,8 @@ class MedGemma:
             content.append({"type": "text", "text": user})
         body = {"model": self.model, "temperature": 0, "max_tokens": self.max_new_tokens,
                 "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}], **self.extra}
+        if schema:
+            body["response_format"] = {"type": "json_schema", "json_schema": {"name": "reply", "schema": schema, "strict": True}}
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -168,8 +180,9 @@ class MedGemma:
                 if gap > 0:
                     time.sleep(gap)
             self._last = time.time()
-            self.requests += 1
-            self.retries += attempt > 0
+            with self._lock:
+                self.requests += 1
+                self.retries += attempt > 0
             req = urllib.request.Request(self.endpoint, json.dumps(body).encode(), headers)
             try:
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
@@ -227,6 +240,23 @@ def check_policy(llm, cases: list[Case], r: LRRanker | None = None) -> None:
     restricted = any(c.meta.get("policy") == "local_only" for c in cases) or (r is not None and r.policy != "open")
     if not llm.is_local and restricted:
         raise PolicyError("credentialed MIMIC data may only go to an in-process model or a localhost server")
+
+
+def require_local(llm) -> None:
+    # finding extraction and HPO linking send patient text: in-process or localhost servers only, whatever the dataset
+    if not llm.is_local:
+        raise PolicyError(f"{getattr(llm, 'endpoint', '')}: extraction and linking only use an in-process model or a "
+                          "localhost server")
+
+
+def chat_many(llm, calls: list[dict], workers: int = 8) -> list[str]:
+    # calls: chat() keyword arguments; replies in the same order. Several requests in flight let a vLLM server
+    # batch them; a client without threads (a test fake) is fine too
+    if workers <= 1 or len(calls) <= 1:
+        return [llm.chat(**c) for c in calls]
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(workers) as pool:
+        return list(pool.map(lambda c: llm.chat(**c), calls))
 
 
 def _json(text: str, opener: str):

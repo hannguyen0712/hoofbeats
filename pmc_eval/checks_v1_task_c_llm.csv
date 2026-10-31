@@ -1,0 +1,117 @@
+row_id,case_id,hpo_id,label,predicted_status,verdict,notes,versions
+D001,PMID31213928_patient,HP:0010848,EEG with spike-wave complexes (2.5-3.5 Hz),present,correct_not_in_gold,,v1:random
+D002,PMID36316122_case_presentation,HP:0033635,Post-capillary pulmonary hypertension,present,wrong_term,"""secondary"" pulmonary hypertension is not post-capillary; should be Pulmonary hypertension",v2:random
+D003,PMID34746378_Case_Presentation,HP:0020032,Hyperreflective retinal dots on OCT,present,wrong_term,"hyperreflective region on OCT, not retinal dots",v2:random
+D004,PMID33595912_Patient_1,HP:0003051,Enlarged metaphyses,present,correct_not_in_gold,,v1:random
+D005,PMID28821231_Family_I_patient_I,HP:0012649,Increased inflammatory response,present,wrong_term,"mastoid inflammation on MRI, not an immune ""increased inflammatory response""",v2:random
+D006,PMID29801479_proband,HP:0006292,Abnormality of dental eruption,absent,correct_not_in_gold,"awkward sentence, but dental eruption problems not observed",v1:random
+D007,PMID41488893_Case_report,HP:0010841,Multifocal epileptiform discharges,absent,wrong_status,epileptiform discharges are present; nothing says absent,v1:absent
+D008,PMID20371544_patient,HP:0001283,Bulbar palsy,present,correct_not_in_gold,bulbar weakness,v2:random
+D009,PMID19830075_Case_presentation,HP:5210414,Increased total T cell proportion,present,correct_not_in_gold,,v2:random
+D010,PMID31774634_XH601,HP:0007485,Absence of subcutaneous fat,present,correct_not_in_gold,,v1:random
+D011,PMID38622837_Case_presentation,HP:0100679,Lack of skin elasticity,present,correct_not_in_gold,"sign of dehydration, but present",v2:random
+D012,PMID30364145_proband,HP:0031936,Delayed ability to walk,present,unsure,walking at 18 months is borderline (upper limit of normal),v2:random
+D013,PMID38622837_Case_presentation,HP:0033705,Tearfulness,present,wrong_term,"""few tears"" is reduced tearing, the opposite of tearfulness",v2:random
+D014,PMID30364145_proband,HP:0011410,Caesarean section,present,correct_not_in_gold,,v1:random
+D015,PMID28821231_Family_I_patient_I,HP:0031190,Superficial dermal perivascular inflammatory infiltrate,present,wrong_term,"mastoid imaging finding, not a dermal biopsy finding",v1:random
+D016,PMID31774634_XH601,HP:0003027,Mesomelia,present,wrong_term,"""long and thin limbs"" is long/slender limbs, not mesomelia (short middle segments)",v2:random
+D017,PMID36136249_II_3_of_family_A,HP:0002342,Moderate intellectual disability,absent,correct_not_in_gold,"IQ 64 = mild ID, so moderate ID absent is true (mild ID itself not extracted)",v1:random
+D018,PMID41810194_proband,HP:0007281,Developmental stagnation,present,correct_not_in_gold,,v2:random
+D019,PMID27099744_Family_27,HP:0004887,Respiratory failure requiring assisted ventilation,present,correct_not_in_gold,,v1:random
+D020,PMID28841907_boy,HP:0003367,Abnormal femoral neck morphology,present,correct_not_in_gold,,v1:random
+D021,PMID30012084_older_sister,HP:0033740,Grade V vesicoureteral reflux,present,correct_not_in_gold,,v2:random
+D022,PMID24019847_patient,HP:0025335,Delayed ability to stand,present,correct_not_in_gold,standing with support at 15 months is delayed,v2:random
+D023,PMID30364145_proband,HP:0000750,Delayed speech and language development,present,correct_not_in_gold,first words at 2 years is delayed,v2:random
+D024,PMID36316122_case_presentation,HP:0011668,Bilateral superior vena cava with no bridging vein,present,correct_not_in_gold,,v1:random
+D025,PMID32047208_affected_individual,HP:0002361,Psychomotor deterioration,present,wrong_term,"""impairment"" is not deterioration/regression",v2:random
+D026,PMID19830075_Case_presentation,HP:0020112,Increased regulatory T cell proportion,present,wrong_term,"high CD25/CD45RO is activation/memory, not shown to be regulatory T cells",v2:random
+D027,PMID27099744_Family_27,HP:0008358,Hyperprolinemia,present,correct_not_in_gold,proline increased in urine and plasma,v1:random
+D028,PMID38622837_Case_presentation,HP:0100823,Genital hernia,family,correct_not_in_gold,"sister, family status correct",v1:random
+D029,PMID31213928_patient,HP:0007340,Lower limb muscle weakness,present,correct_not_in_gold,,v1:random
+D030,PMID30936877_8_year_old_girl,HP:0032584,Renal interstitial neutrophil infiltration,present,wrong_term,"skin biopsy infiltrate, not renal",v2:random
+D031,PMID41810194_proband,HP:0002421,Poor head control,present,wrong_status,head control at 3 months is normal; should not be present,v2:random
+D032,PMID36745799_Individual_V_2,HP:0002094,Dyspnea,present,wrong_term,"breathing off the ventilator is an improvement, not evidence of dyspnea",v1:random
+D033,PMID36745799_Individual_V_2,HP:0003327,Axial muscle weakness,present,correct_not_in_gold,,v2:random
+D034,PMID36595822_Case_presentation,HP:0002883,Hyperventilation,present,correct_not_in_gold,Kussmaul breathing,v2:random
+D035,PMID32600459_proband,HP:0034692,Elongated mitochondria,present,not_this_patient,"mouse cell (MEF) experiment, not the patient",v1:random
+D036,PMID31213928_patient,HP:0006844,Absent patellar reflexes,present,correct_not_in_gold,,v1:random
+D037,PMID29742735_proband,HP:0002745,Oral leukoplakia,family,correct_not_in_gold,"relatives with the mucocutaneous triad, family status correct",v1:random;v2:random
+D038,PMID29801479_proband,HP:0040195,Decreased head circumference,present,wrong_status,OFC at 10th centile is within normal; should not be present,v2:random
+D039,PMID29801479_proband,HP:0002905,Hyperphosphatemia,absent,correct_not_in_gold,,v2:absent
+D040,PMID36595822_Case_presentation,HP:0011731,Abnormality of circulating cortisol level,absent,correct_not_in_gold,,v1:absent
+D041,PMID26040326_eldest_sister_III_1,HP:0001507,Growth abnormality,absent,correct_not_in_gold,statement covers both sisters including the patient,v1:absent
+D042,PMID37771582_Case_description,HP:5210414,Increased total T cell proportion,present,unsure,"""prevalent T lymphocytes"" may be the normal majority, not an increase",v2:random
+D043,PMID30046498_proband,HP:0006560,Biliary hyperplasia,present,wrong_term,"ultrasound thickening of the biliary tract, not biliary hyperplasia",v2:random
+D044,PMID30936877_8_year_old_girl,HP:0031551,Reduced cell surface marker level,present,correct_not_in_gold,patient B cells showed impaired CD80 expression,v1:random
+D045,PMID30891318_case,HP:0025441,Achilles tendon calcification,absent,wrong_status,patient has Achilles tendon calcification; should be present,v1:absent
+D046,PMID39135939_patient,HP:0008163,Decreased circulating cortisol level,absent,correct_not_in_gold,,v2:random
+D047,PMID32047208_affected_individual,HP:0033454,Tube feeding,present,correct_not_in_gold,,v2:random
+D048,PMID28841907_boy,HP:0004463,Absent brainstem auditory responses,absent,correct_not_in_gold,,v2:random
+D049,PMID37734847_Patient_2,HP:0030545,Unaided visual acuity 1.0 LogMAR,present,wrong_term,"acuity 1.0 is likely decimal (normal), not 1.0 LogMAR",v2:random
+D050,PMID36745799_Individual_V_2,HP:0033708,Anti-3-hydroxy- 3-methylglutaryl-coA reductase antibody positivity,present,wrong_status,"text says antibodies were absent; should be absent, not present",v1:random
+D051,PMID19830075_Case_presentation,HP:0002849,Absence of lymph node germinal center,present,unsure,absent germinal center in a skin biopsy; term specifies lymph node,v1:random
+D052,PMID36595822_Case_presentation,HP:0001017,Anemic pallor,present,correct_not_in_gold,,v1:random
+D053,PMID37771582_Case_description,HP:0031378,Abnormal lymphocyte proliferation,absent,wrong_status,"proliferation was abnormal for PWM and ConA, so not absent",v2:absent
+D054,PMID32600459_proband,HP:0007641,Dyschromatopsia,present,correct_not_in_gold,,v1:random
+D055,PMID19830075_Case_presentation,HP:0031430,Oligoclonal T cell expansion,present,correct_not_in_gold,,v1:random
+D056,PMID27099744_Family_27,HP:0007033,Cerebellar dysplasia,present,correct_not_in_gold,,v1:random;v2:random
+D057,PMID36147795_Case_Presentation,HP:0002372,Normal interictal EEG,absent,correct_not_in_gold,"""normal EEG absent"" = abnormal EEG, which is true",v2:absent
+D058,PMID30538526_patient,HP:0045051,Decreased DLCO,present,wrong_term,"diffusion restriction on brain MRI, not lung DLCO",v2:random
+D059,PMID41488893_Case_report,HP:0012760,Reduced social responsiveness,present,wrong_term,"reduced responsiveness after resuscitation is reduced consciousness, not social",v1:random
+D060,PMID31774634_XH601,HP:0006243,Phalangeal dislocation,present,correct_not_in_gold,metacarpophalangeal joint dislocation,v2:random
+D061,PMID30538526_patient,HP:0002970,Genu varum,present,correct_not_in_gold,,v2:random
+D062,PMID36316122_case_presentation,HP:0001252,Hypotonia,absent,wrong_term,"""no gross dysmorphology"" says nothing about tone",v2:absent
+D063,PMID37734847_Patient_1,HP:0011675,Arrhythmia,present,correct_not_in_gold,,v1:random
+D064,PMID31597564_Case_presentation,HP:0011015,Abnormal blood glucose concentration,present,wrong_status,glucose 4.3 is within the reference range; should not be present,v1:random
+D065,PMID41488893_Case_report,HP:0010850,EEG with spike-wave complexes,present,correct_not_in_gold,,v1:random
+D066,PMID28821231_Family_I_patient_I,HP:0025066,Decreased mean corpuscular volume,present,correct_not_in_gold,,v1:random
+D067,PMID41810194_proband,HP:0002372,Normal interictal EEG,absent,correct_not_in_gold,"""normal EEG absent"" = abnormal EEG, which is true",v1:absent
+D068,PMID19830075_Case_presentation,HP:0100828,Increased total T cell count,present,wrong_term,"T-cell infiltration of skin, not increased blood T cell count",v2:random
+D069,PMID30012084_older_sister,HP:0001252,Hypotonia,present,correct_not_in_gold,,v1:random
+D070,PMID26739615_individual_3,HP:0001566,Widely-spaced maxillary central incisors,present,correct_not_in_gold,,v2:random
+D071,PMID35479066_index,HP:0005424,Absent specific antibody response,absent,wrong_status,"no antibody response despite vaccination: the finding is present, not absent",v1:absent
+D072,PMID30891318_case,HP:0001618,Dysphonia,family,correct_not_in_gold,"brother, family status correct",v2:random
+D073,PMID32309624_case_report,HP:0008855,Moderate postnatal growth retardation,present,wrong_term,"5th centile is low-normal; ""moderate growth retardation"" overstates it",v1:random
+D074,PMID37771582_Case_description,HP:0000988,Skin rash,present,unsure,"cutaneous GVHD usually presents as rash, but rash not stated",v1:random
+D075,PMID41488893_Case_report,HP:0001974,Increased total leukocyte count,absent,correct_not_in_gold,haematology normal,v1:absent
+D076,PMID37771582_Case_description,HP:5210140,Bacterial sepsis,absent,wrong_term,"""suggested a bacterial infection"" is infection, not evidence about sepsis",v2:absent
+D077,PMID34746378_Case_Presentation,HP:0030469,Abnormal dark-adapted electroretinogram,present,correct_not_in_gold,,v1:random
+D078,PMID30936877_8_year_old_girl,HP:5210140,Bacterial sepsis,present,wrong_term,"severe bacterial infections, not specifically sepsis",v1:random
+D079,PMID31597564_Case_presentation,HP:0033408,Elevated circulating acetoacetic acid concentration,present,correct_not_in_gold,,v2:random
+D080,PMID36595822_Case_presentation,HP:0030828,Wheezing,present,correct_not_in_gold,,v2:random
+D081,PMID29742735_proband,HP:0007559,Localized epidermolytic hyperkeratosis,present,wrong_term,"hyperkeratosis with acantholysis; ""epidermolytic"" is not stated",v1:random
+D082,PMID36745799_Individual_V_2,HP:0010547,Muscle flaccidity,present,correct_not_in_gold,group statement that includes this patient,v2:random
+D083,PMID28841907_boy,HP:0001518,Small for gestational age,absent,wrong_term,"weight at presentation, not birth weight; SGA cannot be judged from it",v2:absent
+D084,PMID28841907_boy,HP:0034323,Reduced circulating growth hormone concentration,absent,correct_not_in_gold,peak GH 16.4 ng/ml is normal,v2:absent
+D085,PMID27275012_Patient_2,HP:0007034,Generalized hyperreflexia,present,wrong_status,"""normal tone and deep tendon reflexes"": not hyperreflexia",v1:random
+D086,PMID36941667_Proband_M035,HP:0001999,Abnormal facial shape,present,correct_not_in_gold,facial dysmorphism,v2:random
+D087,PMID27099744_Family_27,HP:0031319,Cardiomyocyte hypertrophy,present,wrong_term,"echo shows a hypertrophic myocardium (ventricular hypertrophy), not a histology finding",v1:random
+D088,PMID36147795_Case_Presentation,HP:0000252,Microcephaly,absent,wrong_status,microcephaly is listed among the patient's signs; should be present,v2:absent
+D089,PMID31213928_patient,HP:0033580,Compound motor action potential abnormality,absent,correct_not_in_gold,,v1:absent
+D090,PMID36136249_II_2_of_family_B,HP:0000750,Delayed speech and language development,present,wrong_term,"slight phonetic problems = articulation, not delayed speech",v2:random
+D091,PMID36136249_II_3_of_family_A,HP:0007141,Sensorimotor neuropathy,present,correct_not_in_gold,,v1:random;v2:random
+D092,PMID39135939_patient,HP:0033454,Tube feeding,present,correct_not_in_gold,,v1:random
+D093,PMID31213928_patient,HP:0003477,Peripheral axonal neuropathy,present,unsure,"neuropathic EMG pattern; ""axonal"" not explicitly stated",v1:random
+D094,PMID36745799_Individual_V_2,HP:0009053,Distal lower limb muscle weakness,absent,correct_not_in_gold,,v2:absent
+D095,PMID26040326_eldest_sister_III_1,HP:0000707,Abnormality of the nervous system,absent,correct_not_in_gold,covers both siblings including the patient,v1:absent
+D096,PMID36745799_Individual_V_2,HP:0032355,Decreased peak expiratory flow,present,correct_not_in_gold,"still only 22% of predicted, so decreased",v2:random
+D097,PMID30538526_patient,HP:0008936,Axial hypotonia,present,correct_not_in_gold,,v1:random
+D098,PMID28821231_Family_I_patient_I,HP:0001284,Areflexia,present,correct_not_in_gold,,v1:random
+D099,PMID30891318_case,HP:0002216,Premature graying of hair,family,correct_not_in_gold,"brother, family status correct",v2:random
+D100,PMID28821231_Family_I_patient_I,HP:0000028,Cryptorchidism,family,wrong_term,"sisters with ""similar phenotypes"" says nothing about cryptorchidism",v1:random
+D101,PMID28821231_Family_I_patient_I,HP:0002311,Incoordination,present,not_this_patient,"""she"" is a sister; the patient is male",v2:random
+D102,PMID31213928_patient,HP:0007944,Intermittent microsaccadic pursuits,present,wrong_term,"""intermittent photic stimulation"" is an EEG procedure, not an eye-movement finding",v1:random
+D103,PMID29801479_proband,HP:0033257,Delayed ability to walk with support,present,correct_not_in_gold,,v2:random
+D104,PMID19830075_Case_presentation,HP:0032184,Increased memory T cell proportion,present,correct_not_in_gold,,v1:random;v2:random
+D105,PMID34746378_Case_Presentation,HP:0007204,Diffuse white matter abnormalities,present,correct_not_in_gold,,v1:random
+D106,PMID36147795_Case_Presentation,HP:0001871,Abnormality of blood and blood-forming tissues,absent,correct_not_in_gold,,v2:random
+D107,PMID36136249_II_3_of_family_A,HP:0002483,Bulbar signs,present,correct_not_in_gold,,v2:random
+D108,PMID31213928_patient,HP:0003547,Shoulder girdle muscle weakness,present,correct_not_in_gold,,v1:random
+D109,PMID27099744_Family_27,HP:0001629,Ventricular septal defect,absent,not_this_patient,the VSD belongs to the mother,v2:absent
+D110,PMID30012084_older_sister,HP:0002421,Poor head control,present,correct_not_in_gold,,v2:random
+D111,PMID30012084_older_sister,HP:0008422,Vertebral wedging,present,wrong_term,"flattened/indented vertebral bodies is platyspondyly-like, not wedging",v1:random
+D112,PMID36941667_Proband_M035,HP:0002031,Abnormal esophagus morphology,absent,wrong_term,normal echocardiography says nothing about the esophagus,v1:absent
+D113,PMID30012084_older_sister,HP:0002198,Dilated fourth ventricle,present,wrong_status,it is the younger sister's finding; should be family,v1:random
+D114,PMID27099744_Family_27,HP:0001518,Small for gestational age,present,wrong_status,835 g at −0.5 SDS is appropriate for gestational age; should be absent,v2:random
+D115,PMID29801479_proband,HP:0020110,Bone fracture,present,correct_not_in_gold,,v1:random
+D116,PMID36136249_II_2_of_family_B,HP:0001328,Specific learning disability,present,unsure,"general learning difficulties (IQ 77); ""specific"" learning disability not stated",v2:random

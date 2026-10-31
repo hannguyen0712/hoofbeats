@@ -117,6 +117,35 @@ reordering can't change that case's score.
 
 Results viewer: `python -m http.server 8000 --bind 127.0.0.1`, then open `localhost:8000/docs/`.
 
+### How to run Stage 1 (patient input to findings, then ranking)
+
+Stage 1 turns a case file (`examples/*.json`: note text, labs, vitals, image findings) into HPO findings, each with
+its quote, readers and grounding. Its configuration is frozen in `configs/stage1_v1.json` (rules + numbers + LLM
+reader, Qwen2.5-7B-Instruct; tag `stage1-final-dev`).
+
+**Locally, rules + numbers only** (no GPU, no model). `diagnose` says it is running without the LLM reader:
+
+```bash
+python -m hoofbeats --common none diagnose examples/marfan_note.json examples/heldout/dm1_note.json --out results
+# per-case JSON in results/diagnose/<case_id>.json
+```
+
+**Full Stage 1 with the LLM reader, on ASU Sol.** The model runs in a vLLM server on the same GPU node, bound to
+127.0.0.1; hoofbeats refuses any other endpoint for reading patient text. One-time setup and copying are in
+[docs/SOL.md](docs/SOL.md). Then, from the repo root on Sol:
+
+```bash
+sbatch scripts/sol_diagnose.sbatch        # all example cases -> results/diagnose/
+# or inside an allocation (salloc ... -G a100:1), any cases:
+bash scripts/sol_run.sh --common none diagnose examples/marfan_note.json --out results
+```
+
+`scripts/sol_run.sh` starts vLLM, waits for it, runs the command with `--llm-endpoint` set, and stops the server.
+Replies are cached per model in `results/llm_cache/`; after copying that folder back, the same command runs on a
+laptop without a GPU: `python -m hoofbeats --common none --llm-offline --llm-cache results/llm_cache diagnose ...`
+(needs `pip install -r requirements-llm.txt` for the SapBERT linker). Any local OpenAI-compatible server works the
+same way with `--llm-endpoint http://127.0.0.1:<port>/v1/chat/completions`.
+
 ## Current numbers
 
 500 Phenopacket cases, 290 diseases (357 evaluable), HPO 2026-09-01, seed 13.

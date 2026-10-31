@@ -4,10 +4,13 @@ from __future__ import annotations
 import csv
 import json
 import re
+import sys
 import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
 from collections import defaultdict
+from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
@@ -95,13 +98,68 @@ def match_icd(code: str, icd_map) -> set[str]:
 
 
 # note extraction
-NEG = ["no", "not", "denies", "denied", "without", "negative for", "absence of", "free of",
-       "no evidence of", "no history of", "never", "ruled out"]
-NEG_AFTER = ["was ruled out", "is ruled out", "not seen", "is absent", "was absent", "resolved"]
-HEDGE = ["possible", "possibly", "probable", "suspected", "rule out", "r o", "concern for", "cannot exclude"]
-STOP_SCOPE = {"but", "however", "although", "except"}
+RESOURCES = Path(__file__).parent / "resources"
+
+
+def resource(name: str) -> list[dict]:
+    # tab-separated table from hoofbeats/resources; lines starting with "#" are comments
+    lines = [l for l in (RESOURCES / name).read_text(encoding="utf-8").splitlines() if l.strip() and not l.startswith("#")]
+    return list(csv.DictReader(lines, delimiter="\t"))
+
+
 FAMILY = {"mother", "father", "brother", "sister", "sibling", "aunt", "uncle", "grandmother",
-          "grandfather", "cousin", "maternal", "paternal", "family"}
+          "grandfather", "cousin", "maternal", "paternal", "family", "son", "daughter", "child", "children",
+          "parent", "grandparent", "niece", "nephew", "twin", "relative", "mom", "dad", "sib"}
+SECTION_TYPES = {   # heading -> section type (case-insensitive; a heading may continue, e.g. "Family history of")
+    "family": ("fhx", "fh", "family hx", "family history", "family"),
+    "past": ("pmh", "psh", "hx", "past medical history", "past surgical history", "past history",
+             "medical history", "surgical history"),
+    "social": ("shx", "sh", "social", "social history", "social hx"),
+    "hpi": ("hpi", "history of present illness"),
+    "cc": ("cc", "chief complaint"),
+    "ros": ("ros", "review of systems"),
+    "exam": ("exam", "pe", "physical exam", "physical examination", "examination"),
+    "labs": ("labs", "lab", "laboratory", "laboratory data"),
+    "imaging": ("imaging", "findings", "radiology"),
+    "assessment": ("assessment", "plan", "a/p", "assessment and plan", "impression"),
+}
+LINE_HEADING = re.compile(r"^[ \t]*([A-Za-z][A-Za-z /&\-]{1,40}):", re.M)
+CLAUSE_WORDS = {"but", "while"}
+TEST_WORDS = {"panel", "panels", "test", "tests", "testing", "screen", "screening", "level", "levels", "titer", "titers",
+              "titre", "titres", "serology", "serologies", "culture", "cultures", "study", "studies", "assay", "assays",
+              "workup", "antibody", "antibodies", "pcr", "swab"}   # "hepatitis panel" names a test, not a finding
+RESULT_WORDS = {"elevated", "increased", "decreased", "low", "high", "positive", "abnormal", "raised"}   # ... unless a result is given
+
+
+def section_type(heading: str) -> str:
+    h = " ".join(heading.lower().split())
+    for typ, names in SECTION_TYPES.items():
+        if any(h == n or h.startswith(n + " ") for n in names):
+            return typ
+    return "other"
+
+
+def _unknown_heading_ok(name: str) -> bool:
+    # an unknown heading: 3+ characters, at most 4 words, no family word or "pt" ("Mother with seizures   Pt:" is text)
+    words = [_norm(w) for w in re.findall(r"[A-Za-z]+", name)]
+    return len(name) >= 3 and len(words) <= 4 and not any(w in FAMILY or w in ("pt", "patient") for w in words)
+
+
+def sections(text: str) -> list[tuple[int, int, str, str, tuple[int, int] | None]]:
+    # (content start, end, heading, type, heading span); known headings (CC, FH, PE, ...) at any length,
+    # unknown ones only if _unknown_heading_ok; a heading always starts its line
+    heads = []
+    for m in LINE_HEADING.finditer(text):
+        name = m.group(1).strip()
+        typ = section_type(name)
+        if typ != "other" or _unknown_heading_ok(name):
+            heads.append((m.start(1), m.end(), name.lower(), typ, (m.start(1), m.start(1) + len(name))))
+    out, prev = [], (0, "", "", None)
+    for h0, h1, name, typ, span in heads:
+        out.append((prev[0], h0, prev[1], prev[2], prev[3]))
+        prev = (h1, name, typ, span)
+    out.append((prev[0], len(text), prev[1], prev[2], prev[3]))
+    return [x for x in out if x[1] > x[0]]
 SKIP_SECTIONS = ("allergies", "medications", "discharge medications", "medications on admission",
                  "discharge instructions", "followup instructions", "discharge disposition", "facility")
 DX_SECTIONS = ("discharge diagnos", "final diagnos", "principal diagnos", "primary diagnos",
@@ -115,58 +173,411 @@ def tokens(text: str) -> list[str]:
             for t in re.findall(r"[a-z0-9]+", text.lower())]
 
 
-def _has(window, phrases):
-    return any(tuple(window[i:i + len(p)]) == p for p in phrases for i in range(len(window)))
+def _phrase_index(phrases) -> dict[str, list[tuple[str, ...]]]:
+    # first token -> token tuples, longest first
+    idx = defaultdict(list)
+    for p in phrases:
+        t = tuple(tokens(p))
+        if t:
+            idx[t[0]].append(t)
+    for v in idx.values():
+        v.sort(key=len, reverse=True)
+    return idx
+
+
+def _find(norms: list[str], idx) -> list[tuple[int, int]]:
+    # (start, end) token spans of every phrase in idx, longest match at each position
+    out = []
+    for k, w in enumerate(norms):
+        p = next((p for p in idx.get(w, ()) if tuple(norms[k:k + len(p)]) == p), None)
+        if p:
+            out.append((k, k + len(p)))
+    return out
+
+
+CUES = defaultdict(list)
+for _row in resource("negation_terms.tsv"):
+    CUES[_row["type"]].append(_row["phrase"])
+CUE_INDEX = {k: _phrase_index(v) for k, v in CUES.items()}
+
+
+def _norm(word: str) -> str:
+    # same normalisation as tokens(): lower case, trailing plural "s" dropped
+    w = word.lower()
+    return w[:-1] if len(w) > 4 and w.endswith("s") and not w.endswith(("ss", "is", "us")) else w
+
+
+WORD = re.compile(r"[A-Za-z0-9]+")
+NO_SPLIT = {"v", "vs", "dr", "pt", "approx", "e.g", "i.e", "etc", "mr", "mrs", "ms", "st", "fig"}
+BOUNDARY = re.compile(r"(?<=[.;!?])\s+|\n\s*\n|\n(?=[ \t]*(?:[-*•]|\d{1,2}[.)])\s)")
+ORDER = {Status.PRESENT: 3, Status.ABSENT: 2, Status.UNCERTAIN: 1, Status.FAMILY: 0}
+
+
+def sentence_spans(text: str, start: int = 0, end: int | None = None) -> list[tuple[int, int]]:
+    # sentence offsets in text; no split after common abbreviations ("v.", "Dr.", "e.g.") or "No." before a number,
+    # and a new sentence at each list item
+    end = len(text) if end is None else end
+    cuts, s = [], start
+    for m in BOUNDARY.finditer(text, start, end):
+        if text[m.start() - 1] == "." and not re.search(r"\n\s*\n", m.group()):
+            w = re.search(r"(?:^|[\s(])([A-Za-z.]+)\.$", text[s:m.start()])    # a free-standing word, not "N/V."
+            w = w.group(1).lower() if w else ""
+            if w in NO_SPLIT or (w == "no" and text[m.end():m.end() + 1].isdigit()):
+                continue
+        cuts.append((s, m.start()))
+        s = m.end()
+    cuts.append((s, end))
+    out = []
+    for a, b in cuts:
+        piece = text[a:b]
+        if piece.strip():
+            out.append((a + len(piece) - len(piece.lstrip()), b - len(piece) + len(piece.rstrip())))
+    return out
+
+
+@dataclass
+class Mention:
+    # one matched phrase: text[start:end] == quote
+    hpo_id: str
+    status: Status
+    quote: str
+    start: int
+    end: int
+    sentence: tuple[int, int]
+    section: str = ""
+    cue: tuple[str, int, int] | None = None   # status cue word and its offsets
+    link: tuple[str, str] = ("exact_label", "")   # (method, matched label or synonym)
+    grounding: str = "strong"
+    disease_mention: bool = False   # the words are also a knowledge-base disease name
+
+
+GROUNDING = {"exact_label": "strong", "synonym:exact": "strong", "synonym:related": "weak",
+             "synonym:layperson": "supported", "negated_word": "supported", "lemma": "supported"}
+LEVEL = {"strong": 3, "supported": 2, "weak": 1}
+SPACY_MODEL = "en_core_web_sm"
+
+
+@lru_cache(maxsize=1)
+def _spacy():
+    # spaCy lemmatizer, loaded once; None (lemma matching off) if spaCy or the model is missing
+    try:
+        import spacy
+        return spacy.load(SPACY_MODEL, exclude=["parser", "ner"])
+    except (ImportError, OSError) as e:
+        print(f"[extract] lemma matching off ({type(e).__name__}: {e})", file=sys.stderr)
+        return None
+
+
+LEMMA_POS = {"NOUN", "ADJ"}    # text words matched by lemma; verbs never ("jumped" is not Jumping)
+
+
+def _lemma_map(doc, pos: set[str] | None = None) -> dict[int, tuple[int, str]]:
+    # character start -> (end, lemma) for every spaCy token (only these parts of speech, if given)
+    return {t.idx: (t.idx + len(t.text), t.lemma_.lower()) for t in doc if pos is None or t.pos_ in pos}
+
+
+def _lemmas(words, lmap) -> tuple[str, ...]:
+    # one lemma per WORD token; a token spaCy splits differently keeps its normal form
+    return tuple(lmap[a][1] if a in lmap and lmap[a][0] == b else _norm(w) for w, a, b in words)
+
+
+LIST_DELIM = re.compile(r"[,;]|\b(?:and|or)\b", re.I)
+ORDINALS = {"1st": "first", "2nd": "second", "3rd": "third", "4th": "fourth"}   # matched as words ("1st degree AV block")
+INLINE_LABEL = re.compile(r"(?<![A-Za-z0-9/])([A-Z][A-Za-z/&\-]*(?: [A-Za-z][A-Za-z/&\-]*){0,2}):(?!\d)")   # "LUNGS:", "Heart:"
+
+
+def grounding_of(method: str) -> str:
+    return GROUNDING.get(method) or ("supported" if method.startswith("abbreviation:") else "weak")
+
+
+class Abbreviations:
+    # resources/abbreviations.tsv: whole-token matches, optional context words in the same sentence
+    def __init__(self, rows):
+        self.table = {True: defaultdict(list), False: defaultdict(list)}    # case-sensitive? -> abbr -> rows
+        self.ambiguous = {True: set(), False: set()}       # several rows, or other common meanings
+        for r in rows:
+            abbr, cs = r["abbr"].strip(), any(ch.isupper() for ch in r["abbr"])
+            key = abbr if cs else abbr.lower()
+            ctx = [c for c in (r.get("context") or "").lower().split("|") if c]
+            self.table[cs][key].append((r["expansion"].strip(), ctx))
+            if (r.get("other_meanings") or "").strip() or len(self.table[cs][key]) > 1:
+                self.ambiguous[cs].add(key)
+        # capitalised abbreviations may take a plural "s" (AMLs, LFTs)
+        self.rx = {cs: re.compile(r"(?<![A-Za-z0-9])(" + "|".join(sorted(map(re.escape, t), key=len, reverse=True))
+                                  + (r")s?(?![A-Za-z0-9])" if cs else r")(?![A-Za-z0-9])"), 0 if cs else re.I)
+                   for cs, t in self.table.items() if t}
+
+    def find(self, text: str, s: int, e: int, words: set[str]) -> list[tuple[int, int, str, bool]]:
+        # (start, end, expansion, weak) in text[s:e], longest first, no overlaps; weak = a best guess:
+        # contexts of several expansions match, or an ambiguous abbreviation sits alone in a comma-separated list
+        # ("IVH, CP, MR, congenital cardiac defects") with no context word in its own list item
+        fits = lambda ctx, ws: any(w == c or (c.endswith("*") and w.startswith(c[:-1])) for c in ctx for w in ws)
+        hits = []
+        for cs, rx in self.rx.items():
+            for m in rx.finditer(text, s, e):
+                key = m.group(1) if cs else m.group(1).lower()
+                rows = self.table[cs][key]
+                matched = [(x, ctx) for x, ctx in rows if ctx and fits(ctx, words)]
+                row = (matched or [(x, ctx) for x, ctx in rows if not ctx] or [None])[0]
+                if not row:
+                    continue
+                weak = len(matched) > 1
+                if key in self.ambiguous[cs] and not weak:
+                    left = max([s] + [d.end() for d in LIST_DELIM.finditer(text, s, m.start())])
+                    right = next((d.start() for d in LIST_DELIM.finditer(text, m.end(), e)), e)
+                    in_list = any(d.group().strip() in ",;" for d in LIST_DELIM.finditer(text, max(s, left - 1), min(e, right + 1)))
+                    own = {w.lower() for w in WORD.findall(text[left:right])}
+                    weak = in_list and not (row[1] and fits(row[1], own))
+                hits.append((m.start(), m.end(), row[0], weak))
+        out, last = [], -1
+        for h in sorted(hits, key=lambda h: (h[0], h[0] - h[1])):
+            if h[0] >= last:
+                out.append(h)
+                last = h[1]
+        return out
+
+
+class LemmaIndex:
+    # HPO labels by lemma sequence; label lemmas are cached next to hp.obo (.cache/)
+    def __init__(self, nlp, entries, ont: Ontology):
+        self.nlp, self.index = nlp, defaultdict(list)
+        cache = Path(getattr(ont, "path", ".")).parent / ".cache" / re.sub(
+            r"[^A-Za-z0-9.]+", "-", f"lemmas-{ont.version}-{nlp.meta['name']}-{nlp.meta['version']}.json")
+        known = json.loads(cache.read_text()) if cache.exists() else {}
+        todo = sorted({e[3] for e in entries} - known.keys())
+        for label, doc in zip(todo, nlp.pipe(todo, batch_size=2000)):
+            words = [(m.group(), m.start(), m.end()) for m in WORD.finditer(label)]
+            known[label] = list(_lemmas(words, _lemma_map(doc)))
+        if todo:
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            cache.write_text(json.dumps(known))
+        for toks, h, method, label in entries:
+            lem = tuple(known[label])
+            if lem and lem != toks:
+                self.index[lem[0]].append((lem, h, method, label))
+        for v in self.index.values():
+            v.sort(key=lambda x: (-len(x[0]), GROUNDING[x[2]] != "strong"))
+
+    def text_lemmas(self, text: str) -> dict[int, tuple[int, str]]:
+        return _lemma_map(self.nlp(text), LEMMA_POS)
 
 
 class Extractor:
-    # offline HPO matcher with negation, family and uncertainty rules
+    # offline HPO matcher with negation, family and uncertainty rules; every mention keeps its offsets
 
-    def __init__(self, ont: Ontology):
+    def __init__(self, ont: Ontology, lemmas: bool = True, abbreviations: bool = True):
+        # lemmas: also match on spaCy lemmas (wheezes ~ wheezing); off if spaCy is not installed
+        # abbreviations: expand resources/abbreviations.tsv before matching (spans stay on the original text)
+        self.ont = ont
+        self.abbr = Abbreviations(resource("abbreviations.tsv")) if abbreviations else None
+        block = {(r["hpo_id"].strip(), r["phrase"].strip().lower()) for r in resource("blocklist.tsv")}
         self.index, self.vocab = defaultdict(list), set()
         for t in ont.terms.values():
             if t.obsolete or not ont.is_phenotype(t.id):
                 continue
-            for label in (t.name, *t.synonyms):
+            for label, method in ((t.name, "exact_label"), *((s, "synonym:exact") for s in t.synonyms),
+                                  *((s, f"synonym:{kind}") for s, kind in t.extra_synonyms)):
                 toks = tuple(tokens(label))
                 if toks and len(" ".join(toks)) >= 4:
-                    self.vocab.update(toks)
-                    self.index[toks[0]].append((toks, t.id))
-        for v in self.index.values():
-            v.sort(key=lambda x: -len(x[0]))
-        self.neg, self.neg_after, self.hedge = ([tuple(tokens(p)) for p in ps] for ps in (NEG, NEG_AFTER, HEDGE))
+                    if method in ("exact_label", "synonym:exact"):   # de-labelling never masks these words
+                        self.vocab.update(toks)
+                    if not {(t.id, label.lower()), (t.id, "*"), ("*", label.lower())} & block:
+                        self.index[toks[0]].append((toks, t.id, method, label))
+        for v in self.index.values():   # longest first; for the same words, exact labels and EXACT synonyms first
+            v.sort(key=lambda x: (-len(x[0]), GROUNDING[x[2]] != "strong"))
+        self.negated = defaultdict(list)    # "afebrile" -> Fever absent
+        for row in resource("negated_words.tsv"):
+            ids = [h for h in (ont.resolve(x.strip()) for x in row["hpo_ids"].split(";")) if h]
+            t = tuple(tokens(row["phrase"]))
+            if ids and t:
+                self.negated[t[0]].append((t, ids, row["phrase"]))
+        nlp = _spacy() if lemmas else None
+        self.lemma = LemmaIndex(nlp, [x for v in self.index.values() for x in v], ont) if nlp else None
+
+    def analyze(self, text: str, diseases: DiseaseNames | None = None) -> tuple[list[Mention], list[dict]]:
+        # findings and, if diseases is given, disease-name mentions; findings inside a disease name that is
+        # not also an HPO term are dropped, otherwise they are kept and flagged
+        out, dm = [], []
+        lmap = self.lemma.text_lemmas(text) if self.lemma and text.strip() else {}
+        for start, end, name, typ, head in sections(text):
+            if name.startswith(SKIP_SECTIONS):
+                continue
+            for s, e in sentence_spans(text, start, end):
+                ms, ds = self._sentence(text, s, e, typ, head, lmap, diseases)
+                out += ms
+                dm += ds
+        return out, dm
+
+    def mentions(self, text: str) -> list[Mention]:
+        return self.analyze(text)[0]
+
+    def _match(self, norms, lems, raws, i):
+        # longest label at token i: surface words first, lemmas only if they match more words;
+        # a one-word label needs an inflected text word ("wheezes" ~ Wheezing, but a bare "tear" is not Tearing)
+        hit = next((x for x in self.index.get(norms[i], ()) if tuple(norms[i:i + len(x[0])]) == x[0]), None)
+        if self.lemma:
+            lhit = next((x for x in self.lemma.index.get(lems[i], ()) if tuple(lems[i:i + len(x[0])]) == x[0]
+                         and (len(x[0]) > 1 or raws[i] != lems[i])), None)
+            if lhit and (not hit or len(lhit[0]) > len(hit[0])):
+                return lhit, ("lemma", lhit[3])
+        return hit, (hit[2], hit[3]) if hit else None
+
+    def _words(self, text: str, s: int, e: int):
+        # (word, start, end, expansion or None, weak guess); an abbreviation becomes its expansion's words, all with its span
+        words = [(m.group(), m.start(), m.end()) for m in WORD.finditer(text, s, e)]
+        found = self.abbr.find(text, s, e, {w.lower() for w, _, _ in words}) if self.abbr else []
+        out, j, done = [], 0, set()
+        for w, a, b in words:
+            while j < len(found) and found[j][1] <= a:
+                j += 1
+            if j < len(found) and found[j][0] <= a < found[j][1]:
+                if j not in done:
+                    done.add(j)
+                    out += [(x, found[j][0], found[j][1], found[j][2], found[j][3]) for x in WORD.findall(found[j][2])]
+                continue
+            out.append((ORDINALS.get(w.lower(), w), a, b, None, False))
+        return out
+
+    def _sentence(self, text: str, s: int, e: int, sec: str, head, lmap=None, diseases=None):
+        words = self._words(text, s, e)
+        toks = [(_norm(w[0]), w[1], w[2]) for w in words]
+        lems = tuple(_norm(w[0]) if w[3] or w[0] in ORDINALS.values() else l
+                     for w, l in zip(words, _lemmas([w[:3] for w in words], lmap or {})))
+        raws, expanded, guessed = [w[0].lower() for w in words], [w[3] for w in words], [w[4] for w in words]
+        norms, out, i = [t[0] for t in toks], [], 0
+        # a "LABEL:" inside the sentence starts a new segment ("no JVD/HJR    LUNGS: rhales, wheezes")
+        labels = {k for m in INLINE_LABEL.finditer(text, s, e) if m.start() > s
+                  for k in [next((k for k, t in enumerate(toks) if t[1] >= m.start(1)), None)] if k}
+        clause, c = [], 0    # family words only reach their own clause (split at , ; but while "and pt", labels)
+        for k, (w, a, _) in enumerate(toks):
+            if k and (re.search(r"[,;]", text[toks[k - 1][2]:a]) or w in CLAUSE_WORDS or k in labels
+                      or (w == "and" and k + 1 < len(toks) and toks[k + 1][0] in ("pt", "patient"))):
+                c += 1
+            clause.append(c)
+        cues = self._cues(norms)
+        cues["stop"] = sorted(set(cues["stop"]) | labels)     # negation and hedge scopes end at a new label
+        dspans, dm = [], []         # disease names: (start, end, also an HPO term?)
+        for k, n, ids, name, is_hpo in (diseases.find(norms) if diseases else []):
+            a, b = toks[k][1], toks[k + n - 1][2]
+            dspans.append((a, b, is_hpo))
+            st, cue = self._status(text, toks, norms, clause, cues, k, n, sec, head)
+            if st is not None:
+                dm.append({"name": name, "disease_ids": ids, "quote": text[a:b], "start": a, "end": b, "status": st.value,
+                           "status_cue": dict(zip(("word", "start", "end"), cue)) if cue else None, "also_hpo": is_hpo})
+        while i < len(toks):
+            hit, link = self._match(norms, lems, raws, i)
+            neg = None if hit else next((x for x in self.negated.get(norms[i], ()) if tuple(norms[i:i + len(x[0])]) == x[0]), None)
+            if not hit and not neg:
+                i += 1
+                continue
+            n = len((hit or neg)[0])
+            # names a test ("hepatitis panel"), unless a result word is near: up to 2 words before, inside the term,
+            # or up to 2 words after the test word ("elevated D dimer test", "hepatitis panel positive")
+            if (hit and i + n < len(raws) and raws[i + n] in TEST_WORDS
+                    and not RESULT_WORDS & set(raws[max(0, i - 2):i + n] + raws[i + n + 1:i + n + 3])):
+                i += n
+                continue
+            a, b = toks[i][1], toks[i + n - 1][2]
+            exp = next((x for x in expanded[i:i + n] if x), None)
+            if hit and exp:
+                link = (f"abbreviation:{exp}", link[1])
+            st, cue = self._status(text, toks, norms, clause, cues, i, n, sec, head)
+            if neg:       # the word itself says absent; a relative's "afebrile" is not about the patient
+                if st != Status.FAMILY:
+                    out += [Mention(h, Status.ABSENT, text[a:b], a, b, (s, e), sec, (text[a:b], a, b),
+                                    ("negated_word", neg[2]), GROUNDING["negated_word"]) for h in neg[1]]
+            elif st is not None:
+                inside = [x for x in dspans if x[0] <= a and b <= x[1]]
+                if not inside or any(x[2] for x in inside):     # dropped inside a disease name unless it is also HPO
+                    # the weaker of the label kind (a RELATED synonym is weak) and the way it matched (lemma, abbreviation;
+                    # an abbreviation read as a best guess is weak)
+                    level = min(GROUNDING[hit[2]], grounding_of(link[0]), "weak" if any(guessed[i:i + n]) else "strong",
+                                key=LEVEL.get)
+                    out.append(Mention(hit[1], st, text[a:b], a, b, (s, e), sec, cue, link, level, bool(inside)))
+            i += n
+        return out, dm
+
+    @staticmethod
+    def _cues(norms: list[str]) -> dict:
+        # NegEx/ConText cues in one sentence; cues inside a pseudo-cue ("no change") do not count
+        pseudo = {k for a, b in _find(norms, CUE_INDEX["pseudo"]) for k in range(a, b)}
+        found = {t: [(a, b) for a, b in _find(norms, CUE_INDEX[t]) if a not in pseudo] for t in ("pre", "post", "hedge")}
+        found["stop"] = sorted(a for t in ("contrast", "termination") for a, _ in _find(norms, CUE_INDEX[t]))
+        return found
+
+    def _status(self, text, toks, norms, clause, cues, i, n, sec, head):
+        # family (section or a family word in the clause) > nearest hedge or negation cue in scope > present;
+        # None = a relative's finding that is negated ("no family history of ..."), which is dropped
+        span = lambda a, b: (text[toks[a][1]:toks[b - 1][2]], toks[a][1], toks[b - 1][2])
+        blocked = lambda lo, hi: any(lo <= t < hi for t in cues["stop"])
+        before = [(b, a, kind) for kind in ("pre", "hedge") for a, b in cues[kind] if b <= i and not blocked(b, i)]
+        after = [(a, b) for a, b in cues["post"] if i + n <= a <= i + n + 3 and not blocked(i + n, a)]
+        near = max(before, default=None)
+        negated = (near and near[2] == "pre") or after
+        if sec == "family" or any(w in FAMILY and clause[k] == clause[i] for k, w in enumerate(norms)):
+            if negated:
+                return None, None
+            if sec == "family":
+                return Status.FAMILY, (text[head[0]:head[1]], *head)
+            k = next(k for k, w in enumerate(norms) if w in FAMILY and clause[k] == clause[i])
+            return Status.FAMILY, span(k, k + 1)
+        if near:
+            return (Status.UNCERTAIN if near[2] == "hedge" else Status.ABSENT), span(near[1], near[0])
+        if after:
+            return Status.ABSENT, span(*after[0])
+        return Status.PRESENT, None
 
     def findings(self, text: str, source="note") -> list[Finding]:
-        best, order = {}, {Status.PRESENT: 3, Status.ABSENT: 2, Status.UNCERTAIN: 1, Status.FAMILY: 0}
-        heads = [(m.start(), m.end(), m.group(1).lower()) for m in HEADING.finditer(text)]
-        bounds = [(0, 0, "")] + heads + [(len(text), len(text), "")]
-        for (_, start, sec), (nxt, _, _) in zip(bounds, bounds[1:]):
-            if sec.startswith(SKIP_SECTIONS):
-                continue
-            for sent in re.split(r"(?<=[.;!?])\s+|\n\s*\n", text[start:nxt]):
-                toks, i = tokens(sent), 0
-                while i < len(toks):
-                    hit = next(((c, h) for c, h in self.index.get(toks[i], ()) if tuple(toks[i:i + len(c)]) == c), None)
-                    if not hit:
-                        i += 1
-                        continue
-                    pre = toks[max(0, i - 6):i]
-                    for k in range(len(pre) - 1, -1, -1):
-                        if pre[k] in STOP_SCOPE:
-                            pre = pre[k + 1:]
-                            break
-                    if sec.startswith("family") or FAMILY & set(toks):
-                        st = Status.FAMILY
-                    elif _has(pre, self.hedge):
-                        st = Status.UNCERTAIN
-                    elif _has(pre, self.neg) or _has(toks[i + len(hit[0]):i + len(hit[0]) + 4], self.neg_after):
-                        st = Status.ABSENT
-                    else:
-                        st = Status.PRESENT
-                    if hit[1] not in best or order[st] > order[best[hit[1]].status]:
-                        best[hit[1]] = Finding(hit[1], st, source, sent.strip()[:300])
-                    i += len(hit[0])
-        return list(best.values())
+        # one finding per term for the patient (present > absent > uncertain) and, separately, one for the family;
+        # evidence is the sentence (MIMIC, MedPix and the LLM readers use this)
+        best = {}
+        for m in self.mentions(text):
+            key = (m.hpo_id, m.status == Status.FAMILY)
+            if key not in best or ORDER[m.status] > ORDER[best[key].status]:
+                best[key] = m
+        return [Finding(m.hpo_id, m.status, source, text[m.sentence[0]:m.sentence[1]][:300]) for m in best.values()]
+
+
+NAME_TAIL = {"syndrome", "disease", "disorder", "type"}
+ROMAN_TAIL = {"i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x"}
+RELATIONSHIP = {"wife", "husband", "spouse", "partner", "friend", "roommate", "boyfriend", "girlfriend", "caregiver",
+                "guardian", "parents", "cousins", "kids", "grandchild", "fiance"}
+CORE_STOP = {r["word"] for r in resource("disease_name_stoplist.tsv")} | FAMILY | RELATIONSHIP
+
+
+class DiseaseNames:
+    # knowledge-base disease names as token sequences: each full name, plus a one-word core name when the name
+    # minus a trailing syndrome/disease/type N is one distinctive word (5+ letters, not an HPO word): "Marfan"
+    def __init__(self, names: dict[str, str], ext: Extractor):
+        hpo = {x[0] for v in ext.index.values() for x in v if GROUNDING[x[2]] == "strong"}   # labels, EXACT synonyms
+        found = {}
+        for did, name in sorted(names.items()):
+            full = tuple(tokens(name))
+            core = list(full)
+            while core and (core[-1] in NAME_TAIL or core[-1].isdigit() or core[-1] in ROMAN_TAIL or len(core[-1]) == 1):
+                core.pop()
+            keys = [full] + ([tuple(core)] if len(core) == 1 and tuple(core) != full and len(core[0]) >= 5
+                             and core[0] not in ext.vocab and core[0] not in CORE_STOP else [])
+            for k in keys:
+                if k:
+                    found.setdefault(k, [name, []])[1].append(did)
+        self.index = defaultdict(list)
+        for k, (name, ids) in found.items():
+            self.index[k[0]].append((k, ids, name, k in hpo))
+        for v in self.index.values():
+            v.sort(key=lambda x: -len(x[0]))
+
+    def find(self, norms: list[str]) -> list[tuple[int, int, list[str], str, bool]]:
+        # (token start, length, disease ids, name, also an HPO term) for each name in a sentence, longest first
+        out, k = [], 0
+        while k < len(norms):
+            hit = next((x for x in self.index.get(norms[k], ()) if tuple(norms[k:k + len(x[0])]) == x[0]), None)
+            if hit:
+                out.append((k, len(hit[0]), hit[1], hit[2], hit[3]))
+                k += len(hit[0])
+            else:
+                k += 1
+        return out
 
 
 def delabel(text: str, names, genes, vocab) -> tuple[str, dict]:
@@ -410,8 +821,11 @@ class DiseaseMatcher:
         return sorted(d for d, v in found.items() if v == best)
 
 
-def load_medpix(root, matcher: DiseaseMatcher, ext: Extractor, split: str = "all", labels_csv=None) -> list[Case]:
+def load_medpix(root, matcher: DiseaseMatcher, ext: Extractor, split: str = "all", labels_csv=None,
+                numbers: bool = True) -> list[Case]:
     # input = history + exam only; findings, captions and diagnosis kept in meta
+    # numbers: also read lab values and vitals from the history (age from the image metadata, else the text)
+    from .numbers import age_from_text, age_years, read_numbers
     root = Path(root)
     cases_json = json.loads((root / "Case_topic.json").read_text(encoding="utf-8"))
     desc = json.loads((root / "Descriptions.json").read_text(encoding="utf-8"))
@@ -443,13 +857,22 @@ def load_medpix(root, matcher: DiseaseMatcher, ext: Extractor, split: str = "all
                                names, [], ext.vocab)
         truth = overrides.get(uid) or matcher.match(title) or matcher.match(info.get("Case Diagnosis") or "")
         findings = [f for f in ext.findings(history, "medpix:history") if f.status in (Status.PRESENT, Status.ABSENT)]
+        warnings = []
+        if numbers:
+            age = next((a for a in (age_years(i["age"]) for i in images[uid] if i["age"]) if a is not None), None)
+            age = age if age is not None else age_from_text(history)
+            have = {f.hpo_id for f in findings}
+            for f in read_numbers(history, "medpix:history", "history", age, warnings.append):
+                if f.hpo_id not in have and f.status in (Status.PRESENT, Status.ABSENT):
+                    findings.append(f)
+                    have.add(f.hpo_id)
         out.append(Case(uid, findings, truth, meta={
             "policy": "open", "title": title, "differential": field("Differential Diagnosis"),
             "names": [n for n in dict.fromkeys(x.strip() for x in names) if n],
             # names used for scoring: the case title and diagnosis; the MedPix topic ("Hydrocephalus") is often
             # broader than the diagnosis, so it is only used when both are missing
             "dx_names": [n for n in dict.fromkeys(x.strip() for x in names[:2]) if n] or [names[2].strip()],
-            "history": history, "reference_text": reference, "images": images[uid]}))
+            "history": history, "reference_text": reference, "images": images[uid], "intake_warnings": warnings}))
     return out
 
 

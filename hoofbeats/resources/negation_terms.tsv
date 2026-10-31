@@ -1,0 +1,90 @@
+# ConText/NegEx-style cue lists for the text reader (matched on whole tokens, case-insensitive).
+# type: pre = negates the terms that follow; post = negates the term just before (within 4 tokens);
+#       hedge = makes the terms that follow uncertain; pseudo = looks like a cue but is not one;
+#       contrast / termination = end the scope of a pre or hedge cue. Commas, "or" and "and" do not end a scope.
+type	phrase
+pre	no
+pre	not
+pre	denies
+pre	denied
+pre	deny
+pre	denying
+pre	without
+pre	negative for
+pre	absence of
+pre	free of
+pre	no evidence of
+pre	no history of
+pre	no hx of
+pre	no sign of
+pre	no signs of
+pre	no complaints of
+pre	never
+pre	ruled out
+pre	fails to reveal
+pre	none
+pre	nor
+post	was ruled out
+post	is ruled out
+post	were ruled out
+post	has been ruled out
+post	not seen
+post	not present
+post	is absent
+post	was absent
+post	are absent
+post	were absent
+post	resolved
+post	is negative
+post	was negative
+post	none
+pseudo	no increase
+pseudo	no change
+pseudo	no significant change
+pseudo	no further
+pseudo	not only
+pseudo	not necessarily
+pseudo	not certain whether
+pseudo	without difficulty
+pseudo	gram negative
+hedge	possible
+hedge	possibly
+hedge	probable
+hedge	probably
+hedge	suspected
+hedge	suspect
+hedge	suspicious for
+hedge	rule out
+hedge	r o
+hedge	concern for
+hedge	concerning for
+hedge	cannot exclude
+hedge	cannot be excluded
+hedge	may represent
+hedge	questionable
+hedge	query
+contrast	but
+contrast	however
+contrast	although
+contrast	though
+contrast	except
+contrast	while
+contrast	yet
+contrast	aside from
+contrast	apart from
+termination	presents
+termination	presented
+termination	presenting
+termination	reports
+termination	reported
+termination	complains
+termination	complained
+termination	has
+termination	had
+termination	with
+termination	now
+termination	since
+termination	which
+termination	who
+termination	due
+termination	secondary

@@ -1,0 +1,447 @@
+{
+ "_about": "Gold findings per case file and reader: hpo_id (+ optional alternatives accepted as exact), status, and quote = the exact words in the reader's input text (null for labs and HPO ids). Not a case file.",
+ "marfan_note.json": {
+  "note": [
+   {
+    "hpo_id": "HP:0000098",
+    "label": "Tall stature",
+    "status": "present",
+    "quote": "much taller than rest of family"
+   },
+   {
+    "hpo_id": "HP:0000622",
+    "label": "Blurred vision",
+    "status": "present",
+    "quote": "blurry vision"
+   },
+   {
+    "hpo_id": "HP:0001083",
+    "label": "Ectopia lentis",
+    "status": "present",
+    "quote": "lens displaced upward OU"
+   },
+   {
+    "hpo_id": "HP:0000767",
+    "label": "Pectus excavatum",
+    "status": "present",
+    "quote": "sunken chest"
+   },
+   {
+    "hpo_id": "HP:0002108",
+    "label": "Spontaneous pneumothorax",
+    "status": "present",
+    "quote": "Collapsed R lung out of nowhere"
+   },
+   {
+    "hpo_id": "HP:0012771",
+    "label": "Increased arm span",
+    "status": "present",
+    "quote": "arm span > height"
+   },
+   {
+    "hpo_id": "HP:0001166",
+    "label": "Arachnodactyly",
+    "status": "present",
+    "quote": "Long skinny fingers"
+   },
+   {
+    "hpo_id": "HP:6001274",
+    "label": "Thumb sign",
+    "status": "present",
+    "quote": "thumb and wrist signs"
+   },
+   {
+    "hpo_id": "HP:0025091",
+    "label": "Wrist sign",
+    "status": "present",
+    "quote": "thumb and wrist signs"
+   },
+   {
+    "hpo_id": "HP:0000218",
+    "label": "High palate",
+    "status": "present",
+    "quote": "Very high-arched roof of mouth"
+   },
+   {
+    "hpo_id": "HP:0000678",
+    "label": "Dental crowding",
+    "status": "present",
+    "quote": "crowded teeth"
+   },
+   {
+    "hpo_id": "HP:0001763",
+    "label": "Pes planus",
+    "status": "present",
+    "quote": "Flat feet"
+   },
+   {
+    "hpo_id": "HP:0001065",
+    "label": "Striae distensae",
+    "status": "present",
+    "quote": "Stretch marks across low back"
+   },
+   {
+    "hpo_id": "HP:0002616",
+    "label": "Aortic root aneurysm",
+    "status": "present",
+    "quote": "aortic root 4.1 cm (Z +3.2)"
+   },
+   {
+    "hpo_id": "HP:0001634",
+    "label": "Mitral valve prolapse",
+    "status": "present",
+    "quote": "mild MVP"
+   },
+   {
+    "hpo_id": "HP:0001653",
+    "label": "Mitral regurgitation",
+    "status": "present",
+    "quote": "trace MR"
+   },
+   {
+    "hpo_id": "HP:0003193",
+    "label": "Allergic rhinitis",
+    "status": "present",
+    "quote": "Seasonal allergies"
+   },
+   {
+    "hpo_id": "HP:0100749",
+    "label": "Chest pain",
+    "status": "absent",
+    "quote": "No CP"
+   },
+   {
+    "hpo_id": "HP:0001962",
+    "label": "Palpitations",
+    "status": "absent",
+    "quote": "no racing heart",
+    "alternatives": [
+     "HP:0001649"
+    ]
+   },
+   {
+    "hpo_id": "HP:0001279",
+    "label": "Syncope",
+    "status": "absent",
+    "quote": "no passing out"
+   },
+   {
+    "hpo_id": "HP:0002829",
+    "label": "Arthralgia",
+    "status": "absent",
+    "quote": "Denies joint aches"
+   },
+   {
+    "hpo_id": "HP:0002240",
+    "label": "Hepatomegaly",
+    "status": "absent",
+    "quote": "no organomegaly"
+   },
+   {
+    "hpo_id": "HP:0001744",
+    "label": "Splenomegaly",
+    "status": "absent",
+    "quote": "no organomegaly"
+   },
+   {
+    "hpo_id": "HP:0001263",
+    "label": "Global developmental delay",
+    "status": "absent",
+    "quote": "met milestones on time"
+   },
+   {
+    "hpo_id": "HP:0002647",
+    "label": "Aortic dissection",
+    "status": "family",
+    "quote": "tear in the aorta"
+   },
+   {
+    "hpo_id": "HP:0000098",
+    "label": "Tall stature",
+    "status": "family",
+    "quote": "Paternal aunt also v. tall"
+   },
+   {
+    "hpo_id": "HP:0001382",
+    "label": "Joint hypermobility",
+    "status": "family",
+    "quote": "double-jointed"
+   }
+  ]
+ },
+ "wilson_labs.json": {
+  "note": [
+   {
+    "hpo_id": "HP:0002378",
+    "label": "Hand tremor",
+    "status": "present",
+    "quote": "Fine shaking of both hands"
+   },
+   {
+    "hpo_id": "HP:0002174",
+    "label": "Postural tremor",
+    "status": "present",
+    "quote": "worse with arms held out"
+   },
+   {
+    "hpo_id": "HP:0002312",
+    "label": "Clumsiness",
+    "status": "present",
+    "quote": "keeps dropping things"
+   },
+   {
+    "hpo_id": "HP:0001260",
+    "label": "Dysarthria",
+    "status": "present",
+    "quote": "Speech sounds thick and mushy"
+   },
+   {
+    "hpo_id": "HP:0012378",
+    "label": "Fatigue",
+    "status": "present",
+    "quote": "tired all the time"
+   },
+   {
+    "hpo_id": "HP:0000952",
+    "label": "Jaundice",
+    "status": "present",
+    "quote": "eyes look yellow",
+    "alternatives": [
+     "HP:0032106"
+    ]
+   },
+   {
+    "hpo_id": "HP:0000712",
+    "label": "Emotional lability",
+    "status": "present",
+    "quote": "Mood swings and crying spells"
+   },
+   {
+    "hpo_id": "HP:0002240",
+    "label": "Hepatomegaly",
+    "status": "present",
+    "quote": "liver edge 3 cm below costal margin"
+   },
+   {
+    "hpo_id": "HP:0001744",
+    "label": "Splenomegaly",
+    "status": "present",
+    "quote": "spleen tip palpable"
+   },
+   {
+    "hpo_id": "HP:0010741",
+    "label": "Pedal edema",
+    "status": "present",
+    "quote": "Trace pitting at both ankles"
+   },
+   {
+    "hpo_id": "HP:0200032",
+    "label": "Kayser-Fleischer ring",
+    "status": "present",
+    "quote": "golden-brown ring at the limbus OU"
+   },
+   {
+    "hpo_id": "HP:0001061",
+    "label": "Acne",
+    "status": "present",
+    "quote": "pimples on face and back"
+   },
+   {
+    "hpo_id": "HP:0002027",
+    "label": "Abdominal pain",
+    "status": "absent",
+    "quote": "abd pain"
+   },
+   {
+    "hpo_id": "HP:0002018",
+    "label": "Nausea",
+    "status": "absent",
+    "quote": "N/V"
+   },
+   {
+    "hpo_id": "HP:0002013",
+    "label": "Vomiting",
+    "status": "absent",
+    "quote": "N/V"
+   },
+   {
+    "hpo_id": "HP:0001945",
+    "label": "Fever",
+    "status": "absent",
+    "quote": "afebrile"
+   },
+   {
+    "hpo_id": "HP:0001392",
+    "label": "Abnormality of the liver",
+    "status": "family",
+    "quote": "liver problems"
+   }
+  ],
+  "labs": [
+   {
+    "hpo_id": "HP:0010837",
+    "label": "Decreased circulating ceruloplasmin concentration",
+    "status": "present",
+    "quote": null
+   },
+   {
+    "hpo_id": "HP:0002910",
+    "label": "Elevated circulating hepatic transaminase concentration",
+    "status": "present",
+    "quote": null
+   },
+   {
+    "hpo_id": "HP:0002904",
+    "label": "Hyperbilirubinemia",
+    "status": "present",
+    "quote": null
+   },
+   {
+    "hpo_id": "HP:0003073",
+    "label": "Hypoalbuminemia",
+    "status": "present",
+    "quote": null
+   },
+   {
+    "hpo_id": "HP:0001903",
+    "label": "Anemia",
+    "status": "present",
+    "quote": null
+   },
+   {
+    "hpo_id": "HP:0001873",
+    "label": "Thrombocytopenia",
+    "status": "present",
+    "quote": null
+   },
+   {
+    "hpo_id": "HP:0001894",
+    "label": "Thrombocytosis",
+    "status": "absent",
+    "quote": null
+   },
+   {
+    "hpo_id": "HP:0002902",
+    "label": "Hyponatremia",
+    "status": "absent",
+    "quote": null
+   },
+   {
+    "hpo_id": "HP:0003228",
+    "label": "Hypernatremia",
+    "status": "absent",
+    "quote": null
+   }
+  ]
+ },
+ "tsc_imaging.json": {
+  "image_context": [
+   {
+    "hpo_id": "HP:0001250",
+    "label": "Seizure",
+    "status": "present",
+    "quote": "staring spells and episodes of jerking of the R arm"
+   },
+   {
+    "hpo_id": "HP:0009717",
+    "label": "Cortical tubers",
+    "status": "present",
+    "quote": "wedge-shaped T2/FLAIR bright lesions involving the cortex and subjacent white matter"
+   },
+   {
+    "hpo_id": "HP:0009716",
+    "label": "Subependymal nodules",
+    "status": "present",
+    "quote": "small nodules along the walls of the lateral ventricles"
+   },
+   {
+    "hpo_id": "HP:0002514",
+    "label": "Cerebral calcification",
+    "status": "present",
+    "quote": "some calcified on prior CT"
+   },
+   {
+    "hpo_id": "HP:0006772",
+    "label": "Renal angiomyolipoma",
+    "status": "present",
+    "quote": "fat-containing lesions (AMLs)"
+   },
+   {
+    "hpo_id": "HP:0004411",
+    "label": "Deviated nasal septum",
+    "status": "present",
+    "quote": "leftward bowing of the nasal septum"
+   },
+   {
+    "hpo_id": "HP:0002119",
+    "label": "Ventriculomegaly",
+    "status": "absent",
+    "quote": "Ventricles normal in size"
+   },
+   {
+    "hpo_id": "HP:0000126",
+    "label": "Hydronephrosis",
+    "status": "absent",
+    "quote": "No collecting system dilation"
+   }
+  ],
+  "image_findings": [
+   {
+    "hpo_id": "HP:0009717",
+    "label": "Cortical tubers",
+    "status": "present",
+    "quote": "multiple wedge-shaped cortical/subcortical FLAIR lesions"
+   },
+   {
+    "hpo_id": "HP:0002514",
+    "label": "Cerebral calcification",
+    "status": "present",
+    "quote": null
+   },
+   {
+    "hpo_id": "HP:0006772",
+    "label": "Renal angiomyolipoma",
+    "status": "present",
+    "quote": "bilateral renal AMLs"
+   },
+   {
+    "hpo_id": "HP:0002119",
+    "label": "Ventriculomegaly",
+    "status": "absent",
+    "quote": "ventricular enlargement"
+   }
+  ],
+  "hpo_terms": [
+   {
+    "hpo_id": "HP:0009719",
+    "label": "Hypomelanotic macule",
+    "status": "present",
+    "quote": null
+   },
+   {
+    "hpo_id": "HP:0010615",
+    "label": "Angiofibromas",
+    "status": "present",
+    "quote": null
+   },
+   {
+    "hpo_id": "HP:0000729",
+    "label": "Autistic behavior",
+    "status": "uncertain",
+    "quote": null
+   },
+   {
+    "hpo_id": "HP:0001249",
+    "label": "Intellectual disability",
+    "status": "absent",
+    "quote": null
+   },
+   {
+    "hpo_id": "HP:0001250",
+    "label": "Seizure",
+    "status": "family",
+    "quote": null
+   }
+  ]
+ }
+}

@@ -1,7 +1,9 @@
 # offline tests: python -m unittest tests
 import csv
+import hashlib
 import json
 import math
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -479,6 +481,26 @@ class Tests(unittest.TestCase):
         self.assertEqual((again.chat("a"), again.chat("c")), ("reply", ""))
         self.assertEqual((again.cache_hits, again.planned, again.requests), (1, 1, 0))
 
+    def test_offline_schema_key_and_threads(self):
+        from hoofbeats.llm import chat_many, require_local
+        d = self.root / "cache_offline"
+        m = MedGemma("x/m", "http://127.0.0.1:1/v1", cache_dir=d)
+        sent = []
+        m._endpoint_chat = lambda u, s, i, schema=None: (sent.append(schema), f"r:{u}")[1]
+        schema = {"type": "object"}
+        self.assertEqual(chat_many(m, [{"user": str(i)} for i in range(20)] + [{"user": "0", "schema": schema}], workers=4),
+                         [f"r:{i}" for i in range(20)] + ["r:0"])
+        self.assertEqual((m.n_calls, m.cache_hits, sent.count(schema)), (21, 0, 1))   # the schema is part of the key
+        self.assertEqual(len((d / "m.jsonl").read_text().splitlines()), 21)          # one cache file per model
+        off = MedGemma("x/m", "http://127.0.0.1:1/v1", cache_dir=d, offline=True)
+        off._endpoint_chat = lambda *a, **k: self.fail("offline mode sent a request")
+        self.assertEqual((off.chat("3"), off.chat("0", schema=schema), off.chat("new")), ("r:3", "r:0", ""))
+        self.assertEqual((off.cache_hits, off.missed, off.usage()["offline_misses"]), (2, 1, 1))
+        require_local(m)
+        require_local(MedGemma())
+        with self.assertRaises(PolicyError):
+            require_local(MedGemma("x/m", "https://api.example.com/v1"))
+
     def test_quota_errors(self):
         from hoofbeats.llm import quota_info
         body = json.dumps([{"error": {"code": 429, "message": "quota", "details": [
@@ -642,6 +664,303 @@ class Fake:
         self.prompt, self.calls = user, self.calls + 1
         self.images += list(images)
         return self.reply
+
+
+class TestLLMExtract(unittest.TestCase):
+    # LLM finding extraction: chunks, quote check with offsets, reply parsing (fake model, no GPU)
+    class ChunkFake:
+        def __init__(self, answer, endpoint=None):
+            self.answer, self.endpoint, self.is_local, self.sent = answer, endpoint, endpoint is None, []
+
+        def chat(self, user, system="", images=(), schema=None):
+            self.sent.append((user, schema))
+            return self.answer(user)
+
+    def test_chunks_keep_offsets(self):
+        from hoofbeats.llm_extract import chunks
+        text = "First paragraph here.\n\nSecond one. It has two sentences.\n\n" + "Long sentence number %d. " * 40 % tuple(range(40))
+        spans = chunks(text, max_chars=200)
+        self.assertEqual(spans[0], (0, text.index("sentences.") + len("sentences.")))      # short paragraphs joined
+        self.assertTrue(all(b - a <= 200 for a, b in spans))
+        self.assertEqual("".join(text[a:b] for a, b in spans).replace(" ", "").replace("\n", ""),
+                         text.replace(" ", "").replace("\n", ""))                          # nothing lost or repeated
+        self.assertEqual(chunks("   "), [])
+
+    def test_locate_quote(self):
+        from hoofbeats.llm_extract import locate
+        text = "Exam: the testes were  not palpable\nin the scrotum. He had “marked” hypotonia–severe."
+        s, e, how = locate(text, 0, len(text), "testes were not palpable in the scrotum.")
+        self.assertEqual((text[s:e], how), ("testes were  not palpable\nin the scrotum.", "normalised"))
+        s, e, _ = locate(text, 0, len(text), "the testes were not palpable in the scrotum, ")   # added comma dropped
+        self.assertEqual(text[s:e], "the testes were  not palpable\nin the scrotum")
+        s, e, how = locate(text, 0, len(text), 'He had "marked" Hypotonia-severe')
+        self.assertEqual(text[s:e], "He had “marked” hypotonia–severe")
+        self.assertEqual(locate(text, 0, len(text), "hypotonia")[2], "exact")
+        self.assertIsNone(locate(text, 0, 20, "hypotonia"))                                # only inside the chunk
+        self.assertIsNone(locate(text, 0, len(text), "ataxia"))
+
+    def test_extract_candidates(self):
+        from hoofbeats.llm_extract import SCHEMA, extract_candidates
+        text = ("The boy had hypotonia. His testes were not palpable in the scrotum.\n\n"
+                "Blood pressure was normal. His father had  seizures.")
+
+        def answer(prompt):
+            if "hypotonia" in prompt.rsplit('"""', 2)[-2]:            # the chunk, not the prompt's own example
+                return json.dumps({"findings": [
+                    {"phrase": "hypotonia", "status": "present", "quote": "hypotonia"},
+                    {"phrase": "cryptorchidism", "status": "present", "quote": "testes were not palpable in the scrotum"},
+                    {"phrase": "ataxia", "status": "present", "quote": "unsteady gait"},          # not in the text
+                    {"phrase": "hypotonia", "status": "present", "quote": "hypotonia"},           # repeated
+                    {"phrase": "x", "status": "maybe", "quote": "boy"}]})                         # bad status
+            return 'Sure! ```json\n[{"phrase": "hypertension", "status": "absent", "quote": "Blood pressure was normal."},' \
+                   '{"phrase": "seizures", "status": "family", "quote": "father had seizures"}]\n```'
+        llm = self.ChunkFake(answer)
+        found, rep = extract_candidates(llm, text, max_chars=80, workers=1)
+        self.assertEqual(rep.chunks, 2)
+        self.assertTrue(all(s is SCHEMA for _, s in llm.sent))
+        self.assertEqual([(c.phrase, c.status, c.match) for c in found],
+                         [("hypotonia", Status.PRESENT, "exact"), ("cryptorchidism", Status.PRESENT, "exact"),
+                          ("hypertension", Status.ABSENT, "exact"), ("seizures", Status.FAMILY, "normalised")])
+        self.assertTrue(all(text[c.start:c.end] == c.quote for c in found))
+        self.assertEqual(found[3].quote, "father had  seizures")
+        self.assertEqual((rep.proposed, rep.quote_not_found, rep.duplicates, rep.bad_item, rep.kept), (7, 1, 1, 1, 4))
+        self.assertEqual(rep.not_found_examples, [{"phrase": "ataxia", "quote": "unsteady gait"}])
+        v1, v2 = self.ChunkFake(lambda p: "[]"), self.ChunkFake(lambda p: "[]")
+        extract_candidates(v1, text, workers=1, prompt_version=1)
+        extract_candidates(v2, text, workers=1)                                            # v2 is the default
+        self.assertNotIn("Example answer", v1.sent[0][0])
+        self.assertIn("Example answer", v2.sent[0][0])
+        self.assertTrue(v2.sent[0][0].rstrip().endswith(text.strip() + '\n"""'))           # the case text, once, at the end
+        _, rep = extract_candidates(self.ChunkFake(lambda p: "I cannot help with that."), text, workers=1)
+        self.assertEqual((rep.unreadable, rep.kept), (1, 0))
+        with self.assertRaises(PolicyError):
+            extract_candidates(self.ChunkFake(answer, "https://api.example.com/v1"), text)
+
+
+class TrigramEmbedder:
+    # stands in for SapBERT in tests: hashed character trigrams, L2-normalised
+    name = "trigram"
+
+    def __init__(self):
+        self.calls = 0
+
+    def encode(self, texts):
+        import numpy as np
+        self.calls += 1
+        out = np.zeros((len(texts), 512), np.float32)
+        for i, t in enumerate(texts):
+            s = f"  {t.lower()} "
+            for j in range(len(s) - 2):
+                out[i, int(hashlib.md5(s[j:j + 3].encode()).hexdigest(), 16) % 512] += 1
+        return out / np.maximum(np.linalg.norm(out, axis=1, keepdims=True), 1e-9)
+
+
+class TestLinker(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.root = Path(tempfile.mkdtemp())
+        kb = build(cls.root)
+        cls.ont = Ontology(kb / "hp.obo")
+        cls.ext = Extractor(cls.ont)
+
+    def index(self, cache=None):
+        from hoofbeats.linker import HpoIndex
+        return HpoIndex(self.ont, TrigramEmbedder(), cache or Path(tempfile.mkdtemp()))
+
+    def test_index_strings_and_cache(self):
+        from hoofbeats.linker import term_strings
+        rows = term_strings(self.ont)
+        ids = {t for t, _ in rows}
+        self.assertIn(("HP:0001250", "Fits"), rows)                       # RELATED synonyms are searchable too
+        self.assertFalse(ids & {"HP:9999999", "HP:0040279", "HP:0000118"})  # obsolete, not a phenotype, the root
+        cache = Path(tempfile.mkdtemp())
+        first = self.index(cache)
+        again = self.index(cache)
+        self.assertEqual((first.embedder.calls, again.embedder.calls), (1, 0))   # second load from the .npz
+        res = again.search(again.embedder.encode(["epileptic seizures"]), k=3)[0]
+        self.assertEqual((res[0][0], res[0][2]), ("HP:0001250", "Epileptic seizure"))
+        self.assertEqual(len({t for t, _, _ in res}), 3)                  # terms, not strings
+
+    def test_dictionary_needs_the_whole_phrase(self):
+        from hoofbeats.linker import Linker
+        lk = Linker(self.ont, self.ext)
+        self.assertEqual([(x.hpo_id, x.method, x.grounding) for x in lk.dictionary("recurrent epileptic seizures")],
+                         [("HP:0001250", "dict:synonym:exact", "strong")])
+        self.assertEqual(lk.dictionary("seizures of the left foot"), [])  # "foot" is not accounted for
+        self.assertEqual({x.hpo_id for x in lk.dictionary("fever and arachnodactyly")}, {"HP:0001945", "HP:0001166"})
+        self.assertEqual(lk.link_many([("lens displaced upward", "")])[0][0].method, "unlinked")   # no index
+
+    def test_embedding_thresholds_and_llm_choice(self):
+        from hoofbeats.linker import Linker
+        replies = []
+
+        class Chooser(TestLLMExtract.ChunkFake):
+            pass
+        llm = Chooser(lambda p: replies.pop(0))
+        lk = Linker(self.ont, self.ext, self.index(), llm, hi=0.75, lo=0.3, k=3, workers=1)
+        replies[:] = [json.dumps({"choice": "HP:0001083"}), json.dumps({"choice": "none"})]
+        # trigram cosine to the best string: hyperamonemia 0.90, displaced lens 0.65, lens displacement 0.37,
+        # lens slipping 0.24 (hi 0.75, lo 0.3)
+        out = lk.link_many([("Fever", "fever"), ("hyperamonemia", "ammonia high"), ("displaced lens", "lens off"),
+                            ("lens displacement", "lens displacement"), ("lens slipping", "lens slipping")])
+        self.assertEqual((out[0][0].method, out[0][0].grounding), ("dict:exact_label", "strong"))
+        self.assertEqual((out[1][0].hpo_id, out[1][0].method, out[1][0].grounding), ("HP:0001987", "embedding", "supported"))
+        self.assertEqual((out[2][0].hpo_id, out[2][0].method, out[2][0].grounding), ("HP:0001083", "llm_choice", "weak"))
+        self.assertEqual((out[3][0].hpo_id, out[3][0].method), (None, "unlinked"))     # the LLM said none
+        self.assertEqual((out[4][0].hpo_id, out[4][0].method), (None, "unlinked"))     # below lo: not asked
+        self.assertEqual(len(llm.sent), 2)
+        enum = llm.sent[0][1]["properties"]["choice"]["enum"]
+        self.assertEqual(len(enum), 4)
+        self.assertEqual(enum[-1], "none")                                 # only the 3 candidates, or none
+        no_llm = Linker(self.ont, self.ext, self.index(), None, hi=0.75, lo=0.3, k=3).link_many([("displaced lens", "")])
+        self.assertEqual((no_llm[0][0].hpo_id, no_llm[0][0].method), (None, "borderline"))
+        with self.assertRaises(PolicyError):
+            Linker(self.ont, self.ext, self.index(), Chooser(lambda p: "{}", "https://x.example/v1"), hi=0.75,
+                   lo=0.3).link_many([("displaced lens", "")])
+
+    def test_chooser_v2_sentence_and_broader_terms(self):
+        from hoofbeats.linker import CHOOSE_PROMPT, Linker
+        answers = []
+        llm = TestLLMExtract.ChunkFake(lambda p: json.dumps({"choice": answers.pop(0)}))
+        lk = Linker(self.ont, self.ext, self.index(), llm, hi=0.75, lo=0.3, k=3, workers=1, chooser_version=2)
+        answers[:] = ["HP:0000478", "HP:0001083", "HP:0000118"]
+        out = lk.link_many([("displaced lens", "lens off", "On exam the lens was off centre."),
+                            ("displaced lens", "lens off", ""), ("displaced lens", "lens off")])
+        prompt, schema = llm.sent[0]
+        self.assertIn('sentence: "On exam the lens was off centre."', prompt)
+        enum = schema["properties"]["choice"]["enum"]
+        self.assertEqual(enum[:3], [t for t, _ in out[1][0].candidates])            # the top-k first
+        self.assertIn("HP:0000478", enum)                                          # Abnormality of the eye: a parent
+        self.assertNotIn("HP:0000118", enum)                                       # the root is never offered
+        self.assertEqual(enum[-1], "none")
+        self.assertEqual((out[0][0].hpo_id, out[0][0].method, out[0][0].grounding, out[0][0].score),
+                         ("HP:0000478", "llm_choice:broader", "weak", None))
+        self.assertEqual((out[1][0].hpo_id, out[1][0].method), ("HP:0001083", "llm_choice"))
+        self.assertIn('sentence: "lens off"', llm.sent[1][0])                      # no sentence: the quote stands in
+        self.assertIsNone(out[2][0].hpo_id)                                        # an id that was not offered
+        v1 = TestLLMExtract.ChunkFake(lambda p: json.dumps({"choice": "none"}))
+        Linker(self.ont, self.ext, self.index(), v1, hi=0.75, lo=0.3, k=3, workers=1).link_many(
+            [("displaced lens", "lens off", "a sentence")])
+        self.assertEqual(v1.sent[0][0], CHOOSE_PROMPT.format(phrase="displaced lens", quote="lens off",
+                                                             options="\n".join(f"{t}: {self.ont.name(t)}" for t in
+                                                                               v1.sent[0][1]["properties"]["choice"]["enum"][:-1])))
+        with self.assertRaises(ValueError):
+            Linker(self.ont, self.ext, chooser_version=3)
+
+    def test_crosscheck(self):
+        from hoofbeats.linker import crosscheck
+        cc = lambda h, q, **kw: crosscheck(self.ont, self.ext, h, q, **kw)
+        self.assertEqual(cc("HP:0001250", "had recurrent epileptic seizures").verdict, "agree")
+        self.assertEqual(cc("HP:0007359", "had seizures").verdict, "agree")               # a child of the rule term
+        self.assertEqual(cc("HP:0001083", "the lens had slipped upward").verdict, "no_rule_term")
+        # the quote is fully accounted for by other terms: nothing supports Arachnodactyly here
+        chk = cc("HP:0001166", "No fever and no seizures were noted.")
+        self.assertEqual((chk.verdict, set(chk.rule_terms)), ("explained_by_other_terms", {"HP:0001945", "HP:0001250"}))
+        self.assertEqual(cc("HP:0001166", "fever and very long thin fingers").verdict, "disagree")   # words remain
+        low = cc("HP:0001083", "the lens had slipped upward", similarity=0.2, lo=0.62)
+        self.assertEqual((low.verdict, low.low_similarity), ("no_rule_term", True))       # a flag only, not a drop
+
+    def test_label_similarity(self):
+        ix = self.index()
+        sim = ix.similarity(["Hyperammonemia", "fever"], ["HP:0001987", "HP:0001987"])
+        self.assertAlmostEqual(sim[0], 1.0, places=5)
+        self.assertLess(sim[1], 0.5)
+        self.assertEqual(ix.similarity(["x"], ["HP:9999999"]), [None])
+
+    def test_llm_reader_merged_with_rules(self):
+        from hoofbeats.intake import parse_case
+        from hoofbeats.linker import Linker
+        from hoofbeats.llm_reader import LLMReader
+        text = "The patient had fever. No seizures. The lens had slipped upward."
+        reply = json.dumps({"findings": [
+            {"phrase": "fever", "status": "present", "quote": "had fever"},                  # agrees with the rules
+            {"phrase": "seizures", "status": "present", "quote": "seizures"},                # rules: absent ("No")
+            {"phrase": "dislocated lens", "status": "present", "quote": "The lens had slipped upward"},   # paraphrase
+            {"phrase": "arachnodactyly", "status": "present", "quote": "No seizures."},      # quote explained by Seizure
+            {"phrase": "zzz", "status": "present", "quote": "patient"}]})                    # links to nothing
+        lk = Linker(self.ont, self.ext, self.index(), None, hi=0.75, lo=0.3, k=3)
+
+        def run(**kw):
+            reader = LLMReader(TestLLMExtract.ChunkFake(lambda p: reply), lk, self.ont, self.ext, workers=1)
+            c = parse_case({"case_id": "x", "note_text": text}, self.ont, self.ext, llm_reader=reader, **kw)
+            self.assertFalse([w for w in c.meta["intake_warnings"] if w.startswith("provenance")])   # spans verified
+            return c, {f.hpo_id: f for f in c.findings}, reader
+        c, got, reader = run()
+        self.assertEqual({h: f.status for h, f in got.items()},
+                         {"HP:0001945": Status.PRESENT, "HP:0001250": Status.PRESENT, "HP:0001083": Status.PRESENT})
+        self.assertEqual(got["HP:0001945"].grounding, "strong")                         # rules + llm on the same words
+        fever = c.meta["provenance"]["HP:0001945"]
+        self.assertEqual((len(fever), fever[0]["readers"], fever[0]["grounding"]), (1, ["rules", "llm"], "strong"))
+        self.assertEqual(fever[0]["other_spans"][0]["quote"], "had fever")
+        conflict = c.meta["provenance"]["conflicts"][0]
+        self.assertEqual((conflict["hpo_id"], conflict["status"], conflict["action"]), ("HP:0001250", "absent", "dropped"))
+        self.assertEqual([e["readers"] for e in c.meta["provenance"]["HP:0001250"]], [["llm"]])
+        self.assertEqual(got["HP:0001083"].link[0], "dict:synonym:exact")
+        verdicts = {r["phrase"]: (r["verdict"], r["kept"]) for r in reader.log}
+        self.assertEqual(verdicts["arachnodactyly"], ("explained_by_other_terms", False))
+        self.assertEqual(verdicts["dislocated lens"], ("no_rule_term", True))
+        self.assertEqual(verdicts["zzz"], ("unlinked", False))
+        _, got, _ = run(status_policy="rules")
+        self.assertEqual(got["HP:0001250"].status, Status.ABSENT)                       # the rules' "No seizures"
+        c, got, _ = run(rules_text=False)
+        self.assertEqual({f.reader for f in c.findings}, {"llm"})
+        self.assertEqual(got["HP:0001945"].grounding, "strong")                         # dictionary link, exact label
+        with self.assertRaises(ValueError):
+            run(status_policy="majority")
+
+    def test_llm_reader_prefetch_batches_requests(self):
+        import threading
+        from hoofbeats.linker import Linker
+        from hoofbeats.llm_reader import LLMReader
+        live, peak, lock = [0], [0], threading.Lock()
+
+        class Slow(TestLLMExtract.ChunkFake):
+            def chat(self, user, system="", images=(), schema=None):
+                with lock:
+                    live[0] += 1
+                    peak[0] = max(peak[0], live[0])
+                import time
+                time.sleep(0.05)
+                with lock:
+                    live[0] -= 1
+                return super().chat(user, system, images, schema)
+        llm = Slow(lambda p: json.dumps({"findings": [{"phrase": "fever", "status": "present", "quote": "fever"}]}))
+        reader = LLMReader(llm, Linker(self.ont, self.ext), self.ont, self.ext, workers=8)
+        texts = [(f"Case {i} had fever.", "note", "note_text", f"c{i}") for i in range(6)]
+        reader.prefetch(texts)
+        self.assertEqual(len(llm.sent), 6)
+        self.assertGreater(peak[0], 1)                                  # the six texts' requests overlapped
+        self.assertEqual([f.hpo_id for f in reader("Case 3 had fever.", "note", "note_text")], ["HP:0001945"])
+        self.assertEqual(len(llm.sent), 6)                              # answered from the prefetched results
+        self.assertEqual([r["case"] for r in reader.reports], [f"c{i}" for i in range(6)])
+
+    def test_llm_eval_helpers(self):
+        from hoofbeats.llm_eval import absent_sample, absent_stats, configs, hand_checked
+        it = lambda h, st, res, vis: {"hpo_id": h, "status": st, "result": res, "vocab_visible": vis}
+        rows = [{"case": "c1", "items": [it("HP:1", "present", "exact", True), it("HP:2", "present", "missed", False),
+                                         it("HP:3", "absent", "near", False), it("HP:4", "absent", "missed", True)],
+                 "preds": [{"hpo_id": "HP:3", "status": "absent", "method": "llm"},
+                           {"hpo_id": "HP:9", "status": "absent", "method": "llm"},
+                           {"hpo_id": "HP:1", "status": "present", "method": "llm+rules"}],
+                 "extras": [{"hpo_id": "HP:9", "status": "absent", "method": "llm", "quote": "no x", "sentence": "No x."}]}]
+        b = lambda h, st, e: {"case_id": "c1", "hpo_id": h, "gold_status": st, "expressed": e}
+        hc = hand_checked(rows, [b("HP:1", "present", "yes"), b("HP:2", "present", "yes"), b("HP:3", "absent", "yes"),
+                                 b("HP:4", "absent", "no"), b("HP:7", "present", "yes")])     # HP:7 not in this run
+        self.assertEqual((hc["all"]["n"], hc["all"]["strict"], hc["all"]["lenient"]), (3, 1 / 3, 2 / 3))
+        self.assertEqual((hc["label"]["n"], hc["paraphrase"]["n"], hc["paraphrase"]["lenient"]), (1, 2, 0.5))
+        ab = absent_stats(rows)
+        self.assertEqual((ab["pred"], ab["extra"], ab["matched_share"], ab["by_method"]), (2, 1, 0.5, {"llm": 2}))
+        self.assertEqual(ab["gold_recall"]["n"], 2)
+        self.assertEqual([r["hpo_id"] for r in absent_sample(rows)], ["HP:9"])
+        self.assertEqual(list(configs(None)), ["rules"])
+        self.assertEqual(list(configs(object(), ("rules",))), ["rules", "llm", "rules+llm/status=rules"])
+
+    def test_calibration(self):
+        from hoofbeats.linker import calibrate
+        cal = calibrate(self.index(), n=50, k=3)
+        self.assertEqual(cal["n"], 7)     # the strings of the 3 terms with two differently worded strings (3 + 2 + 2)
+        self.assertTrue(0.0 <= cal["lo"] <= cal["hi"] <= 1.0)
+        self.assertEqual(sum(b["n"] for b in cal["bands"]), cal["n"])
 
 
 def write_medpix(root: Path) -> Path:
@@ -1138,6 +1457,848 @@ class TestPubMed(unittest.TestCase):
 def image_prompt_of(case):
     from hoofbeats.llm import image_prompt
     return image_prompt(case.meta["images"][0])
+
+
+EXTRA_TERMS = "".join(f"[Term]\nid: {i}\nname: {n}\n{s}is_a: HP:0000118\n\n" for i, n, s in (
+    ("HP:0100749", "Chest pain", ""), ("HP:0002018", "Nausea", ""), ("HP:0002013", "Vomiting", ""),
+    ("HP:0001653", "Mitral regurgitation", ""), ("HP:0030828", "Wheezing", ""),
+    ("HP:0030212", "Collectionism", 'synonym: "Collecting" EXACT []\n'), ("HP:0012115", "Hepatitis", ""),
+    ("HP:0002666", "Pheochromocytoma", ""), ("HP:9000001", "Jumping", 'synonym: "Hopping" EXACT []\n'),
+    ("HP:9000002", "Atypical sorting", 'synonym: "Ordering" EXACT []\n'),
+    ("HP:0033106", "Elevated circulating D-dimer concentration", 'synonym: "Elevated D dimer" EXACT []\n'),
+    ("HP:0011705", "First degree atrioventricular block", "")))
+
+
+class TestExtractorRules(unittest.TestCase):
+    # text reader rules, on short sentences (base mini-ontology plus EXTRA_TERMS)
+    @classmethod
+    def setUpClass(cls):
+        cls.root = Path(tempfile.mkdtemp())
+        build(cls.root)
+        (cls.root / "kb" / "hp.obo").write_text(OBO.replace("[Typedef]", EXTRA_TERMS + "[Typedef]"))
+        cls.ont = Ontology(cls.root / "kb" / "hp.obo")
+        cls.ext = Extractor(cls.ont)
+
+    def st(self, text):
+        return {(f.hpo_id, f.status) for f in self.ext.findings(text)}
+
+    def test_patient_and_family_status_kept_apart(self):
+        self.assertEqual(self.st("No seizures. Mother had seizures."),
+                         {("HP:0001250", Status.ABSENT), ("HP:0001250", Status.FAMILY)})
+
+    def test_sentence_split_keeps_abbreviations(self):
+        from hoofbeats.data import sentence_spans
+        cut = lambda t: [t[a:b] for a, b in sentence_spans(t)]
+        self.assertEqual(cut("Seen by Dr. Smith. No seizures."), ["Seen by Dr. Smith.", "No seizures."])
+        self.assertEqual(cut("Aunt also v. tall, e.g. 6 ft. Temp 38.5 today. Ref No. 5 noted"),
+                         ["Aunt also v. tall, e.g. 6 ft.", "Temp 38.5 today.", "Ref No. 5 noted"])
+        self.assertEqual(cut("Problems:\n- seizures\n- dislocated lens\nmild"), ["Problems:", "- seizures", "- dislocated lens\nmild"])
+        text = "Mother also v. tall with dislocated lens."
+        self.assertEqual(self.st(text), {("HP:0001083", Status.FAMILY)})       # not cut at "v."
+        m = self.ext.mentions(text)[0]
+        self.assertEqual((m.quote, text[m.start:m.end]), ("dislocated lens", "dislocated lens"))
+
+    def test_section_headings(self):
+        self.assertEqual(self.st("FHx: seizures.\nExam: dislocated lens."),
+                         {("HP:0001250", Status.FAMILY), ("HP:0001083", Status.PRESENT)})
+        self.assertEqual(self.st("FH: seizures"), {("HP:0001250", Status.FAMILY)})        # known 2-letter heading
+        self.assertEqual(self.st("HR: 80, seizures today"), {("HP:0001250", Status.PRESENT)})   # unknown 2-letter: not a heading
+        self.assertEqual(self.st("Medications: seizure prophylaxis\nPMH: dislocated lens"), {("HP:0001083", Status.PRESENT)})
+        m = self.ext.mentions("Family Hx: seizures")[0]
+        self.assertEqual((m.section, m.cue), ("family", ("Family Hx", 0, 9)))
+
+    def test_unknown_line_headings_are_short_and_not_family(self):
+        from hoofbeats.data import sections
+        self.assertEqual([s[2] for s in sections("Mother with seizures   Pt: dislocated lens") if s[2]], [])
+        self.assertEqual(self.st("Mother with seizures   Pt: dislocated lens"),
+                         {("HP:0001250", Status.FAMILY), ("HP:0001083", Status.PRESENT)})
+        self.assertEqual(self.st("Mother: seizures"), {("HP:0001250", Status.FAMILY)})          # family word is not a heading
+        self.assertEqual([s[2] for s in sections("Slit lamp exam: lens\nOne two three four five: x") if s[2]], ["slit lamp exam"])
+        self.assertEqual([s[3] for s in sections("Family history of note: seizures") if s[2]], ["family"])   # known heading
+
+    def test_family_word_reaches_only_its_clause(self):
+        self.assertEqual(self.st("Mother had seizures, pt has dislocated lens."),
+                         {("HP:0001250", Status.FAMILY), ("HP:0001083", Status.PRESENT)})
+        self.assertEqual(self.st("Seizures in her brother but dislocated lens noted."),
+                         {("HP:0001250", Status.FAMILY), ("HP:0001083", Status.PRESENT)})
+
+    def test_negation_scope(self):
+        self.assertEqual(self.st("No fever, presents with seizures."),
+                         {("HP:0001945", Status.ABSENT), ("HP:0001250", Status.PRESENT)})       # termination word
+        self.assertEqual(self.st("Denies fever, seizures or dislocated lens."),
+                         {("HP:0001945", Status.ABSENT), ("HP:0001250", Status.ABSENT), ("HP:0001083", Status.ABSENT)})
+        self.assertEqual(self.st("Denies fever but dislocated lens on exam."),
+                         {("HP:0001945", Status.ABSENT), ("HP:0001083", Status.PRESENT)})       # contrast word
+        self.assertEqual(self.st("No change in seizures."), {("HP:0001250", Status.PRESENT)})  # pseudo-negation
+        self.assertEqual(self.st("No family history of seizures."), set())                        # negated relative: dropped
+        m = next(m for m in self.ext.mentions("Denies fever, seizures.") if m.hpo_id == "HP:0001250")
+        self.assertEqual(m.cue, ("Denies", 0, 6))
+
+    def test_related_synonyms_behind_flag(self):
+        m = self.ext.mentions("He has fits at night.")[0]          # "Fits" is a RELATED synonym of Seizure
+        self.assertEqual((m.hpo_id, m.link, m.grounding), ("HP:0001250", ("synonym:related", "Fits"), "weak"))
+        self.assertNotIn("Fits", self.ont.terms["HP:0001250"].synonyms)          # EXACT list unchanged
+        exact_only = Extractor(Ontology(self.ont.path, extra_synonyms=False))
+        self.assertEqual(exact_only.mentions("He has fits at night."), [])
+        self.assertEqual(exact_only.vocab, self.ext.vocab)                        # de-labelling vocabulary unchanged
+
+    def test_lemma_matching(self):
+        from hoofbeats.data import _spacy
+        if _spacy() is None:
+            self.skipTest("spaCy model not installed")
+        text = "There are bilateral wheezes."                 # spaCy: NOUN
+        m = self.ext.mentions(text)[0]
+        self.assertEqual((m.hpo_id, m.quote, text[m.start:m.end], m.link, m.grounding),
+                         ("HP:0030828", "wheezes", "wheezes", ("lemma", "Wheezing"), "supported"))
+        self.assertEqual(Extractor(self.ont, lemmas=False).mentions(text), [])
+        for verb in ("He jumped from his vehicle.", "A chest X-ray was ordered.", "She is hoping to gain control."):
+            self.assertEqual(self.ext.mentions(verb), [], verb)                   # verbs never match by lemma
+        self.assertTrue(list((self.root / "kb" / ".cache").glob("lemmas-*.json")))     # label lemmas cached
+
+    def test_abbreviations_keep_original_offsets(self):
+        text = "Denies CP, N/V. Echo: mild MR."
+        got = {(m.hpo_id, m.status, m.quote, m.link[0]) for m in self.ext.mentions(text)}
+        self.assertEqual(got, {("HP:0100749", Status.ABSENT, "CP", "abbreviation:chest pain"),
+                               ("HP:0002018", Status.ABSENT, "N/V", "abbreviation:nausea and vomiting"),
+                               ("HP:0002013", Status.ABSENT, "N/V", "abbreviation:nausea and vomiting"),
+                               ("HP:0001653", Status.PRESENT, "MR", "abbreviation:mitral regurgitation")})
+        for m in self.ext.mentions(text):
+            self.assertEqual(text[m.start:m.end], m.quote)
+            self.assertEqual(m.grounding, "weak" if m.quote == "CP" else "supported")   # CP (also cerebral palsy) alone in a list
+        self.assertEqual(self.ext.mentions("MR scan of the brain."), [])          # MR needs a cardiac context word
+        m = self.ext.mentions("r/o seizure")[0]
+        self.assertEqual((m.status, m.cue), (Status.UNCERTAIN, ("r/o", 0, 3)))     # expansion feeds the hedge cue
+        self.assertEqual(self.st("Fever w/o seizures"), {("HP:0001945", Status.PRESENT), ("HP:0001250", Status.ABSENT)})
+        self.assertEqual(Extractor(self.ont, abbreviations=False).mentions("Denies CP."), [])
+
+    def test_ambiguous_abbreviation_guesses_are_weak(self):
+        level = lambda t: {m.quote: m.grounding for m in self.ext.mentions(t)}
+        got = level("Hx of IVH, CP, MR, congenital cardiac defects.")       # CP/MR alone in a list of conditions
+        self.assertEqual((got["CP"], got["MR"]), ("weak", "weak"))
+        self.assertEqual(level("Echo showed mild MR.")["MR"], "supported")    # context word, not a list
+        self.assertEqual(level("Echo showed trace TR, MR.")["MR"], "weak")      # in a list, own item has no context
+        self.assertEqual(level("Pt has dislocated lens, echo with MR.")["MR"], "supported")   # context in its own item
+        self.assertEqual(level("Chest pain since am.")["Chest pain"], "strong")
+        found = self.ext.abbr.find("AMLs on renal US; leukemia hx.", 0, 30, {"amls", "on", "renal", "us", "leukemia", "hx"})
+        self.assertEqual([x[2:] for x in found if x[2] in ("angiomyolipoma", "acute myeloid leukemia")],
+                         [("angiomyolipoma", True)])                          # contexts of two expansions match
+
+    def test_ambiguous_abbreviations_need_general_context(self):
+        ambiguous = {"mitral regurgitation", "angiomyolipoma", "ultrasound"}
+        exp = lambda s: [x[2] for x in self.ext.abbr.find(s, 0, len(s), {w.lower() for w in re.findall(r"[A-Za-z0-9]+", s)})
+                         if x[2] in ambiguous]
+        self.assertEqual(exp("Mild MVP, trace MR."), [])                      # "mvp" is not a context word
+        self.assertEqual(exp("Echo: mild MVP, trace MR."), ["mitral regurgitation"])
+        self.assertEqual(exp("Echogenic fat-containing AMLs."), [])           # nor "echogenic" or "fat"
+        self.assertEqual(exp("Both kidneys with AMLs."), ["angiomyolipoma"])
+        self.assertEqual(exp("Echogenic foci on US."), [])
+        self.assertEqual(exp("Renal US normal."), ["ultrasound"])
+
+    def test_blocklist_and_test_names(self):
+        self.assertEqual(self.ext.mentions("No collecting system dilation."), [])     # blocklisted EXACT synonym
+        self.assertEqual(self.ext.mentions("Normal hepatitis panel and CBC."), [])    # a test, not a finding
+        self.assertEqual(self.st("Hepatitis noted, seizure level unknown."), {("HP:0012115", Status.PRESENT)})
+        self.assertEqual(self.st("Has dislocated lens, no seizures."),
+                         {("HP:0001083", Status.PRESENT), ("HP:0001250", Status.ABSENT)})   # whole tokens only
+        self.assertEqual(self.ext.mentions("Shows unseizureable lens."), [])
+
+    def test_test_names_with_a_result_are_kept(self):
+        self.assertEqual(self.st("Elevated D dimer test."), {("HP:0033106", Status.PRESENT)})   # result word in the term
+        self.assertEqual(self.st("Hepatitis panel negative."), set())                           # no result word: a test
+        self.assertEqual(self.st("Hepatitis panel positive."), {("HP:0012115", Status.PRESENT)})
+        self.assertEqual(self.st("Abnormal hepatitis serology."), {("HP:0012115", Status.PRESENT)})
+
+    def test_grounding_of_synonym_kinds(self):
+        root = Path(tempfile.mkdtemp())
+        (root / "hp.obo").write_text(OBO.replace("[Typedef]", "".join(
+            f"[Term]\nid: {i}\nname: {n}\n{s}is_a: HP:0000118\n\n" for i, n, s in (
+                ("HP:0001382", "Joint hypermobility", 'synonym: "Double-jointed" EXACT layperson []\n'),
+                ("HP:0002094", "Dyspnea", 'synonym: "Shortness of breath" RELATED []\n'),
+                ("HP:0000969", "Edema", 'synonym: "Puffiness" BROAD layperson []\n'))) + "[Typedef]"))
+        ext = Extractor(Ontology(root / "hp.obo"))
+        level = {m.hpo_id: (m.link[0], m.grounding) for m in ext.mentions("Double-jointed, shortness of breath, puffiness.")}
+        self.assertEqual(level["HP:0001382"], ("synonym:exact", "strong"))          # EXACT layperson
+        self.assertEqual(level["HP:0002094"], ("synonym:related", "weak"))          # RELATED
+        self.assertEqual(level["HP:0000969"], ("synonym:layperson", "supported"))   # non-EXACT layperson
+        sob = ext.mentions("Pt reports SOB.")[0]                                    # abbreviation onto a RELATED synonym
+        self.assertEqual((sob.hpo_id, sob.link[0], sob.grounding), ("HP:0002094", "abbreviation:shortness of breath", "weak"))
+
+    def test_ordinals_and_av(self):
+        text = "ECG: sinus rhythm, PR 236 ms (1st degree AV block)."
+        m = next(m for m in self.ext.mentions(text) if m.hpo_id == "HP:0011705")
+        self.assertEqual((m.status, m.quote, text[m.start:m.end]), (Status.PRESENT, "1st degree AV block", "1st degree AV block"))
+        self.assertEqual(m.link[0], "abbreviation:atrioventricular")
+        self.assertEqual(self.st("First degree atrioventricular block."), {("HP:0011705", Status.PRESENT)})
+
+    def test_negation_stops_at_a_new_label(self):
+        self.assertEqual(self.st("Gen: no fever    NEURO: seizures today"),
+                         {("HP:0001945", Status.ABSENT), ("HP:0001250", Status.PRESENT)})
+        self.assertEqual(self.st("No fever, seizures."), {("HP:0001945", Status.ABSENT), ("HP:0001250", Status.ABSENT)})
+        self.assertEqual(self.st("Seen today; mother with seizures   Pt: dislocated lens"),   # family word stays in its segment
+                         {("HP:0001250", Status.FAMILY), ("HP:0001083", Status.PRESENT)})
+        root = Path(tempfile.mkdtemp())
+        (root / "hp.obo").write_text(OBO.replace("[Typedef]", '[Term]\nid: HP:0030828\nname: Wheezing\n'
+                                                 'synonym: "Wheezes" EXACT []\nis_a: HP:0000118\n\n[Typedef]'))
+        ext = Extractor(Ontology(root / "hp.obo"))
+        got = {(m.hpo_id, m.status) for m in ext.mentions("HEENT: no JVD/HJR    LUNGS: rhales B/L, wheezes B/L")}
+        self.assertEqual(got, {("HP:0030828", Status.PRESENT)})
+
+    def test_negated_words(self):
+        text = "Pt afebrile, tall."
+        m = self.ext.mentions(text)[0]
+        self.assertEqual((m.hpo_id, m.status, m.quote, m.link[0], m.grounding), ("HP:0001945", Status.ABSENT, "afebrile", "negated_word", "supported"))
+        self.assertEqual(text[m.start:m.end], "afebrile")
+
+
+class TestGoldFiles(unittest.TestCase):
+    # the evaluation gold must match its case files, and accepted alternatives only change on purpose
+    ALTERNATIVES = {
+        "examples": {("wilson_labs.json", "HP:0000952", "HP:0032106"), ("marfan_note.json", "HP:0001962", "HP:0001649")},
+        "examples/heldout": {("fabry_note_labs.json", "HP:0000504", "HP:0000505"), ("fabry_note_labs.json", "HP:0010741", "HP:0000969"),
+                             ("fabry_note_labs.json", "HP:0003774", "HP:0000083"), ("dm1_note.json", "HP:0000276", "HP:0000275"),
+                             ("dm1_note.json", "HP:0200101", "HP:0001265"), ("dm1_note.json", "HP:0200101", "HP:0002600"),
+                             ("dm1_note.json", "HP:0001324", "HP:0007340"), ("hht_imaging.json", "HP:0001009", "HP:0000214"),
+                             ("hht_imaging.json", "HP:0001009", "HP:0007428"), ("hht_imaging.json", "HP:0006576", "HP:0006574")}}
+    FIELDS = {"note": "note_text", "image_context": "image_context"}
+
+    def test_gold_quotes_and_alternatives(self):
+        root = Path(__file__).parent
+        for folder, approved in self.ALTERNATIVES.items():
+            gold = json.loads((root / folder / "intended_findings.json").read_text())
+            alts = set()
+            for fn, readers in gold.items():
+                if fn.startswith("_"):
+                    continue
+                case = json.loads((root / folder / fn).read_text())
+                for reader, items in readers.items():
+                    for it in items:
+                        self.assertIn(it["status"], {"present", "absent", "uncertain", "family"})
+                        if reader in self.FIELDS and it["quote"]:
+                            self.assertIn(it["quote"], case[self.FIELDS[reader]], (fn, it["quote"]))
+                        alts |= {(fn, it["hpo_id"], a) for a in it.get("alternatives", [])}
+            self.assertEqual(alts, approved, folder)
+
+
+class TestGrounding(unittest.TestCase):
+    # spans, cues, links and grounding levels in provenance; disease mentions
+    @classmethod
+    def setUpClass(cls):
+        root = Path(tempfile.mkdtemp())
+        build(root)
+        (root / "kb" / "hp.obo").write_text(OBO.replace("[Typedef]", EXTRA_TERMS + "[Typedef]"))
+        cls.ont = Ontology(root / "kb" / "hp.obo")
+        cls.ext = Extractor(cls.ont)
+
+    def parse(self, obj, **kw):
+        from hoofbeats.intake import parse_case
+        return parse_case({"case_id": "g", **obj}, self.ont, self.ext, **kw)
+
+    def test_spans_point_into_original_text_after_abbreviations(self):
+        note = "Pt denies CP, N/V.\nFHx: szs in mother."
+        c = self.parse({"note_text": note})
+        cp = c.meta["provenance"]["HP:0100749"][0]
+        self.assertEqual((note[cp["start"]:cp["end"]], cp["quote"], cp["field"], cp["status"]), ("CP", "CP", "note_text", "absent"))
+        self.assertEqual(cp["link"], {"method": "abbreviation:chest pain", "matched_string": "Chest pain"})
+        self.assertEqual((cp["grounding"], cp["readers"], cp["section"]), ("weak", ["rules"], None))   # CP alone in a list
+        self.assertEqual(cp["status_cue"], {"word": "denies", "start": 3, "end": 9})
+        sz = c.meta["provenance"]["HP:0001250"][0]
+        self.assertEqual((sz["quote"], sz["status"], sz["status_cue"]["word"], sz["section"]), ("szs", "family", "FHx", "family"))
+        self.assertFalse([w for w in c.meta["intake_warnings"] if w.startswith("provenance")])
+
+    def test_verify_provenance_catches_a_bad_span(self):
+        from hoofbeats.grounding import verify_provenance
+        note = "Exam: dislocated lens."
+        c = self.parse({"note_text": note})
+        self.assertEqual(verify_provenance(c, {"note_text": note}), [])
+        c.meta["provenance"]["HP:0001083"][0]["start"] += 1
+        bad = verify_provenance(c, {"note_text": note})
+        self.assertEqual(len(bad), 1)
+        self.assertIn("not 'dislocated lens'", bad[0])
+
+    def test_disease_mentions(self):
+        names = {"OMIM:10": "Marfan syndrome", "OMIM:11": "Pheochromocytoma", "OMIM:12": "Familial Mediterranean fever"}
+        c = self.parse({"note_text": "Pt w/ hx of Marfan. Known pheochromocytoma. Father had Marfan syndrome. "
+                                     "Has familial Mediterranean fever."}, disease_names=names)
+        got = [(d["quote"], d["disease_ids"], d["status"], d["also_hpo"]) for d in c.meta["disease_mentions"]]
+        self.assertEqual(got, [("Marfan", ["OMIM:10"], "present", False), ("pheochromocytoma", ["OMIM:11"], "present", True),
+                               ("Marfan syndrome", ["OMIM:10"], "family", False),
+                               ("familial Mediterranean fever", ["OMIM:12"], "present", False)])
+        ids = {f.hpo_id for f in c.findings}
+        self.assertNotIn("HP:0001945", ids)                    # "fever" inside a disease name that is not an HPO term
+        self.assertIn("HP:0002666", ids)                       # name that is also an HPO term: kept and flagged
+        self.assertTrue(c.meta["provenance"]["HP:0002666"][0]["disease_mention"])
+        self.assertFalse([w for w in c.meta["intake_warnings"] if w.startswith("provenance")])
+        self.assertIn("HP:0001945", {f.hpo_id for f in self.parse({"note_text": "Has familial Mediterranean fever."}).findings})
+
+    def test_disease_core_names_skip_ordinary_words(self):
+        names = {"OMIM:20": "Cousin syndrome", "OMIM:21": "Marfan syndrome", "OMIM:22": "Weaver syndrome",
+                 "OMIM:23": "Turner syndrome"}
+        c = self.parse({"note_text": "Parents are 2nd cousins. Hx of Marfan. Works as a weaver. Known Turner."},
+                       disease_names=names)
+        self.assertEqual([d["quote"] for d in c.meta["disease_mentions"]], ["Marfan", "Turner"])
+        c = self.parse({"note_text": "Father had Cousin syndrome."}, disease_names=names)
+        self.assertEqual([(d["quote"], d["status"]) for d in c.meta["disease_mentions"]], [("Cousin syndrome", "family")])
+
+    def test_numbers_conflict_with_text_and_provenance(self):
+        root = Path(tempfile.mkdtemp())
+        (root / "hp.obo").write_text(OBO.replace("[Typedef]", "[Term]\nid: HP:0000822\nname: Hypertension\nis_a: HP:0000118\n\n"
+                                                 "[Term]\nid: HP:0002615\nname: Hypotension\nis_a: HP:0000118\n\n[Typedef]"))
+        from hoofbeats.intake import parse_case
+        ont = Ontology(root / "hp.obo")
+        c = parse_case({"case_id": "n", "note_text": "Known hypertension. BP 118/76 today.", "vitals": {"bp": "150/95"}}, ont, Extractor(ont),
+                       emit_normal_vitals=True)
+        prov = c.meta["provenance"]["HP:0000822"]
+        self.assertEqual(sorted((e["source"], e["status"], e["readers"][0]) for e in prov),
+                         [("note", "absent", "numbers"), ("note", "present", "rules"), ("vitals:bp", "present", "vitals")])
+        self.assertEqual(c.meta["provenance"]["conflicts"][0]["hpo_id"], "HP:0000822")   # text/number disagreement recorded
+        num = next(e for e in prov if e["readers"] == ["numbers"])
+        self.assertEqual((num["quote"], num["range_source"], num["grounding"]), ("BP 118/76", "threshold", "supported"))
+        self.assertFalse([x for x in c.meta["intake_warnings"] if x.startswith("provenance")])
+
+    def test_grounding_levels_and_merge(self):
+        from hoofbeats.grounding import level_of
+        from hoofbeats.intake import intake_summary
+        c = self.parse({"note_text": "Exam: dislocated lens. He has fits. Pt afebrile.", "hpo_terms": [{"id": "HP:0001250"}],
+                        "labs": [{"name": "Alkaline Phosphatase", "value": 20, "unit": "U/L", "ref_low": 35, "ref_high": 105}]})
+        lvl = {f.hpo_id: level_of(f) for f in c.findings}
+        self.assertEqual((lvl["HP:0001083"], lvl["HP:0001945"], lvl["HP:0003282"]), ("strong", "supported", "strong"))
+        self.assertEqual(lvl["HP:0001250"], "strong")                                   # strongest contributor wins
+        self.assertEqual(sorted(e["grounding"] for e in c.meta["provenance"]["HP:0001250"]), ["strong", "weak"])   # RELATED "fits"
+        lab = c.meta["provenance"]["HP:0003282"][0]
+        self.assertEqual((lab["value"], lab["unit"], lab["ref_low"], lab["ref_high"], lab["range_source"], lab["start"]),
+                         (20.0, "U/L", 35.0, 105.0, "input", None))
+        self.assertIn("grounding: strong 4, supported 1, weak 0", intake_summary(c, self.ont))
+
+
+class TestNumbers(unittest.TestCase):
+    # numbers reader: outputs before fusion, with the real HPO ids from resources/lab_reference.tsv and vital_thresholds.tsv
+    def read(self, text, age=None, **kw):
+        from hoofbeats.numbers import read_numbers
+        warnings = []
+        found = read_numbers(text, "note", "note_text", age, warnings.append, **kw)
+        for f in found:
+            self.assertEqual(text[f.start:f.end], f.quote)            # spans point at the original characters
+        return {(f.hpo_id, f.status) for f in found}, found, warnings
+
+    def test_lab_values_ranges_flags_and_lists(self):
+        got, found, _ = self.read("Na 128 mmol/L (ref 135-145), K 5.9 H")
+        self.assertIn(("HP:0002902", Status.PRESENT), got)              # hyponatremia
+        self.assertIn(("HP:0002153", Status.PRESENT), got)              # hyperkalemia from the H flag
+        na = next(f for f in found if f.hpo_id == "HP:0002902")
+        self.assertEqual((na.grounding, dict(na.lab)["range_source"], na.quote), ("strong", "input", "Na 128 mmol/L (ref 135-145)"))
+        k = next(f for f in found if f.hpo_id == "HP:0002153")
+        self.assertEqual((k.grounding, k.status_cue[0]), ("weak", "H"))    # "K" is an ambiguous alias
+        got, found, _ = self.read("ALB 2.6 ALK PHOS 202 AST 572 ALT 757 TBILI 0.9")
+        self.assertTrue({("HP:0003073", Status.PRESENT), ("HP:0003155", Status.PRESENT), ("HP:0002910", Status.PRESENT),
+                         ("HP:0002904", Status.ABSENT)} <= got)
+        self.assertEqual({f.grounding for f in found}, {"weak"})          # no units: plausible values, weak
+
+    def test_units(self):
+        got, found, w = self.read("Hgb 95 g/L, creatinine 150 umol/L, glucose 3.1 mmol/L, ammonia 80 ug/dL, Na 1280")
+        self.assertTrue({("HP:0001903", Status.PRESENT), ("HP:0003259", Status.PRESENT), ("HP:0001943", Status.PRESENT)} <= got)
+        self.assertEqual(round(dict(next(f for f in found if f.hpo_id == "HP:0003259").lab)["converted_value"], 2), 1.7)
+        self.assertFalse(any(h == "HP:0001987" for h, _ in got))        # ug/dL is not a supported ammonia unit
+        self.assertFalse(any(h in ("HP:0002902", "HP:0003228") for h, _ in got))   # Na 1280 without unit: implausible
+        self.assertTrue(any("not supported" in x for x in w) and any("not plausible" in x for x in w))
+
+    def test_specimens_and_test_context(self):
+        got, _, w = self.read("CSF: LP opening pressure 18, wbc=32, glc=53")
+        self.assertEqual(got, set())
+        got, _, _ = self.read("Urine glucose 300 mg/dL")
+        self.assertEqual(got, set())
+
+    def test_vitals(self):
+        got, found, _ = self.read("Vitals: T 101.0F, HR 112, BP 120/95, RR 16, SpO2 88%", emit_normal_vitals=True)
+        self.assertTrue({("HP:0001945", Status.PRESENT), ("HP:0001649", Status.PRESENT), ("HP:0000822", Status.PRESENT),
+                         ("HP:0002615", Status.ABSENT), ("HP:0002789", Status.ABSENT), ("HP:0012418", Status.PRESENT)} <= got)
+        t = next(f for f in found if f.hpo_id == "HP:0001945")
+        self.assertEqual((t.grounding, dict(t.lab)["value"]), ("weak", 38.33))   # "T" is a one-letter label
+        got, _, _ = self.read("BP 85/50 on arrival.", emit_normal_vitals=True)
+        self.assertTrue({("HP:0002615", Status.PRESENT), ("HP:0000822", Status.ABSENT)} <= got)
+        got, _, _ = self.read("BP 142/88.")
+        self.assertIn(("HP:0000822", Status.PRESENT), got)
+        self.assertEqual(self.read("Tested for P 85 deficiency.")[0], set())      # "P" only counts among vitals
+        got, _, w = self.read("Vitals: HR 88, O2 sat 995 on RA, BP 70/120", emit_normal_vitals=True)   # typos: skipped with a warning
+        self.assertEqual({h for h, _ in got}, {"HP:0001649", "HP:0001662"})
+        self.assertEqual(len([x for x in w if "not plausible" in x]), 2)
+
+    def test_normal_vitals_give_no_absent_findings_by_default(self):
+        text = "Vitals: T 101.0F, HR 72, BP 120/95, RR 16, SpO2 98%. Na 140 mmol/L (ref 135-145). PR 160 ms."
+        normals = []
+        got, _, _ = self.read(text, normals=normals)
+        self.assertEqual({h for h, st in got if st == Status.PRESENT}, {"HP:0001945", "HP:0000822"})
+        self.assertFalse([h for h, st in got if st == Status.ABSENT and h in ("HP:0001649", "HP:0001662", "HP:0002615",
+                                                                            "HP:0002789", "HP:0002793", "HP:0012418")])
+        self.assertIn(("HP:0002902", Status.ABSENT), got)              # lab with an input range: normal -> absent
+        self.assertIn(("HP:0011705", Status.ABSENT), got)              # PR interval is not a vital sign
+        self.assertEqual({e["measure"] for e in normals}, {"heart_rate", "respiratory_rate", "spo2", "blood_pressure",
+                                                          "temperature_c"})
+        hr = next(e for e in normals if e["measure"] == "heart_rate")
+        self.assertEqual((text[hr["start"]:hr["end"]], hr["value"], hr["status"]), ("HR 72", 72.0, "absent"))
+        on, _, _ = self.read(text, emit_normal_vitals=True)
+        self.assertTrue({("HP:0001649", Status.ABSENT), ("HP:0002615", Status.ABSENT)} <= on)
+
+    def test_normal_vitals_in_case_provenance(self):
+        from hoofbeats.intake import parse_case
+        root = Path(tempfile.mkdtemp())
+        extra = "".join(f"[Term]\nid: {i}\nname: {n}\nis_a: HP:0000118\n\n" for i, n in (
+            ("HP:0000822", "Hypertension"), ("HP:0002615", "Hypotension"), ("HP:0001649", "Tachycardia"),
+            ("HP:0001662", "Bradycardia"), ("HP:0012418", "Hypoxemia")) if f"id: {i}\n" not in OBO)
+        (root / "hp.obo").write_text(OBO.replace("[Typedef]", extra + "[Typedef]"))
+        ont = Ontology(root / "hp.obo")
+        obj = {"case_id": "v", "note_text": "HR 72, BP 118/76.", "vitals": {"bp": "150/95", "hr": 70, "spo2": 97}}
+        c = parse_case(obj, ont, Extractor(ont))
+        self.assertEqual({(f.hpo_id, f.status) for f in c.findings}, {("HP:0000822", Status.PRESENT)})
+        self.assertEqual(len(c.meta["provenance"]["normal_vitals"]), 8)   # HR and BP each give two
+        self.assertEqual(c.meta["vitals"], {"bp": "150/95", "hr": 70.0, "spo2": 97.0})
+        self.assertFalse([x for x in c.meta["intake_warnings"] if x.startswith("provenance")])
+        on = parse_case(obj, ont, Extractor(ont), emit_normal_vitals=True)
+        self.assertIn(("HP:0001649", Status.ABSENT), {(f.hpo_id, f.status) for f in on.findings})
+        self.assertEqual(on.meta["provenance"]["normal_vitals"], [])
+
+    def test_ecg_zscores_centiles_arm_span(self):
+        got, found, _ = self.read("ECG: PR 236 ms. QTc 480 ms. Echo: aortic root 4.1 cm (Z +3.2). Arm span > height. "
+                                  "OFC below the 3rd centile; height at the 50th percentile.")
+        self.assertTrue({("HP:0011705", Status.PRESENT), ("HP:0005184", Status.PRESENT), ("HP:0002616", Status.PRESENT),
+                         ("HP:0012771", Status.PRESENT), ("HP:0000252", Status.PRESENT), ("HP:0000098", Status.ABSENT),
+                         ("HP:0004322", Status.ABSENT)} <= got)
+        z = next(f for f in found if f.hpo_id == "HP:0002616")
+        self.assertEqual(z.quote, "aortic root 4.1 cm (Z +3.2")
+
+    def test_measure_lists_respectively(self):
+        text = ("His height, weight, and head circumference were 131.7 cm (<3rd percentile), 48.6 kg (75-90th percentile), "
+                "and 55.5 cm (95-97th percentile), respectively.")
+        got, found, w = self.read(text)
+        self.assertEqual(got, {("HP:0004322", Status.PRESENT), ("HP:0000098", Status.ABSENT),
+                               ("HP:0000252", Status.ABSENT), ("HP:0000256", Status.ABSENT)})
+        self.assertEqual({f.quote for f in found}, {"131.7 cm (<3rd percentile)", "55.5 cm (95-97th percentile)"})
+        self.assertEqual(dict(next(f for f in found if f.hpo_id == "HP:0004322").lab)["as_written"],
+                         "height: 131.7 cm (<3rd percentile)")
+        got, _, _ = self.read("Height and OFC were −2.8 SD and −3.1 SD, respectively.")
+        self.assertTrue({("HP:0004322", Status.PRESENT), ("HP:0000252", Status.PRESENT)} <= got)
+        got, _, _ = self.read("The weight and height of this patient are 11 kg (P90) and 84 cm (P2), respectively.")
+        self.assertIn(("HP:0004322", Status.PRESENT), got)
+        got, _, _ = self.read("Birth weight and length were 3.35 kg and 51 cm, respectively.")     # no centile: nothing
+        self.assertEqual(got, set())
+        got, _, w = self.read("Height, weight and OFC were 120 cm (<3rd centile) and 20 kg, respectively.")
+        self.assertEqual(got, set())                                     # 3 measures, 2 values: not paired, not misread
+        self.assertTrue(any("3 measures but 2 values" in x for x in w))
+
+    def test_centile_before_measure_list(self):
+        got, found, _ = self.read("Growth was below the 3rd centile for height, weight and head circumference.")
+        self.assertTrue({("HP:0004322", Status.PRESENT), ("HP:0000252", Status.PRESENT)} <= got)
+        self.assertEqual(next(f for f in found if f.hpo_id == "HP:0004322").quote, "below the 3rd centile for height")
+        got, _, _ = self.read("OFC was above the 97th centile, and below the 3rd percentile for length.")
+        self.assertIn(("HP:0004322", Status.PRESENT), got)
+        self.assertNotIn(("HP:0000252", Status.PRESENT), got)
+
+    def test_centile_ranges(self):
+        got, _, _ = self.read("Head circumference 55.5 cm (95-97th percentile); occipito-frontal circumference 29 cm (1-2nd centile).")
+        self.assertEqual(got, {("HP:0000252", Status.ABSENT), ("HP:0000256", Status.ABSENT), ("HP:0000252", Status.PRESENT)})
+
+    def test_children_get_no_adult_defaults(self):
+        got, _, w = self.read("Na 128, HR 150, Na 128 mmol/L (ref 133-146), OFC below the 3rd centile", age=6)
+        self.assertIn(("HP:0002902", Status.PRESENT), got)                # input range: still used
+        self.assertIn(("HP:0000252", Status.PRESENT), got)                # centile: age-independent
+        self.assertFalse(any(h in ("HP:0001649", "HP:0001662") for h, _ in got))
+        self.assertEqual(len([x for x in w if "younger than 18" in x]), 1)
+
+    def test_structured_labs_vitals_and_age(self):
+        from hoofbeats.intake import Lab, Vitals
+        from hoofbeats.numbers import age_from_text, age_years, read_structured_labs, read_structured_vitals
+        w = []
+        labs = read_structured_labs([Lab(name="Sodium", value=128, unit="mmol/L"), Lab(name="Ammonia", value=40, ref_high=32),
+                                     Lab(name="Troponin", value=1)], w.append)
+        got = {(f.hpo_id, f.status, f.grounding) for f in labs}
+        self.assertIn(("HP:0002902", Status.PRESENT, "supported"), got)   # default table, unit given
+        self.assertIn(("HP:0001987", Status.PRESENT, "strong"), got)      # input range
+        self.assertIn("labs: 'Troponin' is not in the lab map; skipped", w)
+        vit = read_structured_vitals(Vitals(bp="150/85", temp_c=36.8), w.append)
+        self.assertIn(("HP:0000822", Status.PRESENT), {(f.hpo_id, f.status) for f in vit})
+        self.assertEqual(next(f for f in vit if f.hpo_id == "HP:0000822").field, "vitals.bp")
+        self.assertEqual(read_structured_labs([Lab(name="Sodium", value=128)], w.append, age=10), [])
+        self.assertEqual((age_years("3 months"), age_years("P3Y6M"), age_years(17)), (0.25, 3.5, 17.0))
+        self.assertEqual(age_from_text("38 y/o M machinist"), 38.0)
+
+
+class TestPmcLocator(unittest.TestCase):
+    @staticmethod
+    def doc(*items):
+        # (section_type, type, text)
+        return {"passages": [{"infons": {"section_type": s, "type": t}, "text": x, "offset": i * 100}
+                             for i, (s, t, x) in enumerate(items)]}
+
+    def test_subject_keys(self):
+        from hoofbeats.pmc import subject_keys
+        self.assertEqual(subject_keys("Individual 3"), {("label", "3")})
+        self.assertEqual(subject_keys("P12"), {("label", "12")})
+        self.assertEqual(subject_keys("Family 2 II-3"), {("ped", "II", "3")})
+        self.assertEqual(subject_keys("STX_1_Patient_4"), {("label", "4")})
+        self.assertEqual(subject_keys("KBG3"), {("code", "kbg3")})
+        self.assertEqual(subject_keys("proband"), set())
+
+    def test_single_patient_paragraphs(self):
+        from hoofbeats.pmc import single_patient_paragraphs
+        d = self.doc(("INTRO", "paragraph", "Background on the disease."), ("CASE", "title_1", "Case presentation"),
+                     ("CASE", "paragraph", "A 5-year-old boy had seizures."), ("METHODS", "title_1", "Patients and methods"),
+                     ("METHODS", "paragraph", "DNA was extracted."), ("RESULTS", "title_1", "Results"),
+                     ("RESULTS", "title_2", "Clinical findings"), ("RESULTS", "paragraph", "He had ataxia."),
+                     ("DISCUSS", "title_1", "Clinical description"), ("DISCUSS", "paragraph", "Others report ataxia."))
+        self.assertEqual([(p["text"], r) for p, r in single_patient_paragraphs(d)],
+                         [("A 5-year-old boy had seizures.", "case_section"), ("He had ataxia.", "case_heading")])
+
+    def test_multi_patient_paragraphs(self):
+        from hoofbeats.pmc import multi_patient_paragraphs, subject_keys
+        d = self.doc(("RESULTS", "title_1", "Clinical reports"),
+                     ("RESULTS", "paragraph", "Patient 1 is a 4-year-old girl with ataxia."),
+                     ("RESULTS", "paragraph", "Patient 2 had seizures. His sister, patient 1, did not."),
+                     ("RESULTS", "paragraph", "Patient 2, the brother of patient 1, had ataxia."),
+                     ("RESULTS", "paragraph", "Patients 1 and 2 both had short stature."),
+                     ("RESULTS", "paragraph", "Patient 10 had scoliosis."),
+                     ("RESULTS", "title_2", "Patient 2"), ("RESULTS", "paragraph", "He walked late."),
+                     ("DISCUSS", "paragraph", "Patient 1 resembles earlier reports."))
+        keys = {"a": subject_keys("Individual 1"), "b": subject_keys("Individual 2")}
+        got = {k: [(p["text"][:12], r) for p, r in v] for k, v in multi_patient_paragraphs(d, keys).items()}
+        self.assertEqual(got, {"a": [("Patient 1 is", "id_start")],
+                               "b": [("Patient 2 ha", "id_start"), ("He walked la", "id_heading")]})
+
+    def test_vocab_visible(self):
+        from hoofbeats.extract_eval import _norm, vocab_visible
+        root = Path(tempfile.mkdtemp())
+        (root / "hp.obo").write_text(OBO)
+        ont = Ontology(root / "hp.obo")
+        self.assertTrue(vocab_visible(ont, "HP:0001250", _norm("She had two Seizures, then none.")))
+        self.assertFalse(vocab_visible(ont, "HP:0001250", _norm("She had two convulsive episodes.")))
+
+    def test_check_scores(self):
+        import csv
+        from hoofbeats.pmc_checks import kappa, score
+        self.assertAlmostEqual(kappa(["yes", "yes", "no", "no"], ["yes", "no", "no", "no"]), 0.5)
+        d = Path(tempfile.mkdtemp())
+
+        def put(name, rows):
+            with open(d / name, "w", newline="") as fh:
+                w = csv.DictWriter(fh, fieldnames=list(rows[0]))
+                w.writeheader()
+                w.writerows(rows)
+        b = lambda i, h, e, sm="": {"row_id": f"B{i}", "case_id": "c1", "split": "dev", "hpo_id": h, "label": "", "gold_status": "present",
+                                    "case_text": "", "expressed": e, "quote": "", "status_matches": sm, "notes": ""}
+        put("task_b_gold_in_text.csv", [b(1, "HP:1", "yes", "yes"), b(2, "HP:2", "yes", "yes"), b(3, "HP:3", "no"), b(4, "HP:4", "maybe")])
+        put("task_b_second_annotator.csv", [b(1, "HP:1", "yes"), b(2, "HP:2", "no"), b(3, "HP:3", "no")])
+        put("task_c_extras.csv", [{"row_id": "C1", "verdict": "correct_not_in_gold"}, {"row_id": "C2", "verdict": "wrong_term"}])
+        it = lambda h, r, m="": {"case": "c1", "kind": "gold", "hpo_id": h, "status": "present", "result": r, "method": m}
+        put("items.csv", [it("HP:1", "exact", "numbers;rules"), it("HP:2", "missed"), it("HP:3", "missed")])
+        (d / "summary.json").write_text(json.dumps({"pred": 10, "extra": 4, "precision": {"strict": 0.5, "lenient": 0.6}}))
+        (d / "manifest.json").write_text(json.dumps({"cases": [{"case_id": "c1", "paper_kind": "multi"}]}))
+        res = score(d, d / "items.csv", d / "summary.json", d / "manifest.json")
+        self.assertEqual(res["task_b"]["hand_checked_recall"]["strict"], 0.5)
+        self.assertEqual(res["task_b"]["hand_checked_recall_by_paper_kind"]["multi"]["n_in_run"], 2)
+        self.assertEqual(res["task_b"]["hand_checked_recall_by_status"]["absent"]["n_in_run"], 0)
+        self.assertEqual(res["task_b"]["hand_checked_found_by_method"], {"numbers": 1, "rules": 1})
+        self.assertEqual(res["task_b"]["agreement"]["rows"], 3)
+        self.assertAlmostEqual(res["task_c"]["precision_adjusted"]["strict"], 0.7)
+        self.assertTrue(any("maybe" in x for x in res["problems"]))
+
+    def test_frozen_stage1_config(self):
+        from hoofbeats.config import DEFAULT, load_stage1
+        cfg = load_stage1(DEFAULT, "hp/releases/2026-09-01")
+        self.assertEqual((cfg["readers"], cfg["llm"]["prompt_version"], cfg["linker"]["chooser_version"],
+                          cfg["status_policy"]), (["rules", "numbers", "llm"], 1, 1, "llm"))
+        self.assertTrue(any("HPO is" in p for p in load_stage1(DEFAULT, "hp/releases/2099-01-01")["problems"]))
+        d = Path(tempfile.mkdtemp())
+        bad = json.loads(Path(DEFAULT).read_text())
+        (d / "cal.json").write_text(json.dumps({"hi": 0.9, "margin": 0.05, "lo": 0.62, "k": 10}))
+        bad["linker"]["calibration"] = str(d / "cal.json")
+        (d / "cfg.json").write_text(json.dumps(bad))
+        self.assertTrue(any("differs from the frozen thresholds in hi" in p for p in load_stage1(d / "cfg.json")["problems"]))
+
+    def test_chooser_comparison(self):
+        import csv
+        from hoofbeats.chooser_eval import make_sheet, score
+
+        def put(path, rows):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "w", newline="") as fh:
+                w = csv.DictWriter(fh, fieldnames=list(rows[0]))
+                w.writeheader()
+                w.writerows(rows)
+        log = lambda ph, start, h, m="llm_choice": {"case": "c", "field": "note_text", "phrase": ph, "status": "present",
+                                                     "start": start, "end": start + 3, "hpo_id": h or "",
+                                                     "kept": str(bool(h)), "link_method": m}
+        ex = lambda h, m="llm": {"case": "c", "kind": "extra", "hpo_id": h, "label": h, "status": "present", "method": m,
+                                 "quote": "q", "evidence": "s"}
+        gold = {"case": "c", "kind": "gold", "hpo_id": "HP:G", "label": "g", "status": "present", "method": "llm",
+                "quote": "", "evidence": ""}
+        d = Path(tempfile.mkdtemp())
+        # old: A (chooser, kept), B (chooser, now dropped), C (chooser, will change to D), E (chooser, will hit gold),
+        #      F (embedding: not a chooser extra), x (borderline, unlinked)
+        put(d / "old/llm_log.csv", [log("a", 0, "HP:A"), log("b", 10, "HP:B"), log("c", 20, "HP:C"), log("e", 30, "HP:E"),
+                                    log("f", 40, "HP:F", "embedding"), log("x", 50, None, "borderline")])
+        put(d / "old/rules+llm_status-llm/pmc_dev_items.csv", [gold] + [ex(h) for h in ("HP:A", "HP:B", "HP:C", "HP:E", "HP:F")])
+        put(d / "new/llm_log.csv", [log("a", 0, "HP:A"), log("b", 10, None, "unlinked"), log("c", 20, "HP:D"),
+                                    log("e", 30, "HP:G"), log("f", 40, "HP:F", "embedding"), log("x", 50, "HP:X")])
+        put(d / "new/rules+llm_status-llm/pmc_dev_items.csv", [gold] + [ex(h) for h in ("HP:A", "HP:D", "HP:F", "HP:X")])
+        for run in ("old", "new"):
+            (d / run / "rules+llm_status-llm" / "summary.json").write_text(
+                json.dumps({"pred": 10, "precision": {"strict": 0.5, "lenient": 0.5}}))
+        chk = d / "checks"
+        put(chk / "task_c_llm.csv", [{"row_id": f"D{i}", "case_id": "c", "hpo_id": h, "predicted_status": "present",
+                                      "verdict": v} for i, (h, v) in enumerate(
+            [("HP:A", "correct_not_in_gold"), ("HP:B", "wrong_term"), ("HP:C", "wrong_term"), ("HP:E", "wrong_term"),
+             ("HP:F", "correct_not_in_gold")])])
+        (chk / "task_c_llm_key.json").write_text(json.dumps({"rows": {f"D{i}": [{"version": "v1", "stratum": "random"}]
+                                                                      for i in range(5)}}))
+        res = make_sheet(d / "old", d / "new", chk)
+        self.assertEqual(res["outcomes"], {"unchanged": 1, "dropped": 1, "changed_to_judge": 1, "changed_to_gold": 1})
+        self.assertEqual(res["candidates"], {"unchanged": 1, "dropped": 1, "changed": 2, "newly_linked": 1})
+        sheet = list(csv.DictReader(open(chk / "task_c_chooser.csv")))
+        self.assertEqual(sorted(r["hpo_id"] for r in sheet), ["HP:D", "HP:X"])     # changed term + newly linked
+        put(chk / "task_c_chooser.csv", [{**r, "verdict": "correct_not_in_gold" if r["hpo_id"] == "HP:D" else "wrong_term"}
+                                         for r in sheet])
+        out = score(chk, 0.5)
+        cp = out["chooser_precision"]
+        self.assertEqual((cp["old"], cp["old_sample_after_change"], cp["newly_linked_sample"]), (0.25, 1.0, 0.0))
+        # old chooser stratum: 4 extras; 3 of 4 sampled stay (B dropped) -> 3 at 100%, plus 1 fresh at 0%
+        self.assertAlmostEqual(cp["new"], 3 / 4)
+        self.assertEqual(out["other_llm_extras_precision"], 1.0)
+        self.assertAlmostEqual(out["precision_judged"]["old"]["strict"], (5 + 0.25 * 4 + 1.0 * 1) / 10)
+
+    def test_task_c_llm_sheet(self):
+        import csv
+        from hoofbeats.pmc_checks import make_task_c_llm, score_task_c_llm
+        d = Path(tempfile.mkdtemp())
+        ex = lambda h, st, m="llm": {"case": "c1", "kind": "extra", "hpo_id": h, "label": h, "status": st, "result": "extra",
+                                     "method": m, "quote": "q", "evidence": "s"}
+        for name, rows in (("v1.csv", [ex("HP:1", "present"), ex("HP:2", "present"), ex("HP:3", "absent"),
+                                       ex("HP:8", "present", "rules")]),
+                           ("v2.csv", [ex("HP:1", "present"), ex("HP:4", "present"), ex("HP:5", "absent")])):
+            with open(d / name, "w", newline="") as fh:
+                w = csv.DictWriter(fh, fieldnames=list(rows[0]))
+                w.writeheader()
+                w.writerows(rows)
+        make_task_c_llm({"v1": str(d / "v1.csv"), "v2": str(d / "v2.csv")}, d, n=2, n_absent=1)
+        sheet = list(csv.DictReader(open(d / "task_c_llm.csv")))
+        self.assertNotIn("method", sheet[0])                            # blind: no version or method on the sheet
+        self.assertNotIn("HP:8", {r["hpo_id"] for r in sheet})          # only LLM-only extras
+        self.assertEqual(len(sheet), len({r["hpo_id"] for r in sheet}))  # a shared extra appears once
+        with open(d / "task_c_llm.csv", "w", newline="") as fh:         # judge: HP:1 and HP:3 correct, the rest wrong
+            w = csv.DictWriter(fh, fieldnames=list(sheet[0]))
+            w.writeheader()
+            w.writerows([{**r, "verdict": "correct_not_in_gold" if r["hpo_id"] in ("HP:1", "HP:3") else "wrong_term"}
+                         for r in sheet])
+        (d / "s1.json").write_text(json.dumps({"pred": 10, "precision": {"strict": 0.5, "lenient": 0.6}}))
+        res = score_task_c_llm(d, 0.5, {"v1": str(d / "s1.json")})
+        key = json.loads((d / "task_c_llm_key.json").read_text())
+        v1_random = [rid for rid, ss in key["rows"].items() for s in ss if s == {"version": "v1", "stratum": "random"}]
+        self.assertEqual(res["v1"]["judged"], 2)
+        self.assertEqual(res["v1"]["absent_correct"], 1.0)              # HP:3, its only absent extra
+        share = res["v1"]["llm_extras_correct"]
+        self.assertEqual(share, sum(next(r for r in sheet if r["row_id"] == rid)["hpo_id"] in ("HP:1", "HP:3")
+                                    for rid in v1_random) / 2)
+        self.assertAlmostEqual(res["v1"]["precision_adjusted"]["strict"], (5 + share * 3 + 0.5 * 1) / 10)
+        self.assertNotIn("precision_adjusted", res["v2"])               # no summary given for v2
+
+
+F = lambda h, st, src="x", ev="": Finding(h, st, src, ev or f"{src}: {h}")
+
+
+class TestIntake(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.root = Path(tempfile.mkdtemp())
+        kb = build(cls.root)
+        cls.kb = kb
+        cls.ont = Ontology(kb / "hp.obo")
+        cls.ext = Extractor(cls.ont)
+
+    def parse(self, obj, **kw):
+        from hoofbeats.intake import parse_case
+        return parse_case(obj, self.ont, self.ext, **kw)
+
+    # schema and bad input
+    def test_bad_input_is_skipped_and_reported(self):
+        from hoofbeats.intake import IntakeError, load_case
+        c = self.parse({"labs": [{"name": "Ammonia", "value": "high"}, {"name": "Ammonia", "value": 40, "ref_high": 32}],
+                        "vitals": {"bp": "120/80", "hr": "fast"}, "sex": "Robot", "hpo_terms": "HP:0001250",
+                        "image_findings": [{"status": "present"}], "foo": 1}, path="cases/pt9.json")
+        w = " | ".join(c.meta["intake_warnings"])
+        self.assertEqual(c.case_id, "pt9")                                      # missing case_id: file name
+        for part in ("labs[0] skipped", "vitals.hr skipped", "sex skipped", "hpo_terms skipped",
+                     "image_findings[0] skipped", "unknown field 'foo'", "case_id missing"):
+            self.assertIn(part, w)
+        self.assertEqual(c.meta["vitals"], {"bp": "120/80"})                    # good vitals kept
+        self.assertEqual([(f.hpo_id, f.status) for f in c.findings], [("HP:0001987", Status.PRESENT)])   # good lab kept
+        self.assertEqual((c.meta["policy"], c.meta["images"], c.meta["sex"]), ("local_only", [], None))
+        bad = self.root / "bad.json"
+        bad.write_text("{not json")
+        with self.assertRaises(IntakeError):
+            load_case(bad, self.ont, self.ext)
+        with self.assertRaises(IntakeError):
+            self.parse([1, 2])
+
+    def test_each_source_is_tagged(self):
+        c = self.parse({"case_id": "p1", "policy": "open", "age": 34, "sex": "Female", "genes": ["FBN1", "FBN1"],
+                        "vitals": {"temp_c": 38.2}, "truth": ["OMIM:1"],
+                        "hpo_terms": [{"id": "HP:0099999", "status": "absent"}, {"id": "HP:1234567"}],
+                        "note_text": "Exam shows dislocated lens.",
+                        "image_context": "Global developmental delay noted on referral.",
+                        "image_findings": [{"finding": "tall stature", "image_id": "xr1"},
+                                           {"hpo_id": "HP:0001166", "image_id": "xr2", "evidence": "long fingers"}],
+                        "labs": [{"name": "alkaline phosphatase", "value": 20, "unit": "U/L", "ref_low": 35, "ref_high": 105},
+                                 {"name": "Troponin", "value": 1, "ref_high": 0.04}]}, drop_ancestors=False)
+        got = {f.hpo_id: (f.status, f.source, f.evidence) for f in c.findings}
+        self.assertEqual(got["HP:0001250"], (Status.ABSENT, "input:hpo", "HP:0099999"))        # alt id resolved
+        self.assertEqual(got["HP:0001083"][:2], (Status.PRESENT, "note"))
+        self.assertEqual(got["HP:0001263"][:2], (Status.PRESENT, "image_context"))
+        self.assertEqual(got["HP:0000098"], (Status.PRESENT, "image:xr1", "tall stature"))
+        self.assertEqual(got["HP:0001166"], (Status.PRESENT, "image:xr2", "long fingers"))
+        self.assertEqual(got["HP:0003282"], (Status.PRESENT, "lab:Alkaline Phosphatase", "alkaline phosphatase=20 U/L (ref 35-105)"))
+        self.assertEqual(got["HP:0003155"][:2], (Status.ABSENT, "lab:Alkaline Phosphatase"))
+        self.assertEqual((c.case_id, c.truth, c.genes, c.meta["age"], c.meta["sex"], c.meta["vitals"], c.meta["policy"]),
+                         ("p1", ["OMIM:1"], ["FBN1"], 34, "female", {"temp_c": 38.2}, "open"))
+        w = " | ".join(c.meta["intake_warnings"])
+        self.assertIn("HP:1234567 is not a current HPO phenotype term", w)
+        self.assertIn("'Troponin' is not in the lab map", w)
+        self.assertEqual(c.meta["provenance"]["HP:0001250"], [{
+            "source": "input:hpo", "status": "absent", "evidence": "HP:0099999", "quote": "HP:0099999", "field": "hpo_terms[0].id",
+            "start": 0, "end": 10, "status_cue": None, "link": {"method": "hpo_id", "matched_string": "HP:0099999"},
+            "readers": ["input"], "grounding": "strong", "section": None}])
+
+    # fusion
+    def test_fusion_status_priority_and_family(self):
+        from hoofbeats.fusion import fuse
+        fs, prov = fuse([[F("HP:0001083", Status.ABSENT, "note"), F("HP:0001083", Status.UNCERTAIN, "note")],
+                         [F("HP:0001083", Status.PRESENT, "image:a"), F("HP:0000098", Status.UNCERTAIN, "note"),
+                          F("HP:0000098", Status.ABSENT, "input:hpo"), F("HP:0000098", Status.FAMILY, "note"),
+                          F("HP:0001083", Status.PRESENT, "input:hpo"), F("HP:7777777", Status.PRESENT)]], self.ont)
+        got = [(f.hpo_id, f.status, f.source) for f in fs]
+        self.assertEqual(got, [("HP:0001083", Status.PRESENT, "image:a;input:hpo"), ("HP:0000098", Status.ABSENT, "input:hpo"),
+                               ("HP:0000098", Status.FAMILY, "note")])         # family kept beside the patient's status
+        self.assertEqual([e["status"] for e in prov["HP:0001083"]], ["absent", "uncertain", "present", "present"])
+        self.assertEqual(prov["conflicts"][0]["hpo_id"], "HP:0001083")         # present vs absent recorded
+        self.assertEqual(prov["unresolved"][0]["hpo_id"], "HP:7777777")
+        fam = Case("x", fs).terms(Status.FAMILY)
+        self.assertEqual(fam, ["HP:0000098"])
+
+    def test_fusion_drops_present_ancestors(self):
+        from hoofbeats.fusion import fuse
+        lists = [[F("HP:0001250", Status.PRESENT, "note")], [F("HP:0007359", Status.PRESENT, "image:a")]]
+        fs, prov = fuse(lists, self.ont)
+        self.assertEqual([f.hpo_id for f in fs], ["HP:0007359"])
+        self.assertEqual(prov["subsumed_by"], {"HP:0001250": ["HP:0007359"]})
+        self.assertEqual(len(prov["HP:0001250"]), 1)                           # dropped term keeps its provenance
+        fs, prov = fuse(lists, self.ont, drop_ancestors=False)
+        self.assertEqual(sorted(f.hpo_id for f in fs), ["HP:0001250", "HP:0007359"])
+        self.assertEqual(prov["subsumed_by"], {})
+
+    def test_fusion_absent_ancestor_of_present_term(self):
+        from hoofbeats.fusion import fuse
+        lists = [[F("HP:0007359", Status.PRESENT, "note"), F("HP:0001250", Status.ABSENT, "input:hpo")]]
+        fs, prov = fuse(lists, self.ont)
+        self.assertEqual([(f.hpo_id, f.status) for f in fs], [("HP:0007359", Status.PRESENT)])
+        self.assertEqual((prov["conflicts"][0]["hpo_id"], prov["conflicts"][0]["contradicted_by"], prov["conflicts"][0]["action"]),
+                         ("HP:0001250", ["HP:0007359"], "dropped"))
+        fs, prov = fuse(lists, self.ont, drop_ancestors=False)
+        self.assertEqual(len(fs), 2)
+        self.assertEqual(prov["conflicts"][0]["action"], "kept")
+        c = self.parse({"case_id": "c", "note_text": "Focal-onset seizure on EEG.", "hpo_terms": [{"id": "HP:0001250", "status": "absent"}]})
+        self.assertTrue(any("absent term is an ancestor of a present term" in w for w in c.meta["intake_warnings"]))
+
+    def test_fusion_keeps_most_general_absent_term(self):
+        from hoofbeats.fusion import fuse
+        lists = [[F("HP:0007359", Status.ABSENT, "note")], [F("HP:0001250", Status.ABSENT, "input:hpo")]]
+        fs, prov = fuse(lists, self.ont)
+        self.assertEqual([(f.hpo_id, f.status) for f in fs], [("HP:0001250", Status.ABSENT)])
+        self.assertEqual(prov["subsumed_by"], {"HP:0007359": ["HP:0001250"]})
+        fs, _ = fuse(lists, self.ont, drop_ancestors=False)
+        self.assertEqual(len(fs), 2)
+
+    def test_extract_eval_scoring(self):
+        from hoofbeats.extract_eval import evaluate, summarize
+        cases = self.root / "eval_cases"
+        cases.mkdir(exist_ok=True)
+        (cases / "c.json").write_text(json.dumps({"case_id": "c", "note_text": "Exam shows dislocated lens. Focal-onset seizure today. No fever."}))
+        gold = {"c.json": {"note": [
+            {"hpo_id": "HP:0001083", "label": "Ectopia lentis", "status": "present", "quote": "dislocated lens"},
+            {"hpo_id": "HP:0001250", "label": "Seizure", "status": "present", "quote": "Focal-onset seizure"},
+            {"hpo_id": "HP:0000098", "label": "Tall stature", "status": "absent", "quote": "No fever", "alternatives": ["HP:0001945"]},
+            {"hpo_id": "HP:0001263", "label": "Global developmental delay", "status": "present", "quote": "today"}]}}
+        (cases / "gold.json").write_text(json.dumps(gold))
+        rows, problems = evaluate(cases, cases / "gold.json", self.ont, self.ext)
+        r = rows[0]
+        self.assertEqual((r["exact"], r["near"], r["missed"], r["pred"], r["extra"]), (2, 1, 1, 3, 0))   # alternative counts as exact
+        self.assertEqual((r["span_checked"], r["span_overlap"]), (3, 3))
+        s = summarize(rows)
+        self.assertAlmostEqual(s["strict"][1], 2 / 4)
+        self.assertEqual(problems, [])
+
+    def test_extract_eval_locates_quotes_by_whole_word(self):
+        from hoofbeats.extract_eval import evaluate, locate_quote
+        text = "Referred by PCP. Denies CP."
+        self.assertEqual(locate_quote(text, {"quote": "CP"}), 24)                  # not inside "PCP"
+        self.assertEqual(locate_quote(text, {"quote": "CP", "start": 13}), 13)     # gold offsets win when they match
+        self.assertIsNone(locate_quote("Referred by PCP.", {"quote": "CP"}))
+        self.assertEqual(locate_quote("N/V. Denies N/V.", {"quote": "N/V."}), 0)
+        cases = self.root / "eval_quotes"
+        cases.mkdir(exist_ok=True)
+        (cases / "c.json").write_text(json.dumps({"case_id": "c", "note_text": "Referred by PCP. No seizures."}))
+        (cases / "gold.json").write_text(json.dumps({"c.json": {"note": [
+            {"hpo_id": "HP:0001250", "label": "Seizure", "status": "absent", "quote": "seizures"},
+            {"hpo_id": "HP:0001945", "label": "Fever", "status": "absent", "quote": "CP"}]}}))
+        rows, problems = evaluate(cases, cases / "gold.json", self.ont, self.ext)
+        self.assertEqual(rows[0]["span_overlap"], 1)
+        self.assertEqual(problems, ["c.json/note: gold quote not in text: 'CP'"])
+
+    # diagnose
+    def test_diagnose_reads_case_file(self):
+        import contextlib, io
+        from hoofbeats.__main__ import main
+        path = self.root / "intake_case.json"
+        path.write_text(json.dumps({"case_id": "dx1", "note_text": "Tall, with dislocated lens. No seizures.",
+                                    "hpo_terms": [{"id": "HP:0001166"}], "truth": ["OMIM:1"], "policy": "open"}))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            main(["--kb", str(self.kb), "--common", "none", "diagnose", str(path), "--out", str(self.root / "res")])
+        text = out.getvalue()
+        self.assertIn("[intake] dx1: 3 findings", text)
+        self.assertIn("dx1: truth ['OMIM:1'], rank 1", text)
+        self.assertIn("1. Disease Alpha (OMIM:1)", text)
+        self.assertIn("[stage1] no LLM endpoint given", text)                  # rules + numbers fallback, said so
+
+    def test_pmc_test_run_refuses_without_the_frozen_setup(self):
+        # every case here must stop before any test text is read (the fixture HPO also differs from the frozen one)
+        import contextlib, io
+        from hoofbeats.__main__ import main
+        cases = [([], "add --allow-test"), (["--prompt-version", "v2"], "--prompt-version v2 overrides"),
+                 (["--llm-offline", "--llm-cache", str(self.root)], "replays a logged frozen test run")]
+        for flags, why in cases:
+            argv = ["--kb", str(self.kb), *flags, "pmc-test-run", "--out", str(self.root / "t")]
+            if why != "add --allow-test":
+                argv.append("--allow-test")
+            with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit) as e:
+                main(argv)
+            self.assertIn(why, str(e.exception))
+            self.assertIn("HPO is hp/releases/test" if why != "add --allow-test" else "--allow-test", str(e.exception))
+        self.assertFalse((self.root / "t" / "test").exists())
+
+    def test_diagnose_many_cases_writes_json(self):
+        import contextlib, io
+        from hoofbeats.__main__ import main
+        paths = []
+        for i, note in enumerate(("Tall, with dislocated lens.", "No seizures. Fever.")):
+            p = self.root / f"many_{i}.json"
+            p.write_text(json.dumps({"case_id": f"m{i}", "note_text": note, "truth": ["OMIM:1"], "policy": "open"}))
+            paths.append(str(p))
+        with contextlib.redirect_stdout(io.StringIO()):
+            main(["--kb", str(self.kb), "--common", "none", "diagnose", *paths, "--out", str(self.root / "many")])
+        d = json.loads((self.root / "many" / "diagnose" / "m1.json").read_text())
+        self.assertFalse(d["llm_reader"])
+        self.assertEqual({(x["term"], x["status"], tuple(x["readers"])) for x in d["findings"]},
+                         {("Seizure", "absent", ("rules",)), ("Fever", "present", ("rules",))})
+        self.assertEqual(d["findings"][0]["quote"], "Fever")
+        self.assertTrue(d["top"] and {"rank", "id", "name", "posterior", "claims"} <= set(d["top"][0]))
+        self.assertEqual(d["stage1"]["prompt_version"], 1)
+        self.assertTrue((self.root / "many" / "diagnose" / "m0.json").exists())
 
 
 if __name__ == "__main__":

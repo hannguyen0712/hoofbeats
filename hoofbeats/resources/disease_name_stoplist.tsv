@@ -1,0 +1,24 @@
+# Core disease names (the one word left of "<word> syndrome/disease") that are not recorded as disease mentions,
+# because in notes they are usually ordinary words ("Parents are 2nd cousins" is not Cousin syndrome).
+# Built once from the OMIM and ORPHA disease names in phenotype.hpoa 2026-09-02: lowercase entries of Webster's 2nd International (web2,
+# public domain) with wordfreq 3.1.1 English Zipf frequency >= 3.5. Kept as mentions (eponyms
+# written alone in notes): gilbert, lynch, turner, usher. Family and relationship words are excluded in code.
+word	zipf	example_disease
+bloom	3.93	Bloom syndrome
+carpenter	3.81	Carpenter syndrome 1
+charge	5.02	Charge syndrome
+child	5.3	CHILD syndrome
+coach	4.96	Coach syndrome 1
+cousin	4.41	Cousin syndrome
+fountain	3.91	Fountain syndrome
+fried	4.06	Fried syndrome
+german	4.95	German syndrome
+grant	4.67	Grant syndrome
+lambert	3.73	Lambert syndrome
+leopard	3.59	Leopard syndrome 1
+magic	4.76	MAGIC syndrome
+nelson	4.24	Nelson syndrome
+perry	4.22	Perry syndrome
+steel	4.71	Steel syndrome
+timothy	3.82	Timothy syndrome
+weaver	3.6	Weaver syndrome
