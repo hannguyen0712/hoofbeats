@@ -97,7 +97,6 @@ def get_llm(a, model: str | None = None, force: bool = False):
         raise SystemExit(f"environment variable {a.llm_key_env} is not set")
     vision = {"auto": None, "yes": True, "no": False}[a.llm_vision]
     extra = json.loads(a.llm_extra) if a.llm_extra else None
-    extra = with_json_mode(a.json_mode, a.llm_endpoint, extra, a.llm_model)
     cache = None if a.llm_cache == "none" else Path(a.llm_cache if a.llm_cache != "auto" else Path(_out_dir(a)) / "llm_cache")
     if a.llm_offline and cache is None:
         raise SystemExit("--llm-offline answers from the reply cache; pass --llm-cache")
@@ -207,10 +206,13 @@ def fmt(m: dict) -> str:
 
 
 # commands
-def read_case(path, r: LRRanker, reader=None, status_policy: str = "llm") -> tuple[Case, frozenset[str]]:
+def read_case(path, r: LRRanker, reader=None, status_policy: str = "llm", describer=None,
+              max_images: int = 4, images_per_call: int = 1) -> tuple[Case, frozenset[str]]:
     # a hoofbeats case file (intake format) or a phenopacket; case files have no PMIDs to exclude. reader: the Stage 1
-    # LLM reader (llm_reader.py) for the case file's text, or None for rules + numbers only
+    # LLM reader (llm_reader.py) for the case file's text, or None for rules + numbers only. describer: the Stage A
+    # vision model for the case file's images (its description is read by Stage 1 as image_context), or None
     from .intake import IntakeError, intake_summary, is_intake, load_case
+    from .llm import PolicyError
     path = Path(path)
     try:
         obj = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
@@ -219,10 +221,14 @@ def read_case(path, r: LRRanker, reader=None, status_policy: str = "llm") -> tup
     if is_intake(obj):
         try:
             c = load_case(path, r.ont, Extractor(r.ont), disease_names=r.db.names, llm_reader=reader,
-                          status_policy=status_policy)
-        except IntakeError as e:
-            raise SystemExit(str(e))
+                          status_policy=status_policy, describer=describer, max_images=max_images,
+                          images_per_call=images_per_call)
+        except (IntakeError, PolicyError, ValueError) as e:     # PolicyError: a credentialed case and a remote model
+            raise SystemExit(f"{path}: {e}")
         print(intake_summary(c, r.ont))
+        dx = c.meta.get("described")
+        if dx and dx["text"]:
+            print(f"\nImage context (Stage A, {dx['model']}), read by Stage 1 as image_context:\n{dx['text']}\n")
         note("intake", case=c.case_id, findings=len(c.findings), warnings=len(c.meta["intake_warnings"]),
              subsumed=len(c.meta["provenance"]["subsumed_by"]))
         return c, frozenset()
@@ -281,9 +287,19 @@ def cmd_diagnose(a):
             obj = json.loads(Path(path).read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
-        if is_intake(obj) and (obj.get("note_text") or obj.get("image_context")):
+        if is_intake(obj) and (obj.get("note_text") or obj.get("image_context") or obj.get("images")):
             texts.append(path)
     reader, s1 = stage1_reader(a, r.ont) if texts else (None, stage1(a))
+    from .context import context_llm, context_usage
+    with_images = []            # the Stage A model is built only when some case file has images
+    for path in a.case:
+        try:
+            obj = json.loads(Path(path).read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if is_intake(obj) and obj.get("images"):
+            with_images.append(str(path))
+    describer = context_llm(sys.modules[__name__], a) if with_images else None
     if reader is not None:      # every case file's text in one concurrent batch
         items = []
         for path in a.case:
@@ -297,13 +313,15 @@ def cmd_diagnose(a):
         reader.prefetch(items)
     out = Path(a.out) / "diagnose"
     for path in a.case:
-        diagnose_one(a, r, path, reader, s1, out)
+        diagnose_one(a, r, path, reader, s1, out, describer)
     if reader is not None:
         print(usage_line(reader.llm))
+    if describer is not None:
+        print(context_usage(describer))
 
 
-def diagnose_one(a, r: LRRanker, path, reader, s1: dict, out: Path):
-    c, ex = read_case(path, r, reader, s1["status_policy"])
+def diagnose_one(a, r: LRRanker, path, reader, s1: dict, out: Path, describer=None):
+    c, ex = read_case(path, r, reader, s1["status_policy"], describer, a.context_max_images, a.context_images_per_call)
     rows = findings_table(c, r.ont)
     print(f"\nFindings ({len(rows)}):")
     for x in rows:
@@ -335,6 +353,7 @@ def diagnose_one(a, r: LRRanker, path, reader, s1: dict, out: Path):
         {"case_id": c.case_id, "source": str(path), "stage1": {k: v for k, v in s1.items() if k != "raw"},
          "llm_reader": reader is not None, "findings": rows, "truth": c.truth, "truth_rank": rank, "top": top,
          "claims_verified": f"{n_ok}/{n_all}", "next_checks": checks,
+         "images": c.meta.get("images", []), "image_context": c.meta.get("described"),
          "warnings": c.meta.get("intake_warnings", [])}, indent=1))
     wrote(out / f"{c.case_id}.json")
     pm, lit = get_pubmed(a), {}
@@ -1293,9 +1312,9 @@ def _logged(a):
     # run the command; save <out>/runs/<id>.txt (readable log) and <id>.json (settings + metrics)
     import traceback
     from .llm import DEFAULT_MODEL
-    uses_llm = a.llm or a.cmd in ("llm-bench", "multimodal", "medpix-context")
-    name = a.llm_model or (DEFAULT_MODEL if uses_llm else "")    # unset: MedGemma, the default of these commands
-    model = re.sub(r"[^A-Za-z0-9.]+", "-", name.split("/")[-1]).lower() if uses_llm and name else ""
+    uses_llm = a.llm or a.cmd == "llm-bench"
+    name = (a.llm_model or DEFAULT_MODEL) if uses_llm else (getattr(a, "context_model", None) or "")   # unset: MedGemma
+    model = re.sub(r"[^A-Za-z0-9.]+", "-", name.split("/")[-1]).lower() if name else ""
     RUN.update({"id": time.strftime("%Y%m%d-%H%M%S") + f"_{a.cmd}" + (f"_{model}" if model else ""),
                 "command": a.cmd, "argv": sys.argv[1:], "note": a.note, "started": time.strftime("%Y-%m-%d %H:%M:%S")})
     RUN["settings"].update({k: v for k, v in vars(a).items()

@@ -563,16 +563,36 @@ def read_images(llm, ext: Extractor, case: Case, max_images: int = 4, cache: dic
     return list(best.values()), records
 
 
-# 4. image context -> multimodal ranking
+# 4. image context (Stage A) -> Stage 1
 # Stage A: a vision model writes a detailed image context for each image (findings, not the disease behind them).
-# Stage B: the ranking model gets patient details + clinical text + the image context + the images themselves
-# and ranks diagnoses. The two can be the same model or different ones. Evidence the ranker cites from the
-# details, the clinical text or the context is checked against that text; "image" evidence cannot be checked.
-# The prompts were written after small models were seen to (a) confuse left and right, (b) call an enlarged
-# ventricle a mass, (c) deny "hydrocephalus" while describing enlarged ventricles because they were told not to
-# diagnose, and (d) let a wrong context override the images. Every model gets the same prompts and requests.
-CONTEXT_SYSTEM = ("You are an experienced radiologist describing images for a colleague who cannot see them. "
-                  "Answer only with the JSON requested.")
+# The text goes into the case's image_context field, where the Stage 1 readers (rules, numbers, LLM reader) turn it
+# into HPO findings like any note; those findings are grounded, fused and scored by the ranker with everything else.
+# The images stay on the case as records (modality, plane, location). No model ranks diagnoses from the images.
+# The prompt was written after small models were seen to (a) confuse left and right, (b) call an enlarged ventricle a
+# mass, (c) deny "hydrocephalus" while describing enlarged ventricles because they were told not to diagnose.
+CONTEXT_SYSTEM = """You are an experienced, board-certified radiologist. You write the findings section of a report for a \
+clinician who cannot see the images. Software then turns each of your findings into a standard phenotype term (Human \
+Phenotype Ontology), so exact wording matters as much as accurate looking.
+
+How to look:
+- Examine the whole image before writing: every structure in the field of view, both sides, and the edges of the image.
+- Compare left with right, and judge each size against what is normal for the patient's age and sex.
+- Tell normal anatomy, normal variants and artefacts (motion, positioning, windowing, beam hardening) apart from disease.
+- Use the clinical question only to decide where to look most carefully. Report what the image shows, even if it does \
+not fit the question, and never report something because the question expects it.
+- If the image is limited (cropped, low resolution, a single slice, an unknown sequence), say so and lower your \
+confidence. Never describe what lies outside the image.
+
+How to write:
+- Describe what you see, not the disease behind it: never name a disease, syndrome or diagnosis.
+- Use standard radiological and medical terms (for example ventriculomegaly, hydronephrosis, pleural effusion, ectopia \
+lentis, hepatomegaly, cerebral calcification), one finding per item, each with its location, side and size.
+- Give sizes in millimetres or centimetres only when the image lets you estimate them; never invent a measurement.
+- State absent findings plainly as "No ..." (for example "No hydrocephalus", "No pleural effusion").
+- Put your certainty in the confidence field (definite, probable or possible), not in words such as "may represent".
+- If nothing is abnormal, say so: an empty findings list with pertinent negatives is a valid answer.
+
+Answer only with the JSON requested: no text before or after it."""
 CONTEXT_PROMPT = """{intro}{patient}{question}
 
 Write the findings section of a radiology report for {it}. Go through {it} systematically:
@@ -598,32 +618,6 @@ Return only JSON:
   "findings": [{{"finding": "...", "location": "...", "details": "...", "confidence": "definite|probable|possible"}}],
   "pertinent_negatives": ["..."],
   "summary": "..."}}"""
-
-MM_SYSTEM = "You are a careful diagnostician. Answer only with the JSON requested."
-MM_PROMPT = """{blocks}
-
-Work in this order:
-1. key_findings: the findings that matter most for the diagnosis, from all of the information above{images_too}.
-2. image_check: {check}
-3. diagnoses: the {k} most likely diagnoses (rare or common), most likely first. Prefer the most specific diagnosis
-   the findings support (the subtype or cause, not only the category) and put broader or competing ones lower.
-   For each, give the evidence for it and any evidence against it, and say where each piece comes from:
-   {sources}.{image_rule}
-
-Return only JSON, no markdown:
-{{"key_findings": ["..."], "image_check": ["..."],
-  "diagnoses": [{{"name": "<diagnosis>",
-                 "evidence": [{{"source": "{choices}", "detail": "<short phrase>"}}],
-                 "against": [{{"source": "{choices}", "detail": "<short phrase>"}}]}}]}}"""
-CHECKS = {(True, True): "compare the image context with the attached images and list every disagreement (which side, "
-                        "which structure, size, whether something is really there). Where they disagree, trust what "
-                        "you see in the images.",
-          (False, True): "list what you see yourself in the attached images that matters for the diagnosis.",
-          (True, False): "list anything in the image context that is inconsistent or unlikely.",
-          (False, False): "leave this empty (there is no image information)."}
-SOURCES = {"details": "patient details", "clinical": "clinical information", "context": "image context",
-           "image": "what you see yourself in the attached images"}
-
 
 def details_of(case: Case) -> dict:
     # patient details: meta["details"] plus age and sex from the image records (MedPix keeps them there)
@@ -751,28 +745,6 @@ def image_context(llm, case: Case, max_images: int = 4, per_call: int = 1) -> li
     return out
 
 
-def multimodal_prompt(case: Case, context: str | None, k: int = 10, n_images: int = 0) -> tuple[str, dict]:
-    # the ranking prompt, plus the text of each source (used to check the evidence the model cites)
-    det = details_text(details_of(case))
-    text = str(case.meta.get("history") or "").strip()
-    genes = f"Genetic findings: {', '.join(case.genes)}." if case.genes else ""
-    blocks = ([f"Patient details:\n{det}"] if det else []) + \
-             [f"Clinical information:\n{text or 'Not recorded.'}" + (f"\n{genes}" if genes else "")]
-    if context:
-        blocks.append(f"Image context (a written description of the images; it may be incomplete or wrong):\n{context}")
-    if n_images:
-        blocks.append(f"Images: {n_images} attached.")
-    keys = [x for x in SOURCES if (x != "details" or det) and (x != "context" or context) and (x != "image" or n_images)]
-    named = [f'"{x}" ({SOURCES[x]})' for x in keys]
-    fmt = dict(blocks="\n\n".join(blocks), k=k, images_too=" and the attached images" if n_images else "",
-               sources=", ".join(named[:-1]) + " or " + named[-1] if len(named) > 1 else named[0],
-               choices="|".join(keys))
-    rule = ' Use "image" only for what you see yourself, not for something you read in the image context.' \
-        if n_images and context else ""
-    prompt = MM_PROMPT.format(**fmt, check=CHECKS[(bool(context), bool(n_images))], image_rule=rule)
-    return prompt, {"details": det, "clinical": f"{text} {genes}", "context": context or ""}
-
-
 def reply_json(raw: str, keys: tuple[str, ...]):
     # the JSON object holding one of `keys`. Models that think aloud (MedGemma 1.5) can write a draft JSON in their
     # plan and the final one after it, so a span from the first "{" to the last "}" is not valid JSON (or is the
@@ -792,133 +764,3 @@ def cut_off(raw: str, max_tokens: int | None = None) -> bool:
     if bool(tail) and "{" in raw and not tail.endswith(("}", "]")):
         return True
     return bool(max_tokens) and len(raw) >= 3 * max_tokens and _json(raw, "{") is None
-
-
-def _supported(detail: str, source_text: str) -> bool:
-    body = _content(detail)
-    return bool(body) and len(body & _content(source_text)) / len(body) >= 0.5
-
-
-def _check_items(items, sources: dict) -> list[dict]:
-    # evidence items -> {"source", "detail", "supported"}; "image" evidence that only repeats the image context
-    # is relabelled "image=context" and checked like context (it is not something the model saw itself)
-    items = [items] if isinstance(items, (str, dict)) else items if isinstance(items, list) else []
-    out = []
-    for e in items:
-        src, det = (str(e.get("source") or "").lower().strip(), str(e.get("detail") or "")) if isinstance(e, dict) \
-            else ("", str(e))
-        if not det.strip():
-            continue
-        if src == "image":
-            if sources["context"] and _supported(det, sources["context"]):
-                src, ok = "image=context", True
-            else:
-                ok = None
-        elif src in sources:
-            ok = _supported(det, sources[src])
-        else:
-            ok = _supported(det, " ".join(sources.values()))
-        out.append({"source": src or "unspecified", "detail": det.strip()[:300], "supported": ok})
-    return out
-
-
-def _strings(x) -> list[str]:
-    # key findings / image check as text; small models sometimes return records ({"side": ..., "structure": ...})
-    x = [x] if isinstance(x, (str, dict)) else x if isinstance(x, list) else []
-    as_text = lambda v: "; ".join(f"{k}: {w}" for k, w in v.items() if str(w).strip()) if isinstance(v, dict) else str(v)
-    return [as_text(v).strip()[:300] for v in x if as_text(v).strip()]
-
-
-@dataclass
-class MultimodalRanking:
-    names: list[str]
-    evidence: list[list[dict]]   # per diagnosis: {"source", "detail", "supported": True / False / None (image)}
-    slots: list[set[str]]        # knowledge-base ids per answer (empty without a matcher or a match)
-    parsed: bool
-    raw: str = ""
-    cut_off: bool = False        # the reply stopped before the JSON was finished (diagnoses may be missing)
-    against: list[list[dict]] = field(default_factory=list)   # evidence against each diagnosis
-    key_findings: list[str] = field(default_factory=list)
-    image_check: list[str] = field(default_factory=list)      # where the image context and the images disagree
-
-    @property
-    def grounding(self) -> float:
-        # checkable evidence items found in the source they claim / all checkable items
-        checked = [e["supported"] for ev in self.evidence + self.against for e in ev if e["supported"] is not None]
-        return sum(checked) / len(checked) if checked else float("nan")
-
-
-def rank_multimodal(llm, case: Case, context: str | None = None, images: tuple[str, ...] = (), k: int = 10,
-                    matcher=None) -> MultimodalRanking:
-    # Stage B: images are local paths attached to the ranking request (needs a vision model)
-    check_policy(llm, [case])
-    if images and not llm.sees_images:
-        raise ValueError(f"{llm.model} cannot read images; drop the images or use a vision model to rank")
-    prompt, sources = multimodal_prompt(case, context, k, len(images))
-    raw = llm.chat(prompt, MM_SYSTEM, images=tuple(images))
-    obj = reply_json(raw, ("diagnoses",))
-    items = obj.get("diagnoses") if isinstance(obj, dict) else None
-    if not isinstance(items, list):
-        arr = _json(raw, "[")
-        items = arr if isinstance(arr, list) else None
-    names, evidence, against, seen = [], [], [], set()
-    for it in items or []:
-        name = (it.get("name") or it.get("diagnosis")) if isinstance(it, dict) else it
-        if not isinstance(name, str) or not name.strip() or name.strip().lower() in seen:
-            continue
-        seen.add(name.strip().lower())
-        names.append(name.strip())
-        evidence.append(_check_items(it.get("evidence") or [], sources) if isinstance(it, dict) else [])
-        against.append(_check_items(it.get("against") or [], sources) if isinstance(it, dict) else [])
-    names, evidence, against = names[:k], evidence[:k], against[:k]
-    slots = [set(matcher.match(n)) if matcher else set() for n in names]
-    obj = obj if isinstance(obj, dict) else {}
-    return MultimodalRanking(names, evidence, slots, isinstance(items, list), raw,
-                             cut_off(raw, getattr(llm, "max_new_tokens", None)), against,
-                             _strings(obj.get("key_findings")), _strings(obj.get("image_check")))
-
-
-# judge: name matching misses synonyms ("obstructive" = "non-communicating" hydrocephalus) and differently worded
-# titles ("Acute stroke, hemorrhage in basal ganglia" vs "hypertensive intracerebral hemorrhage")
-JUDGE_SYSTEM = "You compare diagnoses. Answer only with the JSON requested."
-JUDGE_PROMPT = """The correct diagnosis is: {truth}
-
-Candidate diagnoses, in order:
-{candidates}
-
-1. match: the number of the first candidate that names the same condition as the correct diagnosis. A synonym,
-   an abbreviation, another name for it, or a more specific form of it counts (for example "heart attack" or
-   "STEMI" for "myocardial infarction"). A different condition that only shares an organ or a symptom does not.
-2. broader: the number of the first candidate that is the correct diagnosis or a broader category that contains it
-   (for example "pneumonia" for "lobar pneumonia").
-
-Use 0 when there is none. Return only JSON: {{"match": <number>, "broader": <number>}}"""
-
-
-def judge_ranks(judge, preds: list[str], truth: list[str]) -> tuple[int | None, int | None]:
-    # (rank of the first answer naming the same condition, rank of the first answer that is it or a broader category)
-    if not preds or not truth:
-        return None, None
-    cands = "\n".join(f"{i}. {p}" for i, p in enumerate(preds, 1))
-    tr = truth[0] + (f" (also recorded as: {'; '.join(truth[1:])})" if len(truth) > 1 else "")
-    obj = reply_json(judge.chat(JUDGE_PROMPT.format(truth=tr, candidates=cands), JUDGE_SYSTEM), ("match", "broader"))
-
-    def num(key):
-        try:
-            v = int(obj.get(key))
-        except (TypeError, ValueError, AttributeError):
-            return None
-        return v if 1 <= v <= len(preds) else None
-    m, b = num("match"), num("broader")
-    return m, (m if m and (b is None or b > m) else b)
-
-
-def diagnose_multimodal(llm, case: Case, context_llm=None, k: int = 10, max_images: int = 4, per_call: int = 1,
-                        attach_images: bool = True, matcher=None) -> tuple[list[ImageContext], MultimodalRanking]:
-    # the whole input path: Stage A with context_llm (default: the ranking model itself), then Stage B
-    context_llm = context_llm or llm
-    imgs = case.meta.get("images", [])[:max_images]
-    ctxs = image_context(context_llm, case, max_images, per_call) if imgs else []
-    context = "\n\n".join(c.text for c in ctxs if c.text) or None
-    attach = tuple(img["path"] for img in imgs) if attach_images and llm.sees_images else ()
-    return ctxs, rank_multimodal(llm, case, context, attach, k, matcher)

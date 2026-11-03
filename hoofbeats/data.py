@@ -796,8 +796,14 @@ NAME_STOP = {"disease", "syndrome", "type", "of", "the", "and", "with", "due", "
 ROMAN = {"i", "ii", "iii", "iv", "v", "vi"}
 
 
+def _join_non(text: str) -> str:
+    # "non-small cell" / "non small cell" -> "nonsmall cell": the negated word becomes a different word, so
+    # "Non-small cell lung cancer" never matches "Small cell lung cancer" (nor "Non-Hodgkin" "Hodgkin")
+    return re.sub(r"\bnon[\s-]+(?=[a-z])", "non", text, flags=re.I)
+
+
 def _name_tokens(name: str) -> frozenset[str]:
-    return frozenset(t for t in tokens(name) if t not in NAME_STOP and (len(t) >= 3 or t.isdigit() or t in ROMAN))
+    return frozenset(t for t in tokens(_join_non(name)) if t not in NAME_STOP and (len(t) >= 3 or t.isdigit() or t in ROMAN))
 
 
 class DiseaseMatcher:
@@ -812,7 +818,7 @@ class DiseaseMatcher:
                     self.index[min(t)].append((t, d))
 
     def match(self, text: str) -> list[str]:
-        words, found = set(tokens(text)), {}
+        words, found = set(tokens(_join_non(text))), {}
         for w in words:
             for t, d in self.index.get(w, ()):
                 if t <= words:
@@ -874,60 +880,3 @@ def load_medpix(root, matcher: DiseaseMatcher, ext: Extractor, split: str = "all
             "dx_names": [n for n in dict.fromkeys(x.strip() for x in names[:2]) if n] or [names[2].strip()],
             "history": history, "reference_text": reference, "images": images[uid], "intake_warnings": warnings}))
     return out
-
-
-NEGATORS = {"not", "without", "absent"}       # "non" is joined to its word instead: "non communicating" -> "noncommunicating"
-
-
-def _negated(name: str) -> set[str]:
-    # words right after a negator: "non communicating hydrocephalus" -> {"communicating"}
-    toks = tokens(name)
-    return {toks[i + 1] for i in range(len(toks) - 1) if toks[i] in NEGATORS}
-
-
-def _same_tokens(p: frozenset, t: frozenset) -> bool:
-    if not p or not t:
-        return False
-    if t <= p or (p <= t and len(p) >= 2):
-        return True
-    return len(p & t) / len(p | t) >= 0.6
-
-
-def same_name(pred: str, truth: str) -> bool:
-    # free-text diagnosis names (an LLM answer vs a MedPix title): same words, one inside the other
-    # (at least 2 words), or mostly the same words. Text in parentheses is optional ("(Obstructive)", "(IIH)").
-    # A word negated on one side but not the other never matches ("communicating" vs "non communicating", which
-    # becomes "noncommunicating", a different word).
-    pred, truth = (re.sub(r"\bnon[\s-]+(?=[a-z])", "non", x, flags=re.I) for x in (pred, truth))
-    np_, nt = _negated(pred), _negated(truth)
-    if nt & (_name_tokens(pred) - np_) or np_ & (_name_tokens(truth) - nt):
-        return False
-    bare = lambda x: re.sub(r"\([^)]*\)", " ", x)
-    return any(_same_tokens(_name_tokens(a), _name_tokens(b)) for a in {pred, bare(pred)} for b in {truth, bare(truth)})
-
-
-# any patient: clinical text, details and images, for the image-context pipeline (llm.diagnose_multimodal)
-def make_input(text: str = "", images=(), details: dict | None = None, genes=(), case_id: str = "patient",
-               local_only: bool = False, base=None) -> Case:
-    # images: paths, or {"path", "modality", "plane", "location"}; relative paths are read from base
-    imgs = []
-    for im in images:
-        im = {"path": im} if isinstance(im, str) else dict(im)
-        p = Path(im["path"])
-        p = p if p.is_absolute() or base is None else Path(base) / p
-        if not p.exists():
-            raise FileNotFoundError(f"image not found: {p}")
-        imgs.append({"id": im.get("id") or p.stem, "path": str(p), "modality": im.get("modality") or "",
-                     "plane": im.get("plane") or "", "location": im.get("location") or ""})
-    return Case(case_id, [], [], [g for g in genes if g], [], {
-        "policy": "local_only" if local_only else "open", "history": (text or "").strip(),
-        "details": {k: v for k, v in (details or {}).items() if v not in (None, "")}, "images": imgs})
-
-
-def load_input(path) -> Case:
-    # one patient from JSON: {"case_id", "text", "details": {"age", "sex", ...}, "genes": [...],
-    # "images": [{"path", "modality", "plane", "location"}], "local_only": true for credentialed data}
-    path = Path(path)
-    d = json.loads(path.read_text(encoding="utf-8"))
-    return make_input(d.get("text", ""), d.get("images", []), d.get("details"), d.get("genes", []),
-                      d.get("case_id", path.stem), bool(d.get("local_only")), base=path.parent)

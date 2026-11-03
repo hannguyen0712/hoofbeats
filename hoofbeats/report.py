@@ -323,34 +323,32 @@ def medpix_section(rep: Report, compare: pd.DataFrame | None, medpix: dict[str, 
 
 
 def context_section(rep: Report, compare: pd.DataFrame | None):
-    # medpix-context runs: what the ranking model is given, per ranking model and image-context model
+    # medpix-context runs: the ranker's Top-k when Stage 1 reads the history alone, with the image context (Stage A),
+    # or with the radiologist's findings, per image-context model
     if compare is None or compare.empty or "task" not in compare:
         return
     mc = compare[compare.task == "medpix-context"]
-    if mc.empty:
+    if mc.empty or "context_model" not in mc:
         return
-    mc = mc.sort_values("time").groupby(["model", "context_model"]).tail(1)
+    mc = mc.sort_values("time").groupby("context_model").tail(1)
     short = lambda m: str(m).split("/")[-1]
-    conds = [("text", "text"), ("images", "+ images"), ("context", "+ image context"),
-             ("context+images", "+ context + images"), ("reference", "+ radiologist findings")]
-    rep.section("Image context for the ranking model (MedPix 2.0)")
+    conds = [("text", "text"), ("context", "+ image context"), ("reference", "+ radiologist findings")]
+    rep.section("Image context (Stage A) read by Stage 1, scored by the ranker (MedPix 2.0)")
     rows = []
     for _, r in mc.iterrows():
-        row = {"ranking model": short(r.model), "image-context model": short(r.context_model), "cases": int(r.cases)}
-        row.update({f"{lab} Top-10": _pct(r.get(f"{c}_name_top10")) for c, lab in conds})
-        if any(f"{c}_judge_top10" in mc for c, _ in conds):      # judged runs: synonyms count
-            row.update({f"{lab} judge Top-10": _pct(r.get(f"{c}_judge_top10")) for c, lab in conds
-                        if f"{c}_judge_top10" in mc})
+        row = {"image-context model": short(r.context_model), "cases": int(r.cases)}
+        for c, lab in conds:
+            row[f"{lab} Top-1"] = _pct(r.get(f"{c}_top1"))
+            row[f"{lab} Top-10"] = _pct(r.get(f"{c}_top10"))
         row["context recall"] = _pct(r.get("context_recall"))
         rows.append(row)
     rep.table(pd.DataFrame(rows), "medpix_context",
-              "Top-10 (name match) on MedPix cases by what the ranking model is given; every input also has "
-              "patient details and history/exam")
+              "Rank of the MedPix diagnosis by the ranker, by what Stage 1 reads besides the history/exam")
     for _, r in mc.iterrows():
-        t, both = r.get("text_name_top10"), r.get("context+images_name_top10")
-        if not (pd.isna(t) or pd.isna(both)):
-            rep.note(f"{short(r.model)} ranking with image context by {short(r.context_model)}: Top-10 {_pct(t)} from "
-                     f"text alone, {_pct(both)} with image context + images ({int(r.cases)} cases).")
+        t, ctx = r.get("text_top10"), r.get("context_top10")
+        if not (pd.isna(t) or pd.isna(ctx)):
+            rep.note(f"Image context by {short(r.context_model)}: ranker Top-10 {_pct(t)} from text alone, "
+                     f"{_pct(ctx)} with the image context ({int(r.cases)} cases).")
 
 
 def sequential_section(rep: Report, csv: Path | None):
