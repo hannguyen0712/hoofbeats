@@ -1,0 +1,29 @@
+# Burden tier of each test, for the per-disease workup (hoofbeats/workup.py). Hand-made, coarse and ordinal:
+# 1 bedside (history, examination, measuring, reviewing images already taken)
+# 2 blood/urine/stool tests, ECG, specialist evaluation without a procedure, eye-surface examination
+# 3 radiography, ultrasonography, echocardiography, EEG, nerve and muscle studies, function tests
+# 4 CT, MRI, nuclear imaging, endoscopy without biopsy, cytogenetic and gene tests
+# 5 invasive: biopsy, cerebrospinal fluid, catheter angiography, aspiration, surgery
+# It stands in for cost, invasiveness and radiation together. SDBench (Nori et al. 2025) priced tests from a US
+# health system's price list; no such list is used here. Change a tier here; workup orders tests by expected weight of evidence / tier.
+# pattern: regular expression, case-insensitive, searched in the test name; the first matching row wins.
+# kind: exam, lab, imaging, physiology, specialist, invasive, gene, skip (never suggested).
+pattern	kind	burden
+^medical action$	skip	0
+fetal|amniotic|umbilical cord|prenatal	skip	0
+biops|fine needle|core needle|aspiration|bone marrow|cerebrospinal|\bCSF\b|paracentesis|lavage|synovial fluid|catheteri|laparoscop|tracheostomy|cholangiopancreatography|histolog|electron microscop|tissue (enzyme|metabolite)|platelet transmission|clinical biopsy|lymphography|venography|X-ray (coronary|pulmonary) angiography|contrast angiography	invasive	5
+optical coherence tomography	exam	2
+fluorescein angiography	imaging	3
+genetic|gene |sequencing|cytogenetic|chromosom|karyotyp|DNA repair	gene	4
+\bCT\b|computed tomography|tomograph|\bMRI\b|magnetic resonance|positron emission|scintigraph|iminodiacetic|urogram|pyelogram|cystography|barium|with contrast|defecography	imaging	4
+(colono|gastro|broncho|laryngo|esophago|duodeno|recto|procto|uretero|tracheobroncho|esophagogastroduodeno|ano)scopy|endoscop	invasive	4
+angiogra|angiogram	imaging	4
+radiograph|radiography|X-ray|mammograph|absorptiometry	imaging	3
+ultrasono|ultrasound|echocardiograph|Doppler	imaging	3
+electroencephalograph|electromyograph|nerve conduction|evoked potential|electroretinogram|electrooculogram|central motor conduction|jerk-locked|pulmonary function|exercise stress|tympanometry|esophageal manometry|transit measurement|water deprivation|tolerance test|ischemic exercise|sleep disturbance|phrenic nerve|perchlorate|nasal potential	physiology	3
+electrocardiograph|\bECG\b|\bEKG\b	physiology	2
+history|clinical assessment|physical examination|chest examination|abdominal examination|breast examination|uterus examination|auscultation|dysmorpholog|anthropometr|blood pressure|neurodevelopmental|gustatory|hair microscopy|body height|body weight|head circumference|body mass|heart rate|respiratory rate|body temperature|oxygen saturation|arm span	exam	1
+fundoscopy|slit-lamp|perimetry|tonometry|optical coherence|visual acuity|refraction|hearing examination|fluorescein	exam	2
+measurement|assay|assessment of|count|test\b|testing|culture|cytometry|cytology|analysis|aggregometry|panel|serolog|immunofluorescence|xenobiotic|biomarker|electrolyte|gas assessment|excretion|collection|smear|morphology|activity assessment|examination|D-dimer|anion gap|clinical chemistry|T cell assessment|sputum|semen|shedding|histamine	lab	2
+evaluation|specialist|assessment$	specialist	2
+.	other	3

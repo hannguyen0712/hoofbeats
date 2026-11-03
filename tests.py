@@ -1353,6 +1353,263 @@ class FakeNCBI:
         return io.BytesIO(efetch_xml([p for p in self.papers if p[0] in want]))
 
 
+MAXO_TSV = """#description: test
+#version: 2026-01-01
+hpo_id\thpo_label\tpredicate_id\tmaxo_id\tmaxo_label\tcreator_id
+HP:0001083\tEctopia lentis\tis_observable_through\tMAXO:0000001\tslit-lamp examination\tx
+HP:0000478\tAbnormality of the eye\tis_observable_through\tMAXO:0000002\tophthalmologist evaluation\tx
+HP:0000098\tTall stature\tis_observable_through\tMAXO:0000487\tclinical assessment\tx
+HP:0001166\tArachnodactyly\tis_observable_through\tMAXO:0000487\tclinical assessment\tx
+HP:0001250\tSeizure\tis_observable_through\tMAXO:0000003\telectroencephalography\tx
+HP:0001263\tGlobal developmental delay\tis_prenatally_observable_through\tMAXO:0000004\tfetal ultrasonography\tx
+HP:0003282\tDecreased circulating alkaline phosphatase activity\tis_observable_through\tMAXO:0000005\tblood chemistry measurement\tx
+HP:0003282\tDecreased circulating alkaline phosphatase activity\tis_observable_through\tMAXO:0000006\tbiopsy of bone tissue\tx
+"""
+LOINC_TSV = """loincId\tloincScale\toutcome\thpoTermId\tsupplementalTermId\tcuration\tcomment
+6768-6\tQn\tL\tHP:0003282\t.\tx\t.
+6768-6\tQn\tH\tHP:0003155\t.\tx\t.
+6768-6\tQn\tN\tHP:0001939\t.\tx\t.
+"""
+
+
+GTR_TESTS = [   # accession, current, name, lab, country, methods, genes, MIM numbers of the conditions
+    ("GTR000000001.1", "1", "FBN1 Single Gene", "Lab A", "United States",
+     "Deletion/duplication analysis|Sequence analysis of the entire coding region", ["FBN1"], ["1"]),
+    ("GTR000000002.1", "1", "Alpha and Delta panel", "Lab B", "Germany",
+     "Sequence analysis of the entire coding region", ["FBN1", "G2", "G3", "G4"], ["1", "4"]),
+    ("GTR000000003.2", "1", "Gamma enzyme activity", "Lab C", "United States", "Enzyme assay", [], ["3"]),
+    ("GTR000000004.1", "0", "Old Beta test", "Lab D", "United States", "Sequence analysis of the entire coding region",
+     ["OLD1"], ["2"]),
+    ("GTR000000005.1", "1", "Alpha carrier screen", "Lab E", "United States", "Targeted variant analysis", ["FBN1"], ["1"]),
+    ("GTR000000006.1", "1", "BETA1 sequencing", "Lab F", "United States", "Sequence analysis of the entire coding region",
+     ["BETA1"], ["2"]),
+]
+
+
+def write_gtr(kb: Path):
+    import gzip
+    cols = ["test_accession_ver", "name_of_laboratory", "facility_country", "last_touch_date", "lab_test_name",
+            "manufacturer_test_name", "method_categories", "now_current"]
+    lines = ["\t".join(cols)] + ["\t".join([a, f'"{lab}"', f'"{country}"', "2026-10-01", f'"{name}"', "", f'"{m}"', cur])
+                                  for a, cur, name, lab, country, m, genes, mims in GTR_TESTS]
+    with gzip.open(kb / "test_version.gz", "wt", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+    rows = ["#accession_version\ttest_type\tobject\tGTR_identifier\tMIM_number\tobject_name\tgene_or_SNOMED_CT_ID\tgene_symbol"]
+    for a, cur, name, lab, country, m, genes, mims in GTR_TESTS:
+        rows += [f"{a}\tClinical\tcondition\tC{x}\t{x}\tcondition {x}\t\tN/A" for x in mims]
+        rows += [f"{a}\tClinical\tgene\tC9{g}\tN/A\t{g}:gene\t1\t{g}" for g in genes]
+    (kb / "test_condition_gene.txt").write_text("\n".join(rows) + "\n")
+
+
+class TestWorkup(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from hoofbeats.workup import GTR, TestCatalog, Workupper
+        cls.root = Path(tempfile.mkdtemp())
+        cls.kb = build(cls.root)
+        (cls.kb / "maxo_diagnostic_annotations.tsv").write_text(MAXO_TSV)
+        (cls.kb / "loinc2hpo-annotations.tsv").write_text(LOINC_TSV)
+        write_gtr(cls.kb)
+        cls.ont = Ontology(cls.kb / "hp.obo")
+        cls.r = LRRanker(cls.ont, AnnotationDB(cls.kb / "phenotype.hpoa", cls.ont))
+        cls.cat = TestCatalog(cls.ont, cls.kb)
+        cls.gtr = GTR.load(cls.kb)
+        cls.wk = Workupper(cls.r, cls.cat, genes_path=cls.kb / "genes_to_disease.txt", gtr=cls.gtr)
+
+    def test_gtr(self):
+        from hoofbeats.workup import verify_gtr, workup_json
+        g = self.gtr
+        self.assertEqual(sorted(g.tests), ["GTR000000001.1", "GTR000000002.1", "GTR000000003.2", "GTR000000005.1",
+                                           "GTR000000006.1"])                       # the old version is left out
+        self.assertEqual({a: t.kind for a, t in g.tests.items()},
+                         {"GTR000000001.1": "targeted", "GTR000000002.1": "panel", "GTR000000003.2": "biochemical",
+                          "GTR000000005.1": "screening", "GTR000000006.1": "targeted"})
+        self.assertEqual(g.tests["GTR000000001.1"].url, "https://www.ncbi.nlm.nih.gov/gtr/tests/1/")
+        self.assertEqual(g.version, "2026-10-01")
+        self.assertEqual(self.wk.gene_list("OMIM:1"), (["FBN1"], "genes_to_disease"))
+        self.assertEqual(self.wk.gene_list("OMIM:2"), (["BETA1"], "GTR"))        # no HPO gene: GTR's targeted tests
+        c = Case("x", P("HP:0000098"), ["OMIM:1"])
+        w = self.wk.build(c, self.r.score(c), k=4)
+        alpha = next(d for d in w.diseases if d.disease == "OMIM:1")
+        self.assertEqual(alpha.gtr["tests"], 3)
+        self.assertEqual([t.name for t in alpha.gtr["targeted"]], ["FBN1 Single Gene"])
+        self.assertEqual([x["covers"] for x in w.gtr_panels], [["OMIM:1", "OMIM:4"]])
+        self.assertEqual([t.name for t in g.examples("OMIM:3", "biochemical")], ["Gamma enzyme activity"])
+        self.assertTrue(verify_gtr(self.wk, "OMIM:1", g.tests["GTR000000001.1"]))
+        self.assertFalse(verify_gtr(self.wk, "OMIM:2", g.tests["GTR000000001.1"]))
+        saved = workup_json(w)
+        self.assertEqual(saved["gtr_panels"][0]["accession"], "GTR000000002.1")
+        self.assertEqual(next(d for d in saved["diseases"] if d["id"] == "OMIM:1")["gtr"]["targeted"][0]["lab"], "Lab A")
+
+    def names(self, term):
+        return sorted(self.cat.tests[t].name for t in self.cat.observing(term))
+
+    def test_catalog(self):
+        self.assertEqual(self.names("HP:0001083"), ["ophthalmologist evaluation", "slit-lamp examination"])  # + parent's
+        self.assertEqual(self.names("HP:0007359"), ["electroencephalography"])     # nearest annotated ancestor
+        self.assertEqual(self.names("HP:0001263"), [])                             # prenatal ascertainment left out
+        # a LOINC lab test replaces MAxO's generic lab action; the biopsy stays. Its "normal" term (Abnormality of
+        # metabolism/homeostasis) is too general to name it, so it is named after a result term
+        lab = ("lab test: Decreased circulating alkaline phosphatase activity / Elevated circulating alkaline "
+               "phosphatase concentration (LOINC test)")
+        self.assertEqual(self.names("HP:0003282"), ["biopsy of bone tissue", lab])
+        self.assertEqual(self.names("HP:0001987"), [])          # not shown by the lab test via the general term
+        burden = {t.name: (t.kind, t.burden) for t in self.cat.tests.values()}
+        self.assertEqual(burden["clinical assessment"], ("exam", 1))
+        self.assertEqual(burden["slit-lamp examination"], ("exam", 2))
+        self.assertEqual(burden[lab], ("lab", 2))
+        self.assertEqual(burden["electroencephalography"], ("physiology", 3))
+        self.assertEqual(burden["biopsy of bone tissue"], ("invasive", 5))
+        self.assertNotIn("fetal ultrasonography", burden)
+        self.assertEqual(self.cat.done_from_text(["Slit-lamp: lens normal"]), {"MAXO:0000001"})
+
+    def test_formulas(self):
+        from hoofbeats.workup import ranker_probs, score_test
+        lr_pos, lr_neg, post_pos, post_neg, bits = score_test(0.5, 0.9, 0.1)
+        self.assertAlmostEqual(lr_pos, 9.0)
+        self.assertAlmostEqual(lr_neg, 0.1 / 0.9)
+        self.assertAlmostEqual(post_pos, 0.9)
+        self.assertAlmostEqual(post_neg, 0.1)
+        self.assertAlmostEqual(bits, 1 + 0.9 * math.log2(0.9) + 0.1 * math.log2(0.1))
+        rk = self.r.score(Case("x", P("HP:0000098")))
+        p = ranker_probs(rk)
+        self.assertAlmostEqual(p.sum(), 1.0)          # every disease is in the top 20 here: no outside share
+        self.assertEqual(int(np.argmax(p)), rk.order[0])
+
+    def test_workup_of_a_disease(self):
+        from hoofbeats.workup import Shown, verify_result
+        c = Case("x", P("HP:0000098"), ["OMIM:1"], meta={"sex": "male"})
+        w = self.wk.build(c, self.r.score(c), k=2)
+        dw = w.diseases[0]
+        self.assertEqual(dw.disease, "OMIM:1")
+        tests = {x.test.name: x for x in dw.ranked}
+        self.assertIn("slit-lamp examination", tests)
+        self.assertEqual([s.name for s in tests["clinical assessment"].shows], ["Arachnodactyly"])   # tall stature known
+        x = tests["slit-lamp examination"]
+        self.assertGreater(x.lr_pos, 1)
+        self.assertGreater(x.post_pos, dw.p)
+        self.assertLess(x.post_neg, dw.p)
+        self.assertGreater(x.woe_confirm, 0)
+        self.assertEqual(dw.gene.test.codes, ("FBN1",))
+        self.assertEqual(w.panel["genes"][0], "FBN1")
+        self.assertTrue(all(verify_result(self.wk, dw.disease, y)[0] for y in dw.ranked + [dw.gene]))
+        bad = Shown("HP:0001083", "Ectopia lentis", 0.5, ("PMID:999",))
+        x.shows = [bad]
+        self.assertFalse(verify_result(self.wk, dw.disease, x)[0])     # frequency and reference not in the KB
+
+    def test_known_gene_done_tests_and_unsure_findings(self):
+        c = Case("x", P("HP:0000098") + [Finding("HP:0001166", Status.UNCERTAIN)], ["OMIM:1"], ["FBN1"],
+                 meta={"done_texts": ["Slit lamp (eye clinic): lenses in place"]})
+        w = self.wk.build(c, self.r.score(c), k=1)
+        dw = w.diseases[0]
+        self.assertIsNone(dw.gene)
+        self.assertEqual(dw.genes_known, ["FBN1"])
+        self.assertEqual([x.test.name for x in dw.review], ["slit-lamp examination"])   # done: review, not order
+        self.assertNotIn("slit-lamp examination", [x.test.name for x in dw.ranked])
+        self.assertEqual(w.done, ["slit-lamp examination"])
+        self.assertEqual(w.verify[0]["term"], "Arachnodactyly")
+        self.assertEqual(w.verify[0]["tests"], ["clinical assessment"])
+
+    def test_displayed_diseases_get_tests_in_their_order(self):
+        rk = self.r.score(Case("x", P("HP:0001263")))
+        top2 = [d for d, *_ in rk.top(2)]
+        last = [d for d, *_ in rk.top(len(self.r.diseases))][-1]          # a disease outside the ranker's top
+        shown = [top2[1], top2[0], last, "OMIM:999999"]                   # e.g. a re-ranker's order; unknown id
+        w = self.wk.build(Case("x", P("HP:0001263")), rk, k=2, shown=shown)
+        self.assertEqual([d.disease for d in w.diseases], shown[:3])      # order kept, unknown id skipped
+        self.assertEqual([d.disease for d in self.wk.build(Case("x", P("HP:0001263")), rk, k=2).diseases], top2)
+
+    def test_note_may_already_answer_and_tests_that_tell_apart(self):
+        from hoofbeats.workup import mentions, workup_json
+        c = Case("x", P("HP:0000098"), meta={"history": "Exam: dislocated lens on the left. Flat feet bilat."})
+        self.assertEqual(mentions(self.ont, c, {"HP:0001083"}), {"HP:0001083": "Exam: dislocated lens on the left."})
+        self.assertEqual(mentions(self.ont, Case("y", [], meta={"history": "Lens is clear."}), {"HP:0001083"}), {})
+        w = self.wk.build(c, self.r.score(c), k=3)
+        hinted = [m for d in w.diseases for x in d.ranked + d.review for m in x.mentioned]
+        self.assertIn({"finding": "Ectopia lentis", "sentence": "Exam: dislocated lens on the left."}, hinted)
+        fam = Case("z", P("HP:0000098") + [Finding("HP:0001083", Status.FAMILY)], meta=c.meta)   # already recorded
+        self.assertFalse([m for d in self.wk.build(fam, self.r.score(fam), k=3).diseases
+                          for x in d.ranked + d.review for m in x.mentioned if m["finding"] == "Ectopia lentis"])
+        self.assertTrue(w.separate)                                         # tests that tell the top 3 apart
+        top = w.separate[0]
+        self.assertEqual(set(top["p_pos"]), {d.disease for d in w.diseases[:3]})
+        self.assertGreater(max(top["p_pos"].values()) - min(top["p_pos"].values()), 0.1)
+        saved = workup_json(w)
+        self.assertEqual(saved["separate"][0]["test"], top["test"])
+        self.assertIn("may_already_be_answered", saved["diseases"][0]["tests"][0])
+
+    def test_diagnose_gives_tests_per_displayed_disease(self):
+        import contextlib, io, shutil
+        from hoofbeats.__main__ import main
+        out, case = self.root / "dx", self.root / "pps" / "FBN1" / "PMID_100_Patient_1.json"
+        with contextlib.redirect_stdout(io.StringIO()) as buf:
+            main(["--kb", str(self.kb), "--common", "none", "diagnose", str(case), "-k", "3", "--out", str(out)])
+        saved = json.loads((out / "diagnose" / "PMID_100_Patient_1.json").read_text())
+        self.assertEqual(list(saved["tests"]["diseases"]), [x["id"] for x in saved["top"]])   # one entry per disease
+        first = saved["tests"]["diseases"][saved["top"][0]["id"]]
+        self.assertTrue({"pre_test", "tests", "gene_test", "review"} <= first.keys())
+        self.assertIn("Tests per disease", buf.getvalue())
+        bare = self.root / "kb_bare"                                      # no test data: diagnose still runs
+        shutil.copytree(self.kb, bare, ignore=shutil.ignore_patterns("maxo*", "loinc*"))
+        with contextlib.redirect_stdout(io.StringIO()) as buf:
+            main(["--kb", str(bare), "--common", "none", "diagnose", str(case), "--out", str(out / "bare")])
+        self.assertIn("test suggestions off", buf.getvalue())
+        self.assertIsNone(json.loads((out / "bare" / "diagnose" / "PMID_100_Patient_1.json").read_text())["tests"])
+
+    def test_simulation_and_commands(self):
+        import contextlib, io
+        from hoofbeats.__main__ import main
+        from hoofbeats.workup import disease_eval, reveal, simulate_case
+        pp = load_phenopackets(self.root / "pps")[0]
+        found, genes = reveal(self.wk, "MAXO:0000001", P("HP:0001083", "HP:0000098"), ["FBN1"])
+        self.assertEqual([f.hpo_id for f in found], ["HP:0001083"])
+        self.assertEqual(reveal(self.wk, "GENE:FBN1", [], ["FBN1"])[1], ["FBN1"])
+        rows = simulate_case(self.wk, pp, frozenset(), "workup", 2, 13, (2.18, 0.475), False)
+        self.assertEqual([x["step"] for x in rows], [0, 1, 2])
+        self.assertTrue(all(0 <= x["p_truth"] <= 1 for x in rows))
+        ev = disease_eval(self.wk, pp, frozenset(), 13, (2.18, 0.475), budget=6)
+        self.assertEqual({x["world"] for x in ev}, {"open", "imputed"})
+        self.assertTrue(all(x["burden"] <= 6 for x in ev))
+        out = self.root / "results"
+        with contextlib.redirect_stdout(io.StringIO()) as buf:
+            main(["--kb", str(self.kb), "--common", "none", "workup", str(self.root / "pps" / "FBN1" / "PMID_100_Patient_1.json"),
+                  "-k", "2", "--out", str(out)])
+            main(["--kb", str(self.kb), "--common", "none", "workup-eval", "--phenopackets", str(self.root / "pps"),
+                  "--calibration-cases", "0", "--sample", "5", "--steps", "1", "--out", str(out / "eval")])
+        text = buf.getvalue()
+        self.assertIn("Workup for PMID_100_Patient_1", text)
+        self.assertIn("suggested tests verified", text)
+        saved = json.loads((out / "workup" / "PMID_100_Patient_1.json").read_text())
+        self.assertEqual(saved["diseases"][0]["id"], "OMIM:1")
+        self.assertTrue((out / "eval" / "workup_eval.csv").exists())
+
+
+def efetch_xml(papers):
+    arts = []
+    for pmid, title, abstract, year, types in papers:
+        pt = "".join(f"<PublicationType UI=\"D0\">{t}</PublicationType>" for t in types)
+        arts.append(f"""<PubmedArticle><MedlineCitation Status="MEDLINE" Owner="NLM"><PMID Version="1">{pmid}</PMID>
+<Article PubModel="Print"><Journal><Title>Test Journal</Title><JournalIssue><PubDate><Year>{year}</Year></PubDate></JournalIssue></Journal>
+<ArticleTitle>{title}</ArticleTitle><Abstract><AbstractText Label="BACKGROUND">Background sentence about something unrelated here.</AbstractText>
+<AbstractText Label="RESULTS">{abstract}</AbstractText></Abstract><PublicationTypeList>{pt}</PublicationTypeList></Article>
+</MedlineCitation></PubmedArticle>""")
+    return ("<?xml version=\"1.0\"?><PubmedArticleSet>" + "".join(arts) + "</PubmedArticleSet>").encode()
+
+
+class FakeNCBI:
+    def __init__(self, ids, papers):
+        self.ids, self.papers, self.urls = ids, papers, []
+
+    def __call__(self, url, timeout=30):
+        import io, urllib.parse
+        self.urls.append(url)
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+        if "esearch" in url:
+            return io.BytesIO(json.dumps({"esearchresult": {"idlist": self.ids}}).encode())
+        want = q["id"][0].split(",")
+        return io.BytesIO(efetch_xml([p for p in self.papers if p[0] in want]))
+
+
 class TestPubMed(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

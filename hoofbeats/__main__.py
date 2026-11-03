@@ -22,6 +22,7 @@ from .grounding import level_of
 from .model import (AnnotationDB, Case, Finding, LRRanker, Ontology, Status, explain,
                     most_frequent_test, suggest_tests, verify_claim)
 from .context import add_arguments as add_context_arguments, commands as context_commands
+from .workup import add_arguments as add_workup_arguments, commands as workup_commands
 
 
 # run record: every command logs its settings, metrics and console output under <out>/runs/
@@ -312,15 +313,17 @@ def cmd_diagnose(a):
                           (obj.get("image_context") or "", "image_context", "image_context", str(obj.get("case_id", "")))]
         reader.prefetch(items)
     out = Path(a.out) / "diagnose"
+    from .workup import load_workupper
+    wk = load_workupper(r, a.kb)     # tests for every displayed disease (None if the test data is not downloaded)
     for path in a.case:
-        diagnose_one(a, r, path, reader, s1, out, describer)
+        diagnose_one(a, r, path, reader, s1, out, describer, wk)
     if reader is not None:
         print(usage_line(reader.llm))
     if describer is not None:
         print(context_usage(describer))
 
 
-def diagnose_one(a, r: LRRanker, path, reader, s1: dict, out: Path, describer=None):
+def diagnose_one(a, r: LRRanker, path, reader, s1: dict, out: Path, describer=None, wk=None):
     c, ex = read_case(path, r, reader, s1["status_policy"], describer, a.context_max_images, a.context_images_per_call)
     rows = findings_table(c, r.ont)
     print(f"\nFindings ({len(rows)}):")
@@ -348,14 +351,6 @@ def diagnose_one(a, r: LRRanker, path, reader, s1: dict, out: Path, describer=No
         checks.append({"hpo_id": t, "term": r.ont.name(t), "bits": float(eig)})
         print(f"   - {r.ont.name(t)} ({t}), {eig:.2f} bits; " +
               ", ".join(f"{r.db.names[d][:30]} {f:.0%}" for d, f in by[:3]))
-    out.mkdir(parents=True, exist_ok=True)
-    (out / f"{c.case_id}.json").write_text(json.dumps(
-        {"case_id": c.case_id, "source": str(path), "stage1": {k: v for k, v in s1.items() if k != "raw"},
-         "llm_reader": reader is not None, "findings": rows, "truth": c.truth, "truth_rank": rank, "top": top,
-         "claims_verified": f"{n_ok}/{n_all}", "next_checks": checks,
-         "images": c.meta.get("images", []), "image_context": c.meta.get("described"),
-         "warnings": c.meta.get("intake_warnings", [])}, indent=1))
-    wrote(out / f"{c.case_id}.json")
     pm, lit = get_pubmed(a), {}
     if pm:
         lit = gather_literature(a, pm, r, Extractor(r.ont), c, ranking, ex)
@@ -366,6 +361,7 @@ def diagnose_one(a, r: LRRanker, path, reader, s1: dict, out: Path, describer=No
                 print(f"   - {lc.text}")
             if not lit.get(d):
                 print("   - none found")
+    reranked = None
     llm = get_llm(a)          # --llm: re-rank the shortlist (MedGemma unless --llm-model says otherwise)
     if llm:
         from .llm import rerank
@@ -376,6 +372,8 @@ def diagnose_one(a, r: LRRanker, path, reader, s1: dict, out: Path, describer=No
         print(usage_line(llm))
         pos = next((i for i, d in enumerate(res.ranking, 1) if d in c.truth), None)
         note("diagnose", case=c.case_id, rank=rank, rerank=pos, faithfulness=res.faithfulness, parsed=res.parsed)
+        reranked = {"model": llm.model, "ranking": res.ranking[: a.k], "faithfulness": res.faithfulness,
+                    "parsed": res.parsed, "explanations": {d: v for d, v in res.explanations.items() if d in res.ranking[: a.k]}}
         where = f"truth now at {pos or '>10'}" if c.truth else "no truth given"
         print(f"\n{llm.model} re-ranking ({where}), faithfulness {res.faithfulness:.0%}:")
         for i, d in enumerate(res.ranking[: a.k], 1):
@@ -385,6 +383,32 @@ def diagnose_one(a, r: LRRanker, path, reader, s1: dict, out: Path, describer=No
             for sent in res.dropped.get(d, []):
                 print("   x", sent)
 
+    # Note for the UI: results/diagnose/<case>.json -> "tests"["diseases"][<disease id>] holds the test suggestions for
+    # each disease shown ("top", and "rerank"["ranking"] when the re-ranker ran); show it when that disease is clicked.
+    # Each entry: "pre_test" (probability before testing), "tests" (best first: "test", "burden" 1-5, "role" confirm /
+    # rule out / weak, "post_test_if_positive", "post_test_if_negative", "shows" = findings it looks for,
+    # "may_already_be_answered" = note sentences that may already state one of them: show as a hint), "gene_test",
+    # "review" (imaging already done), "gtr" (registered lab tests with "url"). Case-level: "tests"["verify"] (findings
+    # to check), "tests_done", "gtr_panels", "separate" (tests that best tell the top 3 apart, with "p_pos" = chance of
+    # a positive result in each). "tests" is null when the test data is not downloaded (download-tests).
+    tests = None
+    if wk is not None:        # test suggestions for every displayed disease: the ranker's, then the re-ranker's
+        from .workup import done_texts, print_compact, workup_json
+        shown = [x["id"] for x in top] + (reranked["ranking"] if reranked else [])
+        c.meta["done_texts"] = done_texts(path)
+        w = wk.build(c, ranking, ex, len(shown), 3, shown=shown)
+        tests = workup_json(w)
+        tests["diseases"] = {x.pop("id"): x for x in tests["diseases"]}     # by disease id, for the UI
+        print_compact(w)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / f"{c.case_id}.json").write_text(json.dumps(
+        {"case_id": c.case_id, "source": str(path), "stage1": {k: v for k, v in s1.items() if k != "raw"},
+         "llm_reader": reader is not None, "findings": rows, "truth": c.truth, "truth_rank": rank, "top": top,
+         "claims_verified": f"{n_ok}/{n_all}", "next_checks": checks,
+         "images": c.meta.get("images", []), "image_context": c.meta.get("described"),
+         "rerank": reranked, "tests": tests,
+         "warnings": c.meta.get("intake_warnings", [])}, indent=1))
+    wrote(out / f"{c.case_id}.json")
 
 def cmd_benchmark(a):
     r = load_kb(a)
@@ -1273,6 +1297,7 @@ def main(argv=None):
     s.add_argument("--out", default="reports/report", help="base name; each run writes <base>-1, <base>-2, ...")
     s.add_argument("--latex", action="store_true", help="also write LaTeX tables")
     add_context_arguments(p, sub)     # multimodal, medpix-context and their options (context.py)
+    add_workup_arguments(p, sub)      # download-tests, workup, workup-eval (workup.py)
     a = p.parse_args(argv)
     if a.cmd == "download":
         download(a.dest)
@@ -1332,7 +1357,8 @@ def _logged(a):
          "pmc-checks": cmd_pmc_checks, "pmc-score": cmd_pmc_score, "llm-extract": cmd_llm_extract,
          "hpo-index": cmd_hpo_index, "llm-eval": cmd_llm_eval,
          "chooser-sheet": cmd_chooser_sheet, "chooser-score": cmd_chooser_score,
-         "pmc-test-run": cmd_pmc_test_run, **context_commands(sys.modules[__name__])}[a.cmd](a)
+         "pmc-test-run": cmd_pmc_test_run, **context_commands(sys.modules[__name__]),
+         **workup_commands(sys.modules[__name__])}[a.cmd](a)
     except KeyboardInterrupt:
         status = "stopped (Ctrl-C)"
         raise
