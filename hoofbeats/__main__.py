@@ -281,7 +281,7 @@ def findings_table(c: Case, ont: Ontology) -> list[dict]:
 
 def cmd_diagnose(a):
     from .intake import is_intake
-    r = load_kb(a)
+    r = load_kb(a, tuple(x.strip().upper() for x in getattr(a, "sources", "OMIM").split(",") if x.strip()))
     texts = []
     for path in a.case:
         try:
@@ -1192,6 +1192,7 @@ def main(argv=None):
     s.add_argument("case", nargs="+", help="phenopacket JSON or hoofbeats case files (see examples/)")
     s.add_argument("-k", type=int, default=10, help="diseases shown")
     s.add_argument("--out", default="results", help="per-case JSON in <out>/diagnose/, run log in <out>/runs/")
+    s.add_argument("--sources", default="OMIM", help="disease sources ranked: OMIM (default) or OMIM,ORPHA (Orphanet too)")
     for name in ("benchmark", "sequential", "llm-bench"):
         s = sub.add_parser(name)
         s.add_argument("--phenopackets", default="data/phenopacket-store")
