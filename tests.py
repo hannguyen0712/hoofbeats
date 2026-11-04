@@ -1000,6 +1000,9 @@ class TestMedPix(unittest.TestCase):
         cls.m = DiseaseMatcher(db.names)
 
     def test_matcher(self):
+        self.assertEqual(DiseaseMatcher({"X:1": "Small cell cancer of the lung"}).match(
+            "Non-small Cell Lung Cancer (Large-cell variant)"), [])           # "non-small" is not "small"
+        self.assertEqual(DiseaseMatcher({"X:1": "Small cell cancer of the lung"}).match("small cell lung cancer"), ["X:1"])
         self.assertEqual(self.m.match("Hypophosphatasia, adult form"), ["ORPHA:10"])
         self.assertEqual(self.m.match("Hypophosphatasia Gamma"), ["OMIM:3"])          # most specific wins
         self.assertEqual(self.m.match("Disease Alpha"), [])                            # only generic/short words
@@ -1050,36 +1053,23 @@ class TestMedPix(unittest.TestCase):
 
 
 class FakeVision:
-    # image-context replies for CONTEXT_SYSTEM; for MM_SYSTEM the ranking depends on whether the ranker was
-    # given the key image finding (in the image context or the attached images)
-    def __init__(self, model="fake-vision", endpoint=None, sees_images=True, names_diagnosis=False):
+    # Stage A replies (CONTEXT_SYSTEM): one finding per image; `finding` is what the image "shows"
+    def __init__(self, model="fake-vision", endpoint=None, sees_images=True, names_diagnosis=False,
+                 finding="Ectopia lentis", details="lens displaced superotemporally"):
         self.model, self.endpoint, self.sees_images = model, endpoint, sees_images
         self.is_local, self.dry_run, self.names_diagnosis = endpoint is None, False, names_diagnosis
+        self.finding, self.details = finding, details
         self.calls = []
 
     def chat(self, user, system="", images=()):
-        from hoofbeats.llm import CONTEXT_SYSTEM, JUDGE_SYSTEM, MM_SYSTEM
+        from hoofbeats.llm import CONTEXT_SYSTEM
         self.calls.append((system, user, tuple(images)))
-        if system == JUDGE_SYSTEM:      # "Hypophosphatasia, adult form" is the same condition; "Disease Alpha" is not
-            lines = [x for x in user.splitlines() if x[:1].isdigit()]
-            hit = next((i for i, x in enumerate(lines, 1) if "Hypophosphatasia" in x), 0)
-            return json.dumps({"match": hit, "broader": hit})
         if system == CONTEXT_SYSTEM:
             return json.dumps({"technique": "Axial CT without contrast.", "anatomy": "Orbits and globes.",
-                               "findings": [{"finding": "Ectopia lentis", "location": "right globe",
-                                             "details": "lens displaced superotemporally"}],
+                               "findings": [{"finding": self.finding, "location": "right globe",
+                                             "details": self.details}],
                                "pertinent_negatives": ["No orbital fracture"],
-                               "summary": "Displaced right lens." + (" Hypophosphatasia." if self.names_diagnosis else "")})
-        if system == MM_SYSTEM:
-            sees = "ectopia lentis" in user.lower() or bool(images)
-            names = ["Hypophosphatasia, adult form", "Disease Alpha"] if sees else ["Influenza", "Disease Alpha"]
-            ev = [{"source": "context", "detail": "displaced right lens"}, {"source": "clinical", "detail": "tall stature"},
-                  {"source": "details", "detail": "invented finding xyz"}, {"source": "image", "detail": "lens out of place"},
-                  {"source": "image", "detail": "bright red reflex"}]
-            against = [{"source": "clinical", "detail": "no seizures"}]
-            return "```json\n" + json.dumps({"key_findings": ["displaced lens"], "image_check": ["context matches images"],
-                                              "diagnoses": [{"name": n, "evidence": ev, "against": against}
-                                                            for n in names]}) + "\n```"
+                               "summary": "One finding." + (" Hypophosphatasia." if self.names_diagnosis else "")})
         return ""
 
 
@@ -1096,6 +1086,19 @@ class TestImageContext(unittest.TestCase):
 
     def case(self, uid="MPX1"):
         return {c.case_id: c for c in load_medpix(self.mp, self.m, self.ext)}[uid]
+
+    def case_file(self, name="pt", **extra):
+        # a case file with two images next to it (relative paths)
+        d = self.root / name
+        d.mkdir(exist_ok=True)
+        (d / "head.png").write_bytes(b"\x89PNG fake")
+        (d / "knee.jpg").write_bytes(b"\xff\xd8\xff\xe0fake jpeg")
+        obj = {"case_id": name, "note_text": "Tall stature. No seizures.", "age": 40, "sex": "male",
+               "details": {"setting": "clinic"}, "policy": "open",
+               "images": [{"path": "head.png", "modality": "CT - noncontrast", "plane": "Axial", "location": "Head"},
+                          {"path": "knee.jpg", "modality": "X-ray", "location": "Knee"}], **extra}
+        (d / "case.json").write_text(json.dumps(obj))
+        return d / "case.json"
 
     def test_context_prompt_and_rendering(self):
         from hoofbeats.llm import context_prompt, details_of, render_context
@@ -1118,30 +1121,62 @@ class TestImageContext(unittest.TestCase):
         self.assertEqual(render_context(None, "free text reply", "Image 1"), "Image 1: free text reply")
         self.assertEqual(render_context(None, "", "Image 1"), "")
 
-    def test_pipeline_gives_the_ranker_details_text_context_and_images(self):
-        from hoofbeats.llm import CONTEXT_SYSTEM, MM_SYSTEM, diagnose_multimodal
-        ranker, describer = FakeVision("ranker"), FakeVision("describer")
-        ctxs, res = diagnose_multimodal(ranker, self.case(), describer, k=5, max_images=2, matcher=self.m)
+    def test_images_go_through_stage_a_into_stage1(self):
+        from hoofbeats.grounding import level_of
+        from hoofbeats.intake import load_case
+        from hoofbeats.llm import CONTEXT_SYSTEM
+        path, describer = self.case_file(), FakeVision()
+        c = load_case(path, self.ont, self.ext, disease_names=self.r.db.names, describer=describer)
         self.assertEqual([(s, len(i)) for s, _, i in describer.calls], [(CONTEXT_SYSTEM, 1), (CONTEXT_SYSTEM, 1)])
-        self.assertEqual(len(ctxs), 2)
-        (system, prompt, images), = ranker.calls
-        self.assertEqual((system, len(images)), (MM_SYSTEM, 2))
-        self.assertIn("Clinical question: Tall stature", describer.calls[0][1])
-        for part in ("Patient details:\n40-year-old male.", "Clinical information:\nTall stature",
-                     "Image context (a written description of the images; it may be incomplete or wrong):",
-                     "Image 1 (CT - noncontrast, axial plane, head):", "Images: 2 attached",
-                     "trust what you see in the images", "the subtype or cause", '"against"'):
-            self.assertIn(part, prompt)
-        for leak in ("hypophosphatasia", "is seen", "alkaline phosphatase"):   # diagnosis, captions, radiologist
-            self.assertNotIn(leak, prompt.lower())
-        self.assertEqual(res.names[0], "Hypophosphatasia, adult form")
-        self.assertEqual(res.slots[0], {"ORPHA:10"})
-        self.assertEqual([(e["source"], e["supported"]) for e in res.evidence[0]],
-                         [("context", True), ("clinical", True), ("details", False), ("image=context", True),
-                          ("image", None)])                       # "image" text copied from the context is checked
-        self.assertEqual([(e["source"], e["supported"]) for e in res.against[0]], [("clinical", True)])
-        self.assertEqual((res.key_findings, res.image_check), (["displaced lens"], ["context matches images"]))
-        self.assertAlmostEqual(res.grounding, 4 / 5)
+        self.assertIn("Patient: 40-year-old male. Setting: clinic.", describer.calls[0][1])
+        self.assertIn("Clinical question: Tall stature. No seizures.", describer.calls[0][1])
+        self.assertEqual([(i["id"], i["path"]) for i in c.meta["images"]],
+                         [("head", str(path.parent / "head.png")), ("knee", str(path.parent / "knee.jpg"))])
+        self.assertIn("Image 1 (CT - noncontrast, axial plane, head):", c.meta["image_context"])
+        self.assertEqual(c.meta["described"]["model"], "fake-vision")
+        el = next(f for f in c.findings if f.hpo_id == "HP:0001083")       # Ectopia lentis, from the description
+        self.assertEqual((el.status, el.field), (Status.PRESENT, "image_context"))
+        self.assertEqual(c.meta["image_context"][el.start:el.end], el.quote)    # grounded in the description text
+        self.assertEqual(level_of(el), "strong")
+        self.assertFalse([w for w in c.meta["intake_warnings"] if w.startswith("provenance")])
+        self.assertEqual(self.r.score(c).top(1)[0][0], "OMIM:1")           # tall stature + ectopia lentis
+        from hoofbeats.intake import IntakeError
+        with self.assertRaisesRegex(IntakeError, "has images but no image-context model"):   # never skipped silently
+            load_case(path, self.ont, self.ext)
+        import argparse, contextlib, io
+        import hoofbeats.__main__ as hb
+        from hoofbeats.__main__ import main
+        from hoofbeats.context import DEFAULT_CONTEXT_ENDPOINT, DEFAULT_CONTEXT_MODEL, context_choice, reads_images
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):       # no --context-model: the default model describes them (dry run)
+            main(["--kb", str(self.kb), "--common", "none", "--dry-run", "diagnose", str(path), "--out", str(self.root / "r")])
+        self.assertIn(f"image context (Stage A) by {DEFAULT_CONTEXT_MODEL}", buf.getvalue())
+        self.assertIn("would send 2 requests", buf.getvalue())
+        ns = lambda model, vision="auto", ctx=None: argparse.Namespace(llm_model=model, llm_vision=vision, context_model=ctx,
+                                                                       llm_endpoint="http://x/v1", context_endpoint=None)
+        self.assertEqual(context_choice(ns("gemini-2.5-flash"))[:2], ("gemini-2.5-flash", "http://x/v1"))   # main model
+        self.assertEqual(context_choice(ns("hf.co/unsloth/medgemma-1.5-4b-it-GGUF:Q4_K_M"))[0],
+                         "hf.co/unsloth/medgemma-1.5-4b-it-GGUF:Q4_K_M")
+        for text_only in ("Qwen/Qwen2.5-7B-Instruct", "google/medgemma-27b-text-it", None):
+            self.assertEqual(context_choice(ns(text_only))[:2], (DEFAULT_CONTEXT_MODEL, DEFAULT_CONTEXT_ENDPOINT))
+        self.assertTrue(reads_images(ns("Qwen/Qwen2.5-VL-7B-Instruct")))
+        self.assertTrue(reads_images(ns("my-model", "yes")) and not reads_images(ns("gemini-2.5-flash", "no")))
+        self.assertEqual(context_choice(ns("gemini-2.5-flash", ctx="other"))[0], "other")   # --context-model wins
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):       # a case without images builds no image model
+            main(["--kb", str(self.kb), "--common", "none", "--dry-run", "diagnose",
+                  str(self.case_file("noimg", images=[])), "--out", str(self.root / "r")])
+        self.assertNotIn("image context (Stage A)", buf.getvalue())
+
+    def test_existing_image_context_is_kept_and_missing_files_skipped(self):
+        from hoofbeats.intake import load_case
+        path = self.case_file("pt2", image_context="Arachnodactyly on hand films.",
+                              images=[{"path": "head.png"}, {"path": "missing.png"}])
+        c = load_case(path, self.ont, self.ext, describer=FakeVision())
+        self.assertTrue(c.meta["image_context"].startswith("Arachnodactyly on hand films.\n\nImage 1 (image):"))
+        self.assertTrue({"HP:0001166", "HP:0001083"} <= {f.hpo_id for f in c.findings})
+        self.assertTrue(any("images[1]: file not found" in w for w in c.meta["intake_warnings"]))
+        self.assertEqual(len(c.meta["images"]), 1)
 
     def test_timeouts_and_missing_server_fail_the_request_not_the_run(self):
         import socket, threading
@@ -1164,197 +1199,389 @@ class TestImageContext(unittest.TestCase):
             MedGemma("m", f"http://127.0.0.1:{gone}/v1/chat/completions", timeout=2).chat("hi")
         self.assertEqual(MedGemma().timeout, 600)
 
-    def test_image_check_records_become_text(self):
-        from hoofbeats.llm import _strings
-        self.assertEqual(_strings([{"side": "Left", "structure": "Lateral ventricle", "disagreement": ""}, "plain", ""]),
-                         ["side: Left; structure: Lateral ventricle", "plain"])
-        self.assertEqual(_strings({"note": "one record"}), ["note: one record"])
-
-    def test_judge_replies(self):
-        from hoofbeats.llm import judge_ranks
-        llm = FakeVision()
-        for reply, want in (('{"match": 2, "broader": 1}', (2, 1)), ('{"match": 2, "broader": 3}', (2, 2)),
-                            ('{"match": 0, "broader": 2}', (None, 2)), ('{"match": 9}', (None, None)),
-                            ("thought... ```json\n{\"match\": 1, \"broader\": 1}\n```", (1, 1)), ("no idea", (None, None))):
-            llm.chat = lambda user, system="", images=(), r=reply: r
-            self.assertEqual(judge_ranks(llm, ["A", "B", "C"], ["Truth"]), want, reply)
-        self.assertEqual(judge_ranks(llm, [], ["Truth"]), (None, None))
-
     def test_reply_with_a_draft_json_in_its_plan(self):
         # MedGemma 1.5 wrote its JSON twice: a draft inside its plan, then the final answer
-        from hoofbeats.llm import rank_multimodal, reply_json
-        final = {"key_findings": ["enlarged ventricles"], "diagnoses": [{"name": "Obstructive hydrocephalus",
-                                                                          "evidence": [{"source": "context", "detail": "x"}]}]}
-        draft = {"key_findings": ["draft"], "diagnoses": [{"name": "Draft answer"}]}
-        raw = ("thought\nPlan... (Source: context/image)\n**Final JSON structure:**\n```json\n" + json.dumps(draft)
+        from hoofbeats.llm import image_context, reply_json
+        keys = ("findings", "summary", "technique")
+        final = {"findings": [{"finding": "Enlarged lateral ventricles"}], "summary": "final"}
+        draft = {"findings": [{"finding": "draft"}], "summary": "draft"}
+        raw = ("thought\nPlan...\n**Final JSON structure:**\n```json\n" + json.dumps(draft)
                + "\n```\nNow the answer.\n```json\n" + json.dumps(final, indent=2) + "\n```")
         old = _json(raw, "{") or {}                             # first "{" to last "}" spans both blocks:
-        self.assertNotEqual(old.get("key_findings"), ["enlarged ventricles"])   # nothing, or the draft
-        self.assertEqual(reply_json(raw, ("diagnoses",))["key_findings"], ["enlarged ventricles"])
-        cut = raw[:-60]                                         # cut off inside the final JSON
-        self.assertEqual(reply_json(cut, ("diagnoses",))["diagnoses"][0]["name"], "Obstructive hydrocephalus")
+        self.assertNotEqual(old.get("summary"), "final")        # nothing, or the draft
+        self.assertEqual(reply_json(raw, keys)["summary"], "final")
+        cut = raw[:-25]                                         # cut off inside the final JSON
+        self.assertEqual(reply_json(cut, keys)["findings"][0]["finding"], "Enlarged lateral ventricles")
         llm = FakeVision()
         llm.chat = lambda user, system="", images=(): raw
-        res = rank_multimodal(llm, self.case(), "context")
-        self.assertEqual((res.names, res.parsed, res.cut_off), (["Obstructive hydrocephalus"], True, False))
+        ctx = image_context(llm, self.case(), max_images=1)[0]
+        self.assertEqual((ctx.parsed, ctx.cut_off), (True, False))
+        self.assertIn("- Enlarged lateral ventricles", ctx.text)
+        self.assertNotIn("draft", ctx.text)
 
     def test_unreadable_description_is_not_passed_on(self):
-        from hoofbeats.llm import image_context, rank_multimodal
+        from hoofbeats.intake import load_case
+        from hoofbeats.llm import image_context
         loop = "thought\nThe user wants a report.\n" + "*   Lacrimal glands appear normal.\n" * 400
         llm = FakeVision()
         llm.max_new_tokens = 2048
         llm.chat = lambda user, system="", images=(): loop
         ctx = image_context(llm, self.case(), max_images=1)[0]
         self.assertEqual((ctx.text, ctx.parsed, ctx.cut_off), ("", False, True))   # stopped at the limit, no JSON
-        res = rank_multimodal(llm, self.case(), None)
-        self.assertEqual((res.names, res.parsed, res.cut_off), ([], False, True))
+        c = load_case(self.case_file("pt3"), self.ont, self.ext, describer=llm)
+        self.assertEqual(c.meta["image_context"], "")                              # nothing reaches Stage 1
+        self.assertTrue(any("could not be read (stopped at the token limit)" in w for w in c.meta["intake_warnings"]))
         llm.chat = lambda user, system="", images=(): "Enlarged ventricles on both sides."    # short prose: kept
         self.assertEqual(image_context(llm, self.case(), max_images=1)[0].text, "Image 1 (CT - noncontrast, axial plane, "
                                                                                "head): Enlarged ventricles on both sides.")
 
     def test_cut_off_replies_are_flagged(self):
-        from hoofbeats.llm import cut_off, rank_multimodal
-        whole = '{"diagnoses": [{"name": "A", "evidence": []}, {"name": "B", "evidence": []}]}'
-        cut = 'Plan: list ten... ```json\n{"diagnoses": [{"name": "A", "evidence": []}, {"name": "B", "evidence": [{"detail": "lateral ven'
+        from hoofbeats.llm import cut_off, image_context
+        whole = '{"findings": [{"finding": "A"}, {"finding": "B"}], "summary": "s"}'
+        cut = 'Plan: list them... ```json\n{"findings": [{"finding": "Ectopia lentis"}, {"finding": "lateral ven'
         self.assertEqual((cut_off(whole), cut_off("```json\n" + whole + "\n```"), cut_off(cut), cut_off("no json")),
                          (False, False, True, False))
         llm = FakeVision()
         llm.chat = lambda user, system="", images=(): cut
-        res = rank_multimodal(llm, self.case(), "context")
-        self.assertEqual((res.names, res.cut_off), (["A", "B"], True))     # what was finished is still read
+        ctx = image_context(llm, self.case(), max_images=1)[0]
+        self.assertTrue(ctx.cut_off)
+        self.assertIn("- Ectopia lentis", ctx.text)             # what was finished is still read
 
-    def test_same_model_by_default_and_text_only_ranker(self):
-        from hoofbeats.llm import diagnose_multimodal, image_context
-        llm = FakeVision()
-        diagnose_multimodal(llm, self.case(), max_images=2)
-        self.assertEqual(len(llm.calls), 3)                     # 2 image contexts + 1 ranking, same model
-        text_only = FakeVision("text-ranker", sees_images=False)
-        _, res = diagnose_multimodal(text_only, self.case(), FakeVision(), max_images=2)
-        (_, prompt, images), = text_only.calls
-        self.assertEqual(images, ())
-        self.assertIn("Image context (", prompt)
-        self.assertNotIn("attached", prompt)
-        self.assertEqual(res.names[0], "Hypophosphatasia, adult form")    # the context alone carries the finding
+    def test_vision_model_and_credentialed_cases(self):
+        from hoofbeats.intake import load_case
+        from hoofbeats.llm import image_context
         with self.assertRaises(ValueError):
             image_context(FakeVision(sees_images=False), self.case())
-
-    def test_credentialed_input_stays_local(self):
-        from hoofbeats.data import make_input
-        from hoofbeats.llm import image_context, rank_multimodal
-        img = self.mp / "images" / "MPX1_a.png"
-        c = make_input("note", [str(img)], {"age": 50}, local_only=True)
         remote = FakeVision(endpoint="https://example.com/v1/chat/completions")
-        with self.assertRaises(PolicyError):
-            image_context(remote, c)
-        with self.assertRaises(PolicyError):
-            rank_multimodal(remote, c, "context")
-        self.assertEqual(len(image_context(FakeVision(), c)), 1)
+        path = self.case_file("cred", policy="local_only")
+        with self.assertRaises(PolicyError):                    # credentialed images never go to a remote model
+            load_case(path, self.ont, self.ext, describer=remote)
+        self.assertEqual(remote.calls, [])
+        self.assertEqual(len(load_case(path, self.ont, self.ext, describer=FakeVision()).meta["images"]), 2)
 
-    def test_input_files(self):
-        from hoofbeats.data import load_input
-        from hoofbeats.llm import details_of, details_text, image_type
-        d = self.root / "patient"
-        d.mkdir(exist_ok=True)
-        (d / "knee.jpg").write_bytes(b"\xff\xd8\xff\xe0fake jpeg")
-        (d / "case.json").write_text(json.dumps({
-            "text": "Knee pain for 3 weeks.", "details": {"age": 34, "sex": "Female", "setting": "clinic"},
-            "genes": ["COL1A1"], "images": [{"path": "knee.jpg", "modality": "X-ray", "location": "Knee"}]}))
-        c = load_input(d / "case.json")
-        self.assertEqual((c.case_id, c.meta["policy"], c.genes), ("case", "open", ["COL1A1"]))
-        self.assertEqual(c.meta["images"][0]["path"], str(d / "knee.jpg"))
-        self.assertEqual(details_text(details_of(c)), "34-year-old female. Setting: clinic.")
-        self.assertEqual(image_type(d / "knee.jpg"), "image/jpeg")
+    def test_image_type(self):
+        from hoofbeats.llm import image_type
+        path = self.case_file("types")
+        self.assertEqual(image_type(path.parent / "knee.jpg"), "image/jpeg")
         self.assertEqual(image_type(self.mp / "images" / "MPX1_a.png"), "image/png")
-        (d / "bad.json").write_text(json.dumps({"images": ["missing.png"]}))
-        with self.assertRaises(FileNotFoundError):
-            load_input(d / "bad.json")
-
-    def test_same_name(self):
-        from hoofbeats.data import same_name
-        self.assertTrue(same_name("Hypophosphatasia, adult form", "Hypophosphatasia, adult"))
-        self.assertTrue(same_name("Small cell lung carcinoma",
-                                  "Left upper lobe collapse caused by an obstructing small cell lung carcinoma"))
-        self.assertFalse(same_name("Pneumonia", "Pneumothorax"))
-        self.assertFalse(same_name("Disease", "Syndrome"))
-        title = "Non communicating hydrocephalus due to aqueductal stenosis"
-        self.assertFalse(same_name("Communicating hydrocephalus", title))
-        self.assertTrue(same_name("Non-communicating hydrocephalus", title))
-        self.assertTrue(same_name("Non-communicating Hydrocephalus (Obstructive)", title))     # parentheses optional
-        self.assertFalse(same_name("Non-Hodgkin lymphoma", "Hodgkin lymphoma"))
-        self.assertTrue(same_name("Noncommunicating hydrocephalus", title))                  # HPO's spelling
-        self.assertFalse(same_name("Obstructive hydrocephalus", title))                      # a synonym: needs a judge
-        self.assertFalse(same_name("Not pregnant", "Pregnant"))
-        self.assertTrue(same_name("Squamous cell carcinoma of the tongue",
-                                  "oropharyngeal (tongue) cancer, squamous cell carcinoma (SCC)"))
-        self.assertEqual(self.case().meta["dx_names"], ["Hypophosphatasia, adult", "Hypophosphatasia"])
 
     def test_medpix_conditions(self):
         from hoofbeats.__main__ import image_agreement
         from hoofbeats.context import MM_CONDITIONS, medpix_context_case
-        ranker, describer = FakeVision("ranker"), FakeVision("describer")
-        rows = {x["condition"]: x for x in medpix_context_case(self.case(), list(MM_CONDITIONS), ranker, describer,
-                                                                self.r, self.ext, self.m, max_images=2,
-                                                                agreement=image_agreement)}
-        self.assertEqual({k: v["rank"] for k, v in rows.items()},
-                         {"text": None, "images": 1, "context": 1, "context+images": 1, "reference": 1})
-        self.assertEqual(rows["context+images"]["rank_name"], 1)
-        self.assertEqual({k: v["images_to_ranker"] for k, v in rows.items()},
-                         {"text": 0, "images": 2, "context": 0, "context+images": 2, "reference": 0})
-        self.assertEqual(len(describer.calls), 2)              # one context per image, shared by both conditions
+        describer = FakeVision(finding="Low alkaline phosphatase", details="")   # the key finding for ORPHA:10
+        rows = {x["condition"]: x for x in medpix_context_case(self.case(), list(MM_CONDITIONS), describer, self.r,
+                                                                self.ext, max_images=2, agreement=image_agreement)}
+        self.assertEqual(len(describer.calls), 2)              # one description per image
+        self.assertEqual({k: v["rank"] for k, v in rows.items()}, {"text": 5, "context": 3, "reference": 4})
+        self.assertGreater(rows["context"]["findings"], rows["text"]["findings"])
         self.assertFalse(rows["context"]["context_named_diagnosis"])
-        self.assertIsNotNone(rows["context+images"]["context_recall"])   # scored against the radiologist's findings
-        judge = FakeVision("judge")
-        judged = {x["condition"]: x for x in medpix_context_case(self.case(), ["text", "images"], FakeVision(),
-                                                                  FakeVision(), self.r, self.ext, self.m, judge=judge)}
-        self.assertEqual({k: (v["rank_judge"], v["rank_judge_broader"]) for k, v in judged.items()},
-                         {"text": (None, None), "images": (1, 1)})
-        self.assertIn("The correct diagnosis is: Hypophosphatasia, adult (also recorded as: Hypophosphatasia)",
-                      judge.calls[0][1])
-        named = medpix_context_case(self.case(), ["context"], FakeVision(), FakeVision(names_diagnosis=True),
-                                    self.r, self.ext, self.m, mask=True)[0]
+        self.assertAlmostEqual(rows["context"]["context_recall"], 1 / 3)   # low ALP; not hyperammonemia, ectopia lentis
+        named = medpix_context_case(self.case(), ["context"], FakeVision(names_diagnosis=True), self.r, self.ext)[0]
         self.assertTrue(named["context_named_diagnosis"])
-        self.assertNotIn("hypophosphatasia", named["context"].lower())
 
     def test_commands_dry_run(self):
-        import contextlib, io, os
-        from hoofbeats.__main__ import main
+        import argparse, contextlib, io, os
+        import hoofbeats.__main__ as hb
+        from hoofbeats.__main__ import RUN, main
+        from hoofbeats.context import context_llm
         out, buf = self.root / "results", io.StringIO()
-        llm = ["--kb", str(self.kb), "--common", "none", "--llm-model", "m-vision",
-               "--llm-endpoint", "http://127.0.0.1:9/v1/chat/completions", "--dry-run"]
+        llm = ["--kb", str(self.kb), "--common", "none", "--dry-run", "--json-mode", "--context-model", "m-vision",
+               "--context-endpoint", "http://127.0.0.1:9/v1/chat/completions"]
         with contextlib.redirect_stdout(buf):
-            main(llm + ["--judge-model", "judge-model", "medpix-context", "--medpix", str(self.mp), "--split", "all",
-                        "--out", str(out)])
-            main(llm + ["--json-mode", "--context-model", "other-vision", "multimodal", "--text", "Knee pain.", "--age", "34",
+            main(llm + ["medpix-context", "--medpix", str(self.mp), "--split", "all", "--out", str(out)])
+            main(llm + ["multimodal", "--text", "Knee pain.", "--age", "34", "--sex", "female",
                         "--image", str(self.mp / "images" / "MPX1_a.png"), "--image", str(self.mp / "images" / "MPX1_b.png"),
                         "--modality", "X-ray", "--out", str(out)])
         text = buf.getvalue()
-        self.assertIn("would send 13 requests", text)          # MPX1: 2 contexts + 5 rankings; MPX2: 1 + 5
-        self.assertIn("judge: one short request to judge-model per ranking", text)
-        self.assertIn("would send 1 requests", text)           # multimodal: 1 ranking ...
-        self.assertIn("would send 2 requests to other-vision", text)   # ... and 2 image contexts by the other model
+        self.assertIn("would send 2 requests to m-vision", text)      # MPX1 (labelled): 2 images; MPX2 has no KB diagnosis
+        labels = self.root / "labels.csv"
+        labels.write_text("U_id,truth\nMPX2,OMIM:1\nMPX9,OMIM:2\n")
+        buf2 = io.StringIO()
+        with contextlib.redirect_stdout(buf2):
+            main(llm + ["medpix-context", "--medpix", str(self.mp), "--labels", str(labels), "--labels-only",
+                        "--out", str(out)])
+        self.assertIn("skipped (not found or no images on disk): MPX9", buf2.getvalue())
+        self.assertIn("1 cases with images", buf2.getvalue())          # only the listed MPX2, with its label
+        self.assertEqual(text.count("would send 2 requests to m-vision"), 2)   # ... and the multimodal patient's 2 images
+        saved = json.loads((out / "multimodal" / "patient.json").read_text())
+        self.assertEqual((saved["policy"], saved["sex"], len(saved["images"])), ("open", "female", 2))
+        self.assertTrue((out / "diagnose" / "patient.json").exists())
         self.assertTrue((out / "runs" / "latest.txt").exists())
-        from hoofbeats.__main__ import RUN
-        self.assertEqual(RUN["settings"]["extra"], {"response_format": {"type": "json_object"}})   # --json-mode
-        import argparse
-        import hoofbeats.__main__ as hb
-        from hoofbeats.context import _other_llm
-        from hoofbeats.llm import MedGemma
+        self.assertEqual(RUN["settings"]["context_model"], "m-vision")
         ollama = "http://localhost:11434/v1/chat/completions"
         a = argparse.Namespace(llm_endpoint=ollama, llm_key_env=None, llm_extra=None, llm_max_tokens=4096, llm_rpm=None,
                                dry_run=True, llm_timeout=600, json_mode=True, context_model="m2", context_endpoint=None,
-                               context_key_env=None, context_extra=None, context_max_tokens=None)
-        main_llm = MedGemma("m1", ollama)
+                               context_key_env=None, context_extra=None, context_max_tokens=None, llm_cache="none",
+                               llm_offline=True, out=str(out))
+        json_only = {"response_format": {"type": "json_object"}}
         with contextlib.redirect_stdout(io.StringIO()):
-            same = _other_llm(hb, a, main_llm, "context", "image context")
+            same = context_llm(hb, a)
             a.context_endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
             os.environ["TEST_KEY"] = "k"
             a.context_key_env = "TEST_KEY"
-            other = _other_llm(hb, a, main_llm, "context", "image context")
-        json_only = {"response_format": {"type": "json_object"}}
+            other = context_llm(hb, a)
         self.assertEqual((same.extra, other.extra), (json_only, {}))   # not sent to Gemini's endpoint
-        a.context_endpoint = "http://other-server:8000/v1/chat/completions"
+        self.assertTrue(same.offline)                                  # --llm-offline reaches the image-context model
+        a.context_model, a.llm_model, a.llm_vision = None, None, "auto"
         with contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(_other_llm(hb, a, main_llm, "context", "image context").extra, json_only)   # any other server
+            self.assertEqual(context_llm(hb, a).model, "hf.co/unsloth/medgemma-1.5-4b-it-GGUF:Q4_K_M")   # the default
+
+
+def efetch_xml(papers):
+    arts = []
+    for pmid, title, abstract, year, types in papers:
+        pt = "".join(f"<PublicationType UI=\"D0\">{t}</PublicationType>" for t in types)
+        arts.append(f"""<PubmedArticle><MedlineCitation Status="MEDLINE" Owner="NLM"><PMID Version="1">{pmid}</PMID>
+<Article PubModel="Print"><Journal><Title>Test Journal</Title><JournalIssue><PubDate><Year>{year}</Year></PubDate></JournalIssue></Journal>
+<ArticleTitle>{title}</ArticleTitle><Abstract><AbstractText Label="BACKGROUND">Background sentence about something unrelated here.</AbstractText>
+<AbstractText Label="RESULTS">{abstract}</AbstractText></Abstract><PublicationTypeList>{pt}</PublicationTypeList></Article>
+</MedlineCitation></PubmedArticle>""")
+    return ("<?xml version=\"1.0\"?><PubmedArticleSet>" + "".join(arts) + "</PubmedArticleSet>").encode()
+
+
+class FakeNCBI:
+    def __init__(self, ids, papers):
+        self.ids, self.papers, self.urls = ids, papers, []
+
+    def __call__(self, url, timeout=30):
+        import io, urllib.parse
+        self.urls.append(url)
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+        if "esearch" in url:
+            return io.BytesIO(json.dumps({"esearchresult": {"idlist": self.ids}}).encode())
+        want = q["id"][0].split(",")
+        return io.BytesIO(efetch_xml([p for p in self.papers if p[0] in want]))
+
+
+MAXO_TSV = """#description: test
+#version: 2026-01-01
+hpo_id\thpo_label\tpredicate_id\tmaxo_id\tmaxo_label\tcreator_id
+HP:0001083\tEctopia lentis\tis_observable_through\tMAXO:0000001\tslit-lamp examination\tx
+HP:0000478\tAbnormality of the eye\tis_observable_through\tMAXO:0000002\tophthalmologist evaluation\tx
+HP:0000098\tTall stature\tis_observable_through\tMAXO:0000487\tclinical assessment\tx
+HP:0001166\tArachnodactyly\tis_observable_through\tMAXO:0000487\tclinical assessment\tx
+HP:0001250\tSeizure\tis_observable_through\tMAXO:0000003\telectroencephalography\tx
+HP:0001263\tGlobal developmental delay\tis_prenatally_observable_through\tMAXO:0000004\tfetal ultrasonography\tx
+HP:0003282\tDecreased circulating alkaline phosphatase activity\tis_observable_through\tMAXO:0000005\tblood chemistry measurement\tx
+HP:0003282\tDecreased circulating alkaline phosphatase activity\tis_observable_through\tMAXO:0000006\tbiopsy of bone tissue\tx
+"""
+LOINC_TSV = """loincId\tloincScale\toutcome\thpoTermId\tsupplementalTermId\tcuration\tcomment
+6768-6\tQn\tL\tHP:0003282\t.\tx\t.
+6768-6\tQn\tH\tHP:0003155\t.\tx\t.
+6768-6\tQn\tN\tHP:0001939\t.\tx\t.
+"""
+
+
+GTR_TESTS = [   # accession, current, name, lab, country, methods, genes, MIM numbers of the conditions
+    ("GTR000000001.1", "1", "FBN1 Single Gene", "Lab A", "United States",
+     "Deletion/duplication analysis|Sequence analysis of the entire coding region", ["FBN1"], ["1"]),
+    ("GTR000000002.1", "1", "Alpha and Delta panel", "Lab B", "Germany",
+     "Sequence analysis of the entire coding region", ["FBN1", "G2", "G3", "G4"], ["1", "4"]),
+    ("GTR000000003.2", "1", "Gamma enzyme activity", "Lab C", "United States", "Enzyme assay", [], ["3"]),
+    ("GTR000000004.1", "0", "Old Beta test", "Lab D", "United States", "Sequence analysis of the entire coding region",
+     ["OLD1"], ["2"]),
+    ("GTR000000005.1", "1", "Alpha carrier screen", "Lab E", "United States", "Targeted variant analysis", ["FBN1"], ["1"]),
+    ("GTR000000006.1", "1", "BETA1 sequencing", "Lab F", "United States", "Sequence analysis of the entire coding region",
+     ["BETA1"], ["2"]),
+]
+
+
+def write_gtr(kb: Path):
+    import gzip
+    cols = ["test_accession_ver", "name_of_laboratory", "facility_country", "last_touch_date", "lab_test_name",
+            "manufacturer_test_name", "method_categories", "now_current"]
+    lines = ["\t".join(cols)] + ["\t".join([a, f'"{lab}"', f'"{country}"', "2026-10-01", f'"{name}"', "", f'"{m}"', cur])
+                                  for a, cur, name, lab, country, m, genes, mims in GTR_TESTS]
+    with gzip.open(kb / "test_version.gz", "wt", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+    rows = ["#accession_version\ttest_type\tobject\tGTR_identifier\tMIM_number\tobject_name\tgene_or_SNOMED_CT_ID\tgene_symbol"]
+    for a, cur, name, lab, country, m, genes, mims in GTR_TESTS:
+        rows += [f"{a}\tClinical\tcondition\tC{x}\t{x}\tcondition {x}\t\tN/A" for x in mims]
+        rows += [f"{a}\tClinical\tgene\tC9{g}\tN/A\t{g}:gene\t1\t{g}" for g in genes]
+    (kb / "test_condition_gene.txt").write_text("\n".join(rows) + "\n")
+
+
+class TestWorkup(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from hoofbeats.workup import GTR, TestCatalog, Workupper
+        cls.root = Path(tempfile.mkdtemp())
+        cls.kb = build(cls.root)
+        (cls.kb / "maxo_diagnostic_annotations.tsv").write_text(MAXO_TSV)
+        (cls.kb / "loinc2hpo-annotations.tsv").write_text(LOINC_TSV)
+        write_gtr(cls.kb)
+        cls.ont = Ontology(cls.kb / "hp.obo")
+        cls.r = LRRanker(cls.ont, AnnotationDB(cls.kb / "phenotype.hpoa", cls.ont))
+        cls.cat = TestCatalog(cls.ont, cls.kb)
+        cls.gtr = GTR.load(cls.kb)
+        cls.wk = Workupper(cls.r, cls.cat, genes_path=cls.kb / "genes_to_disease.txt", gtr=cls.gtr)
+
+    def test_gtr(self):
+        from hoofbeats.workup import verify_gtr, workup_json
+        g = self.gtr
+        self.assertEqual(sorted(g.tests), ["GTR000000001.1", "GTR000000002.1", "GTR000000003.2", "GTR000000005.1",
+                                           "GTR000000006.1"])                       # the old version is left out
+        self.assertEqual({a: t.kind for a, t in g.tests.items()},
+                         {"GTR000000001.1": "targeted", "GTR000000002.1": "panel", "GTR000000003.2": "biochemical",
+                          "GTR000000005.1": "screening", "GTR000000006.1": "targeted"})
+        self.assertEqual(g.tests["GTR000000001.1"].url, "https://www.ncbi.nlm.nih.gov/gtr/tests/1/")
+        self.assertEqual(g.version, "2026-10-01")
+        self.assertEqual(self.wk.gene_list("OMIM:1"), (["FBN1"], "genes_to_disease"))
+        self.assertEqual(self.wk.gene_list("OMIM:2"), (["BETA1"], "GTR"))        # no HPO gene: GTR's targeted tests
+        c = Case("x", P("HP:0000098"), ["OMIM:1"])
+        w = self.wk.build(c, self.r.score(c), k=4)
+        alpha = next(d for d in w.diseases if d.disease == "OMIM:1")
+        self.assertEqual(alpha.gtr["tests"], 3)
+        self.assertEqual([t.name for t in alpha.gtr["targeted"]], ["FBN1 Single Gene"])
+        self.assertEqual([x["covers"] for x in w.gtr_panels], [["OMIM:1", "OMIM:4"]])
+        self.assertEqual([t.name for t in g.examples("OMIM:3", "biochemical")], ["Gamma enzyme activity"])
+        self.assertTrue(verify_gtr(self.wk, "OMIM:1", g.tests["GTR000000001.1"]))
+        self.assertFalse(verify_gtr(self.wk, "OMIM:2", g.tests["GTR000000001.1"]))
+        saved = workup_json(w)
+        self.assertEqual(saved["gtr_panels"][0]["accession"], "GTR000000002.1")
+        self.assertEqual(next(d for d in saved["diseases"] if d["id"] == "OMIM:1")["gtr"]["targeted"][0]["lab"], "Lab A")
+
+    def names(self, term):
+        return sorted(self.cat.tests[t].name for t in self.cat.observing(term))
+
+    def test_catalog(self):
+        self.assertEqual(self.names("HP:0001083"), ["ophthalmologist evaluation", "slit-lamp examination"])  # + parent's
+        self.assertEqual(self.names("HP:0007359"), ["electroencephalography"])     # nearest annotated ancestor
+        self.assertEqual(self.names("HP:0001263"), [])                             # prenatal ascertainment left out
+        # a LOINC lab test replaces MAxO's generic lab action; the biopsy stays. Its "normal" term (Abnormality of
+        # metabolism/homeostasis) is too general to name it, so it is named after a result term
+        lab = ("lab test: Decreased circulating alkaline phosphatase activity / Elevated circulating alkaline "
+               "phosphatase concentration (LOINC test)")
+        self.assertEqual(self.names("HP:0003282"), ["biopsy of bone tissue", lab])
+        self.assertEqual(self.names("HP:0001987"), [])          # not shown by the lab test via the general term
+        burden = {t.name: (t.kind, t.burden) for t in self.cat.tests.values()}
+        self.assertEqual(burden["clinical assessment"], ("exam", 1))
+        self.assertEqual(burden["slit-lamp examination"], ("exam", 2))
+        self.assertEqual(burden[lab], ("lab", 2))
+        self.assertEqual(burden["electroencephalography"], ("physiology", 3))
+        self.assertEqual(burden["biopsy of bone tissue"], ("invasive", 5))
+        self.assertNotIn("fetal ultrasonography", burden)
+        self.assertEqual(self.cat.done_from_text(["Slit-lamp: lens normal"]), {"MAXO:0000001"})
+
+    def test_formulas(self):
+        from hoofbeats.workup import ranker_probs, score_test
+        lr_pos, lr_neg, post_pos, post_neg, bits = score_test(0.5, 0.9, 0.1)
+        self.assertAlmostEqual(lr_pos, 9.0)
+        self.assertAlmostEqual(lr_neg, 0.1 / 0.9)
+        self.assertAlmostEqual(post_pos, 0.9)
+        self.assertAlmostEqual(post_neg, 0.1)
+        self.assertAlmostEqual(bits, 1 + 0.9 * math.log2(0.9) + 0.1 * math.log2(0.1))
+        rk = self.r.score(Case("x", P("HP:0000098")))
+        p = ranker_probs(rk)
+        self.assertAlmostEqual(p.sum(), 1.0)          # every disease is in the top 20 here: no outside share
+        self.assertEqual(int(np.argmax(p)), rk.order[0])
+
+    def test_workup_of_a_disease(self):
+        from hoofbeats.workup import Shown, verify_result
+        c = Case("x", P("HP:0000098"), ["OMIM:1"], meta={"sex": "male"})
+        w = self.wk.build(c, self.r.score(c), k=2)
+        dw = w.diseases[0]
+        self.assertEqual(dw.disease, "OMIM:1")
+        tests = {x.test.name: x for x in dw.ranked}
+        self.assertIn("slit-lamp examination", tests)
+        self.assertEqual([s.name for s in tests["clinical assessment"].shows], ["Arachnodactyly"])   # tall stature known
+        x = tests["slit-lamp examination"]
+        self.assertGreater(x.lr_pos, 1)
+        self.assertGreater(x.post_pos, dw.p)
+        self.assertLess(x.post_neg, dw.p)
+        self.assertGreater(x.woe_confirm, 0)
+        self.assertEqual(dw.gene.test.codes, ("FBN1",))
+        self.assertEqual(w.panel["genes"][0], "FBN1")
+        self.assertTrue(all(verify_result(self.wk, dw.disease, y)[0] for y in dw.ranked + [dw.gene]))
+        bad = Shown("HP:0001083", "Ectopia lentis", 0.5, ("PMID:999",))
+        x.shows = [bad]
+        self.assertFalse(verify_result(self.wk, dw.disease, x)[0])     # frequency and reference not in the KB
+
+    def test_known_gene_done_tests_and_unsure_findings(self):
+        c = Case("x", P("HP:0000098") + [Finding("HP:0001166", Status.UNCERTAIN)], ["OMIM:1"], ["FBN1"],
+                 meta={"done_texts": ["Slit lamp (eye clinic): lenses in place"]})
+        w = self.wk.build(c, self.r.score(c), k=1)
+        dw = w.diseases[0]
+        self.assertIsNone(dw.gene)
+        self.assertEqual(dw.genes_known, ["FBN1"])
+        self.assertEqual([x.test.name for x in dw.review], ["slit-lamp examination"])   # done: review, not order
+        self.assertNotIn("slit-lamp examination", [x.test.name for x in dw.ranked])
+        self.assertEqual(w.done, ["slit-lamp examination"])
+        self.assertEqual(w.verify[0]["term"], "Arachnodactyly")
+        self.assertEqual(w.verify[0]["tests"], ["clinical assessment"])
+
+    def test_displayed_diseases_get_tests_in_their_order(self):
+        rk = self.r.score(Case("x", P("HP:0001263")))
+        top2 = [d for d, *_ in rk.top(2)]
+        last = [d for d, *_ in rk.top(len(self.r.diseases))][-1]          # a disease outside the ranker's top
+        shown = [top2[1], top2[0], last, "OMIM:999999"]                   # e.g. a re-ranker's order; unknown id
+        w = self.wk.build(Case("x", P("HP:0001263")), rk, k=2, shown=shown)
+        self.assertEqual([d.disease for d in w.diseases], shown[:3])      # order kept, unknown id skipped
+        self.assertEqual([d.disease for d in self.wk.build(Case("x", P("HP:0001263")), rk, k=2).diseases], top2)
+
+    def test_note_may_already_answer_and_tests_that_tell_apart(self):
+        from hoofbeats.workup import mentions, workup_json
+        c = Case("x", P("HP:0000098"), meta={"history": "Exam: dislocated lens on the left. Flat feet bilat."})
+        self.assertEqual(mentions(self.ont, c, {"HP:0001083"}), {"HP:0001083": "Exam: dislocated lens on the left."})
+        self.assertEqual(mentions(self.ont, Case("y", [], meta={"history": "Lens is clear."}), {"HP:0001083"}), {})
+        w = self.wk.build(c, self.r.score(c), k=3)
+        hinted = [m for d in w.diseases for x in d.ranked + d.review for m in x.mentioned]
+        self.assertIn({"finding": "Ectopia lentis", "sentence": "Exam: dislocated lens on the left."}, hinted)
+        fam = Case("z", P("HP:0000098") + [Finding("HP:0001083", Status.FAMILY)], meta=c.meta)   # already recorded
+        self.assertFalse([m for d in self.wk.build(fam, self.r.score(fam), k=3).diseases
+                          for x in d.ranked + d.review for m in x.mentioned if m["finding"] == "Ectopia lentis"])
+        self.assertTrue(w.separate)                                         # tests that tell the top 3 apart
+        top = w.separate[0]
+        self.assertEqual(set(top["p_pos"]), {d.disease for d in w.diseases[:3]})
+        self.assertGreater(max(top["p_pos"].values()) - min(top["p_pos"].values()), 0.1)
+        saved = workup_json(w)
+        self.assertEqual(saved["separate"][0]["test"], top["test"])
+        self.assertIn("may_already_be_answered", saved["diseases"][0]["tests"][0])
+
+    def test_diagnose_gives_tests_per_displayed_disease(self):
+        import contextlib, io, shutil
+        from hoofbeats.__main__ import main
+        out, case = self.root / "dx", self.root / "pps" / "FBN1" / "PMID_100_Patient_1.json"
+        with contextlib.redirect_stdout(io.StringIO()) as buf:
+            main(["--kb", str(self.kb), "--common", "none", "diagnose", str(case), "-k", "3", "--out", str(out)])
+        saved = json.loads((out / "diagnose" / "PMID_100_Patient_1.json").read_text())
+        self.assertEqual(list(saved["tests"]["diseases"]), [x["id"] for x in saved["top"]])   # one entry per disease
+        first = saved["tests"]["diseases"][saved["top"][0]["id"]]
+        self.assertTrue({"pre_test", "tests", "gene_test", "review"} <= first.keys())
+        self.assertIn("Tests per disease", buf.getvalue())
+        bare = self.root / "kb_bare"                                      # no test data: diagnose still runs
+        shutil.copytree(self.kb, bare, ignore=shutil.ignore_patterns("maxo*", "loinc*"))
+        with contextlib.redirect_stdout(io.StringIO()) as buf:
+            main(["--kb", str(bare), "--common", "none", "diagnose", str(case), "--out", str(out / "bare")])
+        self.assertIn("test suggestions off", buf.getvalue())
+        self.assertIsNone(json.loads((out / "bare" / "diagnose" / "PMID_100_Patient_1.json").read_text())["tests"])
+
+    def test_simulation_and_commands(self):
+        import contextlib, io
+        from hoofbeats.__main__ import main
+        from hoofbeats.workup import disease_eval, reveal, simulate_case
+        pp = load_phenopackets(self.root / "pps")[0]
+        found, genes = reveal(self.wk, "MAXO:0000001", P("HP:0001083", "HP:0000098"), ["FBN1"])
+        self.assertEqual([f.hpo_id for f in found], ["HP:0001083"])
+        self.assertEqual(reveal(self.wk, "GENE:FBN1", [], ["FBN1"])[1], ["FBN1"])
+        rows = simulate_case(self.wk, pp, frozenset(), "workup", 2, 13, (2.18, 0.475), False)
+        self.assertEqual([x["step"] for x in rows], [0, 1, 2])
+        self.assertTrue(all(0 <= x["p_truth"] <= 1 for x in rows))
+        ev = disease_eval(self.wk, pp, frozenset(), 13, (2.18, 0.475), budget=6)
+        self.assertEqual({x["world"] for x in ev}, {"open", "imputed"})
+        self.assertTrue(all(x["burden"] <= 6 for x in ev))
+        out = self.root / "results"
+        with contextlib.redirect_stdout(io.StringIO()) as buf:
+            main(["--kb", str(self.kb), "--common", "none", "workup", str(self.root / "pps" / "FBN1" / "PMID_100_Patient_1.json"),
+                  "-k", "2", "--out", str(out)])
+            main(["--kb", str(self.kb), "--common", "none", "workup-eval", "--phenopackets", str(self.root / "pps"),
+                  "--calibration-cases", "0", "--sample", "5", "--steps", "1", "--out", str(out / "eval")])
+        text = buf.getvalue()
+        self.assertIn("Workup for PMID_100_Patient_1", text)
+        self.assertIn("suggested tests verified", text)
+        saved = json.loads((out / "workup" / "PMID_100_Patient_1.json").read_text())
+        self.assertEqual(saved["diseases"][0]["id"], "OMIM:1")
+        self.assertTrue((out / "eval" / "workup_eval.csv").exists())
 
 
 def efetch_xml(papers):

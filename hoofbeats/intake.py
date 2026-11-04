@@ -63,6 +63,14 @@ class ImageFinding(_Item):
         return self
 
 
+class Image(_Item):
+    path: str = Field(min_length=1)       # relative paths are read from the case file's folder
+    id: Optional[str] = None
+    modality: Optional[str] = None        # e.g. "CT - noncontrast", "MR - T2", "XR"
+    plane: Optional[str] = None           # e.g. axial
+    location: Optional[str] = None        # body region, e.g. head
+
+
 class IntakeCase(BaseModel):
     model_config = ConfigDict(extra="ignore")
     case_id: str = Field(min_length=1)
@@ -75,6 +83,8 @@ class IntakeCase(BaseModel):
     genes: list[str] = []
     hpo_terms: list[HpoTerm] = []
     image_findings: list[ImageFinding] = []
+    images: list[Image] = []    # Stage A describes them; the description is read like image_context
+    details: dict[str, Union[str, int, float]] = {}   # other patient details, given to the image-context model
     truth: list[str] = []      # gold disease ids, for evaluation only
     policy: Literal["open", "local_only"] = "local_only"
 
@@ -84,7 +94,7 @@ class IntakeCase(BaseModel):
         return v.strip().lower() if isinstance(v, str) else v
 
 
-LIST_FIELDS = ("labs", "genes", "hpo_terms", "image_findings", "truth")
+LIST_FIELDS = ("labs", "genes", "hpo_terms", "image_findings", "images", "truth")
 
 
 def is_intake(obj) -> bool:
@@ -190,6 +200,40 @@ def read_labs(items: list[Lab], warn, age: float | None = None) -> list[Finding]
     return read_structured_labs(items, warn, age)
 
 
+def image_records(items: list[Image], base, warn, pos=None) -> list[dict]:
+    # the case's images as records; a missing file is skipped with a warning
+    out = []
+    for i, x in zip(pos if pos is not None else range(len(items)), items):
+        p = Path(x.path)
+        p = p if p.is_absolute() or base is None else Path(base) / p
+        if not p.is_file():
+            warn(f"images[{i}]: file not found: {p}; skipped")
+            continue
+        out.append({"id": x.id or p.stem, "path": str(p), "modality": x.modality or "", "plane": x.plane or "",
+                    "location": x.location or ""})
+    return out
+
+
+def describe_images(describer, d: IntakeCase, images: list[dict], warn, max_images: int = 4,
+                    per_call: int = 1) -> dict:
+    # Stage A: the vision model describes the images (llm.image_context); its text is then read by Stage 1 as part
+    # of image_context. A credentialed case (policy local_only) with a remote model raises llm.PolicyError.
+    from .llm import image_context
+    details = {"age": d.age, "sex": d.sex, **d.details}
+    tmp = Case(d.case_id, [], [], meta={"policy": d.policy, "images": images, "history": d.note_text or "",
+                                        "details": {k: v for k, v in details.items() if v not in (None, "")}})
+    if len(images) > max_images:
+        warn(f"images: only the first {max_images} of {len(images)} are described (--context-max-images)")
+    parts = image_context(describer, tmp, max_images, per_call)
+    for x in parts:
+        if not x.text:
+            warn(f"image context: {x.label} could not be read" + (" (stopped at the token limit)" if x.cut_off else "")
+                 + "; not used")
+    return {"model": getattr(describer, "model", ""), "text": "\n\n".join(x.text for x in parts if x.text),
+            "parts": [{"images": x.images, "label": x.label, "parsed": x.parsed, "cut_off": x.cut_off, "text": x.text}
+                      for x in parts]}
+
+
 def original_texts(d: IntakeCase, pos: dict) -> dict[str, str]:
     # every input string a provenance span can point into, by field name
     texts = {"note_text": d.note_text or "", "image_context": d.image_context or ""}
@@ -203,7 +247,11 @@ def original_texts(d: IntakeCase, pos: dict) -> dict[str, str]:
 
 def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancestors: bool = True, path=None,
                disease_names: dict[str, str] | None = None, emit_normal_vitals: bool = False, llm_reader=None,
-               rules_text: bool = True, status_policy: str = "llm") -> Case:
+               rules_text: bool = True, status_policy: str = "llm", describer=None, max_images: int = 4,
+               images_per_call: int = 1) -> Case:
+    # describer: the Stage A vision model. With images and a describer, the images are described first and the
+    # description is added to image_context, so every Stage 1 reader reads it. Images without a describer are an
+    # error (IntakeError), so they are never skipped by accident.
     # disease_names: knowledge-base names (id -> name); their mentions are recorded, never turned into findings.
     # emit_normal_vitals: normal vital signs also give absent findings; when off they are only recorded in
     # meta["provenance"]["normal_vitals"]
@@ -215,6 +263,14 @@ def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancesto
     pos: dict = {}
     d = validate(obj, warnings.append, Path(path).stem if path else "case", pos)
     ext = ext or Extractor(ont)
+    images = image_records(d.images, Path(path).parent if path else None, warnings.append, pos.get("images"))
+    described = None
+    if images and describer is None:
+        raise IntakeError(f"{d.case_id} has images but no image-context model: pass --context-model (and --context-endpoint) so they are described")
+    if images:
+        described = describe_images(describer, d, images, warnings.append, max_images, images_per_call)
+        if described["text"]:
+            d.image_context = ((d.image_context or "").strip() + "\n\n" + described["text"]).strip()
     diseases = DiseaseNames(disease_names, ext) if disease_names else None
     mentions: list[dict] = []
     age = age_years(d.age) if d.age is not None else age_from_text(d.note_text)
@@ -237,7 +293,9 @@ def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancesto
     prov["normal_vitals"] = normals
     warnings += [f"{c['hpo_id']} {ont.name(c['hpo_id'])}: {c['reason']} "
                  f"({', '.join(c['contradicted_by'])}); {c['status']} {c['action']}" for c in prov["conflicts"]]
-    meta = {"input_format": FORMAT, "policy": d.policy, "images": [], "age": d.age, "sex": d.sex,
+    meta = {"input_format": FORMAT, "policy": d.policy, "images": images, "age": d.age, "sex": d.sex,
+            "details": dict(d.details), "history": d.note_text or "", "image_context": d.image_context or "",
+            "described": described,
             "vitals": d.vitals.model_dump(exclude_none=True) if d.vitals else {},
             "provenance": prov, "disease_mentions": mentions, "intake_warnings": warnings}
     if path:
@@ -250,14 +308,16 @@ def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancesto
 
 def load_case(path, ont: Ontology, ext: Extractor | None = None, *, drop_ancestors: bool = True,
               disease_names: dict[str, str] | None = None, emit_normal_vitals: bool = False, llm_reader=None,
-              rules_text: bool = True, status_policy: str = "llm") -> Case:
+              rules_text: bool = True, status_policy: str = "llm", describer=None, max_images: int = 4,
+              images_per_call: int = 1) -> Case:
     try:
         obj = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as e:
         raise IntakeError(f"{path}: cannot read case file ({e})") from None
     return parse_case(obj, ont, ext, drop_ancestors=drop_ancestors, path=path, disease_names=disease_names,
                       emit_normal_vitals=emit_normal_vitals, llm_reader=llm_reader, rules_text=rules_text,
-                      status_policy=status_policy)
+                      status_policy=status_policy, describer=describer, max_images=max_images,
+                      images_per_call=images_per_call)
 
 
 def intake_summary(c: Case, ont: Ontology) -> str:
@@ -273,6 +333,10 @@ def intake_summary(c: Case, ont: Ontology) -> str:
              "  from: " + (", ".join(f"{s} {n}" for s, n in src.most_common()) or "nothing")]
     if any(ctx):
         lines.append("  context: " + "; ".join(x for x in ctx if x))
+    if m.get("images"):
+        dx = m.get("described")
+        lines.append(f"  images: {len(m['images'])}" + (f"; described by {dx['model']} ({len(dx['text'].split())} words, "
+                     "read by Stage 1 as image_context)" if dx and dx["text"] else "; not described"))
     g = Counter(level_of(f) for f in c.findings)
     lines.append("  grounding: " + ", ".join(f"{k} {g[k]}" for k in ("strong", "supported", "weak")))
     for d in m.get("disease_mentions", []):

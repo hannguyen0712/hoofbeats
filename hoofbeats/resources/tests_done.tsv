@@ -1,0 +1,25 @@
+# Which tests a case already has, read from its image metadata, image context and image-finding ids
+# (hoofbeats/workup.py). A test already done is not suggested again; its findings become "review the existing
+# images for ...", at burden 1. Hand-made.
+# pattern: regular expression, case-insensitive, searched in each image's "modality location" text, in the image
+# context and in image ids; test: the MAxO test name it means (several separated by |).
+pattern	test
+\b(MRI?|MR|magnetic resonance)\b[^.\n]{0,40}\b(brain|head|cranial|neuro)|\b(brain|head)\b[^.\n]{0,20}\b(MRI?|MR)\b	MRI of the brain|MRI of the head
+\b(MRI?|MR)\b[^.\n]{0,40}\b(spine|spinal|cervical|thoracic|lumbar)	MRI of the spinal cord|MRI of the vertebral column
+\b(MRI?|MR)\b[^.\n]{0,40}\b(abdomen|abdominal|liver|kidney|renal|pancrea)	MRI of the abdomen
+\b(MRI?|MR)\b[^.\n]{0,40}\b(heart|cardiac)	cardiac MRI
+\bCT\b[^.\n]{0,40}\b(brain|head|cranial|neuro)|\b(brain|head)\b[^.\n]{0,20}\bCT\b	brain CT|head CT
+\bCT\b[^.\n]{0,40}\b(chest|thorax|lung|pulmonary)	chest CT|lung CT
+\bCT\b[^.\n]{0,40}\b(abdomen|abdominal|pelvis|pelvic)	abdominal CT|pelvic CT
+\bCT\b[^.\n]{0,40}\b(orbit|eye)	head CT
+\b(CXR|chest (x-?ray|radiograph|film))|\b(x-?ray|radiograph)\b[^.\n]{0,20}\bchest	chest radiograph procedure
+\b(x-?ray|radiograph)\b[^.\n]{0,30}\bhand|\bhand\b[^.\n]{0,20}\b(x-?ray|radiograph)	hand radiography
+\b(x-?ray|radiograph)\b[^.\n]{0,30}\b(spine|spinal)|\bspine\b[^.\n]{0,20}\b(x-?ray|radiograph)	spine radiography
+\b(x-?ray|radiograph)\b[^.\n]{0,30}\bskull|\bskull\b[^.\n]{0,20}\b(x-?ray|radiograph)	skull radiograph procedure
+\b(renal|kidney)\b[^.\n]{0,20}\b(US|ultrasound|ultrasonograph|sonograph)|\b(US|ultrasound)\b[^.\n]{0,30}\b(renal|kidney)	renal ultrasonography
+\b(abdominal|abdomen|liver)\b[^.\n]{0,20}\b(US|ultrasound|ultrasonograph)	abdominal ultrasonography
+\becho(cardiogra\w*)?\b|\bTTE\b|\bTEE\b	echocardiography
+\b(ECG|EKG|electrocardiogra\w*)\b	electrocardiography
+\b(EEG|electroencephalogra\w*)\b	electroencephalography
+\b(fundus|fundoscop\w*|ophthalmoscop\w*)\b	fundoscopy
+\bslit[- ]lamp\b	slit-lamp examination
