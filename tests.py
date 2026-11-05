@@ -1054,16 +1054,20 @@ class TestMedPix(unittest.TestCase):
 
 class FakeVision:
     # Stage A replies (CONTEXT_SYSTEM): one finding per image; `finding` is what the image "shows"
+    # the check (VERIFY_SYSTEM) answers `confirm` for every finding
     def __init__(self, model="fake-vision", endpoint=None, sees_images=True, names_diagnosis=False,
-                 finding="Ectopia lentis", details="lens displaced superotemporally"):
+                 finding="Ectopia lentis", details="lens displaced superotemporally", confirm="yes"):
         self.model, self.endpoint, self.sees_images = model, endpoint, sees_images
         self.is_local, self.dry_run, self.names_diagnosis = endpoint is None, False, names_diagnosis
-        self.finding, self.details = finding, details
+        self.finding, self.details, self.confirm = finding, details, confirm
         self.calls = []
 
     def chat(self, user, system="", images=()):
-        from hoofbeats.llm import CONTEXT_SYSTEM
+        from hoofbeats.llm import CONTEXT_SYSTEM, VERIFY_SYSTEM
         self.calls.append((system, user, tuple(images)))
+        if system == VERIFY_SYSTEM:
+            n = user.count("\n1. ") + sum(f"\n{i}. " in user for i in range(2, 20))
+            return json.dumps({"answers": {str(i): self.confirm for i in range(1, n + 1)}})
         if system == CONTEXT_SYSTEM:
             return json.dumps({"technique": "Axial CT without contrast.", "anatomy": "Orbits and globes.",
                                "findings": [{"finding": self.finding, "location": "right globe",
@@ -1269,15 +1273,44 @@ class TestImageContext(unittest.TestCase):
         from hoofbeats.__main__ import image_agreement
         from hoofbeats.context import MM_CONDITIONS, medpix_context_case
         describer = FakeVision(finding="Low alkaline phosphatase", details="")   # the key finding for ORPHA:10
-        rows = {x["condition"]: x for x in medpix_context_case(self.case(), list(MM_CONDITIONS), describer, self.r,
-                                                                self.ext, max_images=2, agreement=image_agreement)}
+        rows = {x["condition"]: x for x in medpix_context_case(self.case(), ["text", "context", "reference"], describer,
+                                                                self.r, self.ext, max_images=2, agreement=image_agreement)}
         self.assertEqual(len(describer.calls), 2)              # one description per image
         self.assertEqual({k: v["rank"] for k, v in rows.items()}, {"text": 5, "context": 3, "reference": 4})
+        self.assertIn("verified", MM_CONDITIONS)
         self.assertGreater(rows["context"]["findings"], rows["text"]["findings"])
         self.assertFalse(rows["context"]["context_named_diagnosis"])
         self.assertAlmostEqual(rows["context"]["context_recall"], 1 / 3)   # low ALP; not hyperammonemia, ectopia lentis
         named = medpix_context_case(self.case(), ["context"], FakeVision(names_diagnosis=True), self.r, self.ext)[0]
         self.assertTrue(named["context_named_diagnosis"])
+
+    def test_check_keeps_only_confirmed_findings(self):
+        from hoofbeats.__main__ import image_agreement
+        from hoofbeats.context import medpix_context_case
+        from hoofbeats.llm import VERIFY_SYSTEM, image_context
+        conds = ["text", "context", "verified"]
+        no = FakeVision(finding="Low alkaline phosphatase", details="", confirm="no")
+        rows = {x["condition"]: x for x in medpix_context_case(self.case(), conds, no, self.r, self.ext,
+                                                                agreement=image_agreement)}
+        self.assertEqual([s == VERIFY_SYSTEM for s, *_ in no.calls], [False, True, False, True])   # describe, check
+        self.assertIn("1. Low alkaline phosphatase - location: right globe", no.calls[1][1])
+        self.assertEqual(rows["context"]["rank"], 3)                       # the description is used as written
+        self.assertEqual(rows["verified"]["rank"], rows["text"]["rank"])   # nothing confirmed: back to the text alone
+        self.assertNotIn("alkaline", rows["verified"]["context"].lower())
+        self.assertIn("No orbital fracture", rows["verified"]["context"])  # pertinent negatives are kept
+        self.assertNotIn("Summary", rows["verified"]["context"])           # the summary restates dropped findings
+        self.assertEqual((rows["verified"]["findings_checked"], rows["verified"]["findings_kept"]), (2, 0))
+        yes = FakeVision(finding="Low alkaline phosphatase", details="", confirm="yes")
+        rows = {x["condition"]: x for x in medpix_context_case(self.case(), conds, yes, self.r, self.ext)}
+        self.assertEqual(rows["verified"]["rank"], rows["context"]["rank"])
+        self.assertEqual(rows["verified"]["findings_kept"], 2)
+        unsure = FakeVision(confirm="unsure")
+        unsure.verify = True                                               # --context-verify, as diagnose uses it
+        parts = image_context(unsure, self.case(), 1)
+        self.assertEqual((parts[0].checked, parts[0].kept), (1, 0))        # only "yes" keeps a finding
+        self.assertIn("Ectopia lentis", parts[0].unchecked)
+        self.assertNotIn("Ectopia lentis", parts[0].text)
+        self.assertEqual(len(image_context(FakeVision(), self.case(), 1)), 1)   # no check unless asked
 
     def test_commands_dry_run(self):
         import argparse, contextlib, io, os

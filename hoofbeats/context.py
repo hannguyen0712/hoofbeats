@@ -59,8 +59,11 @@ def context_llm(hb, a):
     cache = None if a.llm_cache == "none" else Path(a.llm_cache if a.llm_cache != "auto" else Path(hb._out_dir(a)) / "llm_cache")
     llm = MedGemma(model, endpoint, a.context_max_tokens or a.llm_max_tokens, key, True, extra, a.llm_rpm,
                    cache, a.dry_run, a.llm_timeout, offline=a.llm_offline)
-    hb.RUN["settings"].update({"context_model": llm.model, "context_endpoint": llm.endpoint or "in-process"})
-    print(f"[llm] image context (Stage A) by {llm.model} via {llm.endpoint or 'transformers (in-process)'}: {why}")
+    llm.verify = bool(getattr(a, "context_verify", False))    # read by llm.image_context
+    hb.RUN["settings"].update({"context_model": llm.model, "context_endpoint": llm.endpoint or "in-process",
+                               "context_verify": llm.verify})
+    print(f"[llm] image context (Stage A) by {llm.model} via {llm.endpoint or 'transformers (in-process)'}: {why}"
+          + ("; each finding checked with a second request (--context-verify)" if llm.verify else ""))
     if not llm.is_local:
         print("[llm] remote service: only public datasets will be sent; credentialed data is refused")
     return llm
@@ -119,44 +122,53 @@ def cmd_multimodal(a, hb):
 # what Stage 1 reads in each medpix-context condition; the ranker then scores the findings
 MM_CONDITIONS = {"text": "history/exam text",
                  "context": "text + image context (Stage A)",
+                 "verified": "text + image context, findings checked by the vision model",
                  "reference": "text + radiologist findings (upper bound for a context)"}
+CONTEXT_CONDS = ("context", "verified")     # conditions that need the image context
 
 
 def medpix_context_case(c, conds, ctx_llm, r: LRRanker, ext, max_images=2, per_call=1, agreement=None,
                         reader=None) -> list[dict]:
     # one MedPix case under each condition: the same Stage 1 (parse_case) and the same ranker, only the
     # image_context text differs. agreement(r, predicted, reference) -> (precision, recall) scores the image context
-    # against the radiologist's findings.
+    # against the radiologist's findings. "context" and "verified" share one description: "verified" keeps only the
+    # findings the vision model confirmed in a second request.
     from .data import delabel
     from .intake import parse_case
     from .llm import details_of, image_context
     det = details_of(c)
     base = {"case_id": c.case_id, "note_text": c.meta.get("history") or "", "policy": c.meta.get("policy", "open"),
             **{k: det[k] for k in ("age", "sex") if det.get(k)}}
-    rows, ctx = [], None
-    for cond in conds:
-        obj = dict(base)
-        if cond == "context":
-            parts = image_context(ctx_llm, c, max_images, per_call)
-            text = "\n\n".join(x.text for x in parts if x.text)
+    texts, ctx = {}, {}
+    if any(x in conds for x in CONTEXT_CONDS):
+        parts = image_context(ctx_llm, c, max_images, per_call, verify="verified" in conds)
+        texts = {"context": "\n\n".join(x.unchecked for x in parts if x.unchecked),
+                 "verified": "\n\n".join(x.text for x in parts if x.text)}
+        ref = {f.hpo_id for f in ext.findings(c.meta["reference_text"]) if f.status == Status.PRESENT}
+        for cond, text in texts.items():
             _, info = delabel(text, c.meta.get("names") or [c.meta.get("title", "")], [], ext.vocab)
             got = {f.hpo_id for f in ext.findings(text) if f.status == Status.PRESENT}
-            ref = {f.hpo_id for f in ext.findings(c.meta["reference_text"]) if f.status == Status.PRESENT}
             prec, rec = agreement(r, got, ref) if agreement else (None, None)
-            ctx = {"context_named_diagnosis": bool(info["masked"]),
-                   "context_parsed": bool(parts) and all(x.parsed for x in parts),
-                   "context_cut_off": any(x.cut_off for x in parts),
-                   "context_precision": prec, "context_recall": rec, "context": text[:3000]}
-            obj["image_context"] = text
+            ctx[cond] = {"context_named_diagnosis": bool(info["masked"]),
+                         "context_parsed": bool(parts) and all(x.parsed for x in parts),
+                         "context_cut_off": any(x.cut_off for x in parts),
+                         "context_precision": prec, "context_recall": rec, "context": text[:3000]}
+        if "verified" in conds:
+            ctx["verified"].update({"findings_checked": sum(x.checked for x in parts),
+                                    "findings_kept": sum(x.kept for x in parts)})
+    rows = []
+    for cond in conds:
+        row = {"case": c.case_id, "title": c.meta["title"], "truth": ";".join(c.truth), "condition": cond}
+        obj = dict(base)
+        if cond in texts:
+            obj["image_context"] = texts[cond]
         elif cond == "reference":
             obj["image_context"] = c.meta["reference_text"]
         case = parse_case(obj, r.ont, ext, disease_names=r.db.names, llm_reader=reader)
         rk = r.score(case)
-        row = {"case": c.case_id, "title": c.meta["title"], "truth": ";".join(c.truth), "condition": cond,
-               "rank": rk.rank_of(c.truth), "findings": len(case.findings),
-               "top3": " | ".join(r.db.names[d] for d, *_ in rk.top(3))}
-        if cond == "context":
-            row.update(ctx)
+        row.update({"rank": rk.rank_of(c.truth), "findings": len(case.findings),
+                    "top3": " | ".join(r.db.names[d] for d, *_ in rk.top(3))})
+        row.update(ctx.get(cond, {}))
         rows.append(row)
     return rows
 
@@ -201,7 +213,7 @@ def cmd_medpix_context(a, hb):
     bad = [x for x in conds if x not in MM_CONDITIONS]
     if bad:
         raise SystemExit(f"unknown condition(s) {', '.join(bad)}; choose from {', '.join(MM_CONDITIONS)}")
-    ctx_llm = context_llm(hb, a) if "context" in conds else None
+    ctx_llm = context_llm(hb, a) if any(x in conds for x in CONTEXT_CONDS) else None
     hb.RUN["settings"].update({"conditions": conds, "images_per_call": a.images_per_call, "max_images": a.max_images})
     print(f"[medpix-context] {len(cases)} cases with images and a knowledge-base diagnosis "
           f"({'chosen' if want else a.split + ' split'}); up to {a.max_images} images each; Stage 1 with rules + numbers")
@@ -247,17 +259,27 @@ def cmd_medpix_context(a, hb):
         print("\nPer case: rank of the MedPix diagnosis ('-' = not found)")
         for case, g in df.groupby("case", sort=False):
             print(f"  {case} ({g.title.iloc[0]}): " + ", ".join(f"{x.condition} {num(x.rank)}" for x in g.itertuples()))
-    cx = df[df.condition == "context"]
+    pct = lambda k: "–" if k not in summary else f"{summary[k]:.1%}"
+    for cond in ("context", "verified"):
+        cx = df[df.condition == cond]
+        if not len(cx):
+            continue
+        pre = "context_" if cond == "context" else "verified_"
+        summary.update({pre + k.removeprefix("context_"): round(cx[k].mean(), 3)
+                        for k in ("context_named_diagnosis", "context_parsed", "context_precision", "context_recall")
+                        if k in cx and cx[k].notna().any()})
+        what = "Image context" if cond == "context" else "Checked image context"
+        print(f"\n{what} vs the radiologist's findings (HPO terms): precision {pct(pre + 'precision')}, "
+              f"recall {pct(pre + 'recall')}; contexts that named the diagnosis {pct(pre + 'named_diagnosis')} "
+              f"(disease names are never turned into findings); replies parsed {pct(pre + 'parsed')}")
+        if cond == "verified" and "findings_checked" in cx:
+            asked, kept = int(cx.findings_checked.sum()), int(cx.findings_kept.sum())
+            summary.update({"findings_checked": asked, "findings_kept": kept})
+            print(f"Check: {kept} of {asked} described findings confirmed ({kept / max(asked, 1):.0%}); the rest dropped")
+    cx = df[df.condition.isin(["context", "verified"])]
     if len(cx):
-        summary.update({k: round(cx[k].mean(), 3) for k in ("context_named_diagnosis", "context_parsed",
-                                                            "context_precision", "context_recall")
-                        if cx[k].notna().any()})
-        pct = lambda k: "–" if k not in summary else f"{summary[k]:.1%}"
-        print(f"\nImage context vs the radiologist's findings (HPO terms): precision {pct('context_precision')}, "
-              f"recall {pct('context_recall')}; contexts that named the diagnosis {pct('context_named_diagnosis')} "
-              f"(disease names are never turned into findings); replies parsed {pct('context_parsed')}")
-        if cx.context_cut_off.any():
-            print(f"\n[llm] {cx.context_cut_off.mean():.0%} of image contexts stopped before their JSON was finished. "
+        if cx.context_cut_off.fillna(False).astype(bool).any():
+            print(f"\n[llm] {cx.context_cut_off.fillna(False).astype(bool).mean():.0%} of image contexts stopped before their JSON was finished. "
                   + STUCK)
     if ctx_llm is not None:
         summary.update({"sec_per_call": ctx_llm.usage()["sec_per_request"], "requests": ctx_llm.requests,
@@ -286,6 +308,9 @@ def add_arguments(p, sub):
     p.add_argument("--context-extra", help="extra JSON request fields for it (default: --llm-extra when the endpoint is the same)")
     p.add_argument("--context-max-images", type=int, default=4, help="images described per case (diagnose, multimodal)")
     p.add_argument("--context-images-per-call", type=int, default=1, help="images described together in one request")
+    p.add_argument("--context-verify", action="store_true",
+                   help="check each described finding with a second request to the vision model and keep only the "
+                        "confirmed ones (diagnose, multimodal; medpix-context compares both with --conditions verified)")
     s = sub.add_parser("multimodal", help="one patient from options (text, details, images) -> case file -> diagnose")
     s.add_argument("--text", help="clinical text: history, examination, results")
     s.add_argument("--text-file", help="clinical text from a file")
@@ -304,7 +329,8 @@ def add_arguments(p, sub):
     s = sub.add_parser("medpix-context", help="MedPix: does the image context (Stage A) help the ranker?")
     s.add_argument("--medpix", default="data/MedPix-2-0", help="MedPix-2-0 folder (Case_topic.json, Descriptions.json, images/)")
     s.add_argument("--split", default="test", choices=["all", "train", "train_1", "train_2", "dev", "test"])
-    s.add_argument("--conditions", default=",".join(MM_CONDITIONS), help=f"comma-separated, from {', '.join(MM_CONDITIONS)}")
+    s.add_argument("--conditions", default="text,context,reference",
+                   help=f"comma-separated, from {', '.join(MM_CONDITIONS)}")
     s.add_argument("--labels", help="CSV U_id,truth overriding automatic diagnosis matching")
     s.add_argument("--labels-only", action="store_true", help="run exactly the cases in --labels")
     s.add_argument("--orphadata-xml", help="adds Orphanet synonyms for diagnosis matching")

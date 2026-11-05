@@ -714,15 +714,107 @@ def render_context(obj, raw: str, label: str) -> str:
 class ImageContext:
     images: list[str]          # image ids described together
     label: str                 # "Image 1 (CT - noncontrast, axial plane, head)"
-    text: str                  # what the ranking model is given
+    text: str                  # what Stage 1 reads (the checked description when the check is on)
     parsed: bool
     model: str = ""
     cut_off: bool = False      # the reply stopped before the JSON was finished
+    unchecked: str = ""        # the description before the check (same as text when the check is off)
+    checked: int = 0           # findings the model was asked to confirm
+    kept: int = 0              # findings it confirmed (answered yes)
 
 
-def image_context(llm, case: Case, max_images: int = 4, per_call: int = 1) -> list[ImageContext]:
-    # Stage A: per_call images per request (1 = one context per image, best for small models)
+# The check (--context-verify): a second request with the same image(s) asks, for each finding of the description,
+# whether it is really visible. Only findings answered "yes" are kept. Small vision models describe many things that
+# are not there (precision 6% against the radiologist on MedPix with Qwen2.5-VL-7B); a yes/no question about one
+# named finding is easier than writing a report, so the check should remove more wrong findings than right ones.
+VERIFY_SYSTEM = """You are an experienced, board-certified radiologist reviewing a draft report written by a less \
+experienced reader. The draft was written quickly and often lists things that are not in the image: a normal structure \
+taken for disease, an artefact taken for a lesion, or a finding that was expected rather than seen. Each finding you \
+confirm goes to software that uses it as evidence for a diagnosis, so a wrong "yes" does more harm than a wrong "no".
+
+How to check:
+- Treat every finding as unproven until you have found it yourself in the image.
+- Judge each finding on its own. Do not confirm one because another was confirmed, or because together they \
+suggest a disease.
+- Look at the stated location and side. A real finding in the wrong place, or on the wrong side, is a "no".
+- Check whether the image could show what is described at all: the right body region, modality, plane and sequence. \
+If the structure is outside the image, or the image cannot show that kind of finding, answer "unsure".
+- Rule out the usual mimics: normal anatomy and normal variants, normal age-related change, partial volume, motion, \
+positioning, windowing, beam hardening and other artefacts, contrast or calcification in normal places.
+- Check the details as well as the name: if the size, number, density, signal or shape stated clearly does not \
+match the image, answer "no".
+
+How to answer:
+- "yes" only when you can point to the finding in the image, at the stated location, and it is abnormal.
+- "no" when it is not there, when the image shows something else (a normal structure, a variant or an artefact), or \
+when it is in a different place.
+- "unsure" when the image does not let you tell: too small, too low in resolution, cut off, or the wrong \
+plane or sequence for this finding.
+- You cannot add findings, correct them or explain your answers here: only answer for the findings listed.
+
+Answer only with the JSON requested: no text before or after it."""
+VERIFY_PROMPT = """{intro}
+
+A draft report lists the findings below. Check each one against the image, one at a time, as you were told:
+look for it at the stated location and side, compare it with the opposite side and with what is normal for this
+region, rule out normal anatomy, variants and artefacts, and check that the details match what you see.
+
+Findings to check:
+{listing}
+
+For each number answer:
+- "yes": you can clearly see this abnormality in the image, at that location, and the details fit
+- "no": it is not there, it is a normal structure, variant or artefact, or it is somewhere else
+- "unsure": the image does not let you tell (outside the field of view, too small, wrong plane or sequence)
+
+Return only JSON, with one answer for every number and nothing else:
+{{"answers": {{{example}}}}}"""
+
+
+def verify_prompt(imgs: list[dict], found: list[dict]) -> str:
+    intro = (f"This is one medical image: {_img_label(imgs[0])}." if len(imgs) == 1 else
+             f"These are {len(imgs)} images from one patient: " + "; ".join(_img_label(g) for g in imgs) + ".")
+    listing = "\n".join(f"{i}. {f['finding']}" + (f" - location: {f['location']}" if f.get("location") else "")
+                        + (f" - details: {f['details']}" if f.get("details") else "") for i, f in enumerate(found, 1))
+    example = ", ".join(f'"{i}": "yes|no|unsure"' for i in range(1, len(found) + 1))
+    return VERIFY_PROMPT.format(intro=intro, listing=listing, example=example)
+
+
+def _findings(obj) -> list[dict]:
+    # the description's findings as dicts with a "finding" text (plain strings become {"finding": text})
+    out = []
+    for f in (obj.get("findings") or []) if isinstance(obj, dict) else []:
+        if isinstance(f, dict) and str(f.get("finding") or "").strip():
+            out.append({k: str(v).strip() for k, v in f.items() if v is not None})
+        elif isinstance(f, str) and f.strip():
+            out.append({"finding": f.strip()})
+    return out
+
+
+def verify_findings(llm, grp: list[dict], obj: dict) -> tuple[dict, int, int]:
+    # (the description with only the confirmed findings, findings asked, findings kept). The summary is dropped when
+    # a finding was dropped, since it restates them; technique, anatomy and pertinent negatives are kept as written.
+    found = _findings(obj)
+    if not found:
+        return obj, 0, 0
+    raw = llm.chat(verify_prompt(grp, found), VERIFY_SYSTEM, images=tuple(g["path"] for g in grp))
+    ans = reply_json(raw, ("answers",))
+    ans = ans.get("answers") if isinstance(ans, dict) else None
+    ans = ans if isinstance(ans, dict) else {}
+    keep = [f for i, f in enumerate(found, 1) if str(ans.get(str(i), "")).strip().lower().startswith("yes")]
+    out = {k: v for k, v in obj.items() if k != "findings"}
+    out["findings"] = keep
+    if len(keep) < len(found):
+        out.pop("summary", None)
+    return out, len(found), len(keep)
+
+
+def image_context(llm, case: Case, max_images: int = 4, per_call: int = 1,
+                  verify: bool | None = None) -> list[ImageContext]:
+    # Stage A: per_call images per request (1 = one context per image, best for small models). verify: check each
+    # finding with a second request (None = the model's own setting, llm.verify, set by --context-verify)
     check_policy(llm, [case])
+    verify = getattr(llm, "verify", False) if verify is None else verify
     imgs = case.meta.get("images", [])[:max_images]
     if imgs and not llm.sees_images:
         raise ValueError(f"{llm.model} cannot read images; the image-context model must be a vision model")
@@ -739,9 +831,14 @@ def image_context(llm, case: Case, max_images: int = 4, per_call: int = 1) -> li
         stopped = cut_off(raw, limit)
         # free text is passed on only if it is a finished, short answer, not a reply that ran out of tokens
         usable = isinstance(obj, dict) or (raw.strip() and not stopped and len(raw) < 4000)
-        out.append(ImageContext([g.get("id", g["path"]) for g in grp], label,
-                                render_context(obj, raw, label) if usable else "",
-                                isinstance(obj, dict), getattr(llm, "model", ""), stopped))
+        text = render_context(obj, raw, label) if usable else ""
+        unchecked, asked, kept = text, 0, 0
+        if verify and isinstance(obj, dict):
+            checked, asked, kept = verify_findings(llm, grp, obj)
+            if asked:      # no raw-text fallback: it would bring back the findings the check removed
+                text = render_context(checked, "", label)
+        out.append(ImageContext([g.get("id", g["path"]) for g in grp], label, text, isinstance(obj, dict),
+                                getattr(llm, "model", ""), stopped, unchecked, asked, kept))
     return out
 
 
