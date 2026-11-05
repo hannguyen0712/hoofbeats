@@ -230,7 +230,8 @@ def describe_images(describer, d: IntakeCase, images: list[dict], warn, max_imag
             warn(f"image context: {x.label} could not be read" + (" (stopped at the token limit)" if x.cut_off else "")
                  + "; not used")
     return {"model": getattr(describer, "model", ""), "text": "\n\n".join(x.text for x in parts if x.text),
-            "parts": [{"images": x.images, "label": x.label, "parsed": x.parsed, "cut_off": x.cut_off, "text": x.text}
+            "parts": [{"images": x.images, "label": x.label, "parsed": x.parsed, "cut_off": x.cut_off, "text": x.text,
+                       **({"findings_checked": x.checked, "findings_kept": x.kept} if x.checked else {})}
                       for x in parts]}
 
 

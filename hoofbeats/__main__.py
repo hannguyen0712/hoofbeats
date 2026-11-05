@@ -23,6 +23,7 @@ from .model import (AnnotationDB, Case, Finding, LRRanker, Ontology, Status, exp
                     most_frequent_test, suggest_tests, verify_claim)
 from .context import add_arguments as add_context_arguments, commands as context_commands
 from .workup import add_arguments as add_workup_arguments, commands as workup_commands
+from .followup import add_arguments as add_followup_arguments, commands as followup_commands
 
 
 # run record: every command logs its settings, metrics and console output under <out>/runs/
@@ -280,10 +281,24 @@ def findings_table(c: Case, ont: Ontology) -> list[dict]:
 
 
 def cmd_diagnose(a):
+    from .context import context_usage
+    r, reader, s1, describer, wk = diagnose_setup(a, a.case)
+    out = Path(a.out) / "diagnose"
+    for path in a.case:
+        diagnose_one(a, r, path, reader, s1, out, describer, wk)
+    if reader is not None:
+        print(usage_line(reader.llm))
+    if describer is not None:
+        print(context_usage(describer))
+
+
+def diagnose_setup(a, paths):
+    # what diagnose_one needs for these case files: the knowledge base, the Stage 1 LLM reader (if an endpoint is
+    # given and a file has text), the Stage A model (if a file has images) and the test suggestions
     from .intake import is_intake
     r = load_kb(a, tuple(x.strip().upper() for x in getattr(a, "sources", "OMIM").split(",") if x.strip()))
     texts = []
-    for path in a.case:
+    for path in paths:
         try:
             obj = json.loads(Path(path).read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
@@ -291,9 +306,9 @@ def cmd_diagnose(a):
         if is_intake(obj) and (obj.get("note_text") or obj.get("image_context") or obj.get("images")):
             texts.append(path)
     reader, s1 = stage1_reader(a, r.ont) if texts else (None, stage1(a))
-    from .context import context_llm, context_usage
+    from .context import context_llm
     with_images = []            # the Stage A model is built only when some case file has images
-    for path in a.case:
+    for path in paths:
         try:
             obj = json.loads(Path(path).read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
@@ -303,7 +318,7 @@ def cmd_diagnose(a):
     describer = context_llm(sys.modules[__name__], a) if with_images else None
     if reader is not None:      # every case file's text in one concurrent batch
         items = []
-        for path in a.case:
+        for path in paths:
             try:
                 obj = json.loads(Path(path).read_text(encoding="utf-8"))
             except (OSError, UnicodeDecodeError, json.JSONDecodeError):
@@ -312,18 +327,14 @@ def cmd_diagnose(a):
                 items += [(obj.get("note_text") or "", "note", "note_text", str(obj.get("case_id", ""))),
                           (obj.get("image_context") or "", "image_context", "image_context", str(obj.get("case_id", "")))]
         reader.prefetch(items)
-    out = Path(a.out) / "diagnose"
     from .workup import load_workupper
     wk = load_workupper(r, a.kb)     # tests for every displayed disease (None if the test data is not downloaded)
-    for path in a.case:
-        diagnose_one(a, r, path, reader, s1, out, describer, wk)
-    if reader is not None:
-        print(usage_line(reader.llm))
-    if describer is not None:
-        print(context_usage(describer))
+    return r, reader, s1, describer, wk
 
 
 def diagnose_one(a, r: LRRanker, path, reader, s1: dict, out: Path, describer=None, wk=None):
+    # one case file: Stage A + Stage 1, ranking, evidence, next checks, re-rank, tests; writes <out>/<case_id>.json.
+    # Returns (case, excluded PMIDs, ranking) for callers that compare runs (followup)
     c, ex = read_case(path, r, reader, s1["status_policy"], describer, a.context_max_images, a.context_images_per_call)
     rows = findings_table(c, r.ont)
     print(f"\nFindings ({len(rows)}):")
@@ -409,6 +420,7 @@ def diagnose_one(a, r: LRRanker, path, reader, s1: dict, out: Path, describer=No
          "rerank": reranked, "tests": tests,
          "warnings": c.meta.get("intake_warnings", [])}, indent=1))
     wrote(out / f"{c.case_id}.json")
+    return c, ex, ranking
 
 def cmd_benchmark(a):
     r = load_kb(a)
@@ -1299,6 +1311,7 @@ def main(argv=None):
     s.add_argument("--latex", action="store_true", help="also write LaTeX tables")
     add_context_arguments(p, sub)     # multimodal, medpix-context and their options (context.py)
     add_workup_arguments(p, sub)      # download-tests, workup, workup-eval (workup.py)
+    add_followup_arguments(p, sub)    # followup (followup.py)
     a = p.parse_args(argv)
     if a.cmd == "download":
         download(a.dest)
@@ -1359,7 +1372,7 @@ def _logged(a):
          "hpo-index": cmd_hpo_index, "llm-eval": cmd_llm_eval,
          "chooser-sheet": cmd_chooser_sheet, "chooser-score": cmd_chooser_score,
          "pmc-test-run": cmd_pmc_test_run, **context_commands(sys.modules[__name__]),
-         **workup_commands(sys.modules[__name__])}[a.cmd](a)
+         **workup_commands(sys.modules[__name__]), **followup_commands(sys.modules[__name__])}[a.cmd](a)
     except KeyboardInterrupt:
         status = "stopped (Ctrl-C)"
         raise
