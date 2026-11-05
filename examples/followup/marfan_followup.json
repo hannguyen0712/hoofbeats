@@ -1,0 +1,8 @@
+{"date": "2026-11-20",
+ "note_text": "Spine MRI shows dural ectasia in the lumbosacral region.",
+ "test_results": [
+   {"test": "MRI of the spinal cord", "result": "positive", "details": "dural ectasia, lumbosacral"},
+   {"test": "angiography", "result": "negative"},
+   {"test": "Slit lamp examination", "result": "positive", "details": "ectopia lentis both eyes"},
+   {"test": "FBN1 gene testing", "result": "positive", "genes": ["FBN1"], "classification": "pathogenic", "details": "c.4082G>A, heterozygous"}
+ ]}
