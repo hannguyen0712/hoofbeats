@@ -153,3 +153,129 @@ def build_pack(r, case, d, p, ex, runner, claims):
     c = runner_up_items(r, case, d, runner, ex, start=len(k)+len(m)+1)
     pack.update(c)
     return pack
+import re
+from hoofbeats.llm import reply_json
+
+SECTIONS = ("supports", "against", "expected_but_missing", "vs_runner_up")
+
+PROMPT = """You explain one candidate diagnosis to a clinician, using ONLY the numbered evidence below.
+
+Rules:
+- Every sentence must end with the IDs it uses in square brackets, e.g. [P2, K5].
+- Use P items for what the patient has, K items for what the knowledge base says.
+- Do not add facts, numbers, findings or diagnoses that are not in the evidence.
+- Copy numbers exactly as they appear in the evidence.
+- Write 1 to 3 short sentences per field; leave a field as [] if no evidence fits it.
+
+Disease: {name} ({did}), model probability {prob}
+Runner-up: {runner}
+
+Evidence:
+{evidence}
+
+Return only JSON, no markdown:
+{{"supports": ["..."], "against": ["..."], "expected_but_missing": ["..."], "vs_runner_up": ["..."]}}"""
+
+
+def make_prompt(r, d, p, pack, runner):
+    lines = [f"[{i.id}] {i.text}" for i in pack.values()]
+    runner_text = f"{r.db.names[runner]} ({runner})" if runner else "none"
+    return PROMPT.format(name=r.db.names[d], did=d, prob=f"{p:.1%}", runner=runner_text, evidence="\n".join(lines))
+
+
+def parse_trace(raw):
+    obj = reply_json(raw or "", SECTIONS)
+    if not isinstance(obj, dict):
+        obj = {}
+    out = {}
+    for s in SECTIONS:
+        v = obj.get(s) or []
+        if isinstance(v, str):
+            v = re.split(r"(?<=[.!?\]])\s+(?=[A-Z])", v)
+        if not isinstance(v, list):
+            v = []
+        out[s] = [str(x).strip() for x in v if str(x).strip()]
+    return out
+
+
+def template_trace(pack):
+    p_for = {i.hpo_id: i.id for i in pack.values() if i.kind == "patient"}
+    where = {"for": "supports", "against": "against", "missing": "expected_but_missing", "compare": "vs_runner_up"}
+    out = {s: [] for s in SECTIONS}
+    for i in pack.values():
+        if i.kind != "knowledge":
+            continue
+        pid = p_for.get(i.hpo_id)
+        cite = f"[{pid}, {i.id}]" if pid and i.role != "missing" else f"[{i.id}]"
+        out[where[i.role]].append(f"{i.text.rstrip('.')}. {cite}")
+    return out
+
+
+# ---------------- Session 4: checks
+NEGATION = re.compile(r"\b(no|not|absent|absence|lacks?|lacking|without|negative|denies|does not|did not|ruled out)\b", re.I)
+NUMBER = re.compile(r"\d+(?:\.\d+)?")
+
+
+def cites(sentence):
+    groups = re.findall(r"\[([^\]]*)\]", sentence)
+    return [x for grp in groups for x in re.findall(r"\b([PK]\d+)\b", grp)]
+
+
+def strip_cites(sentence):
+    return re.sub(r"\[[^\]]*\b[PK]\d+\b[^\]]*\]", "", sentence)
+
+
+def names_of(r, item):
+    if not item.hpo_id:
+        return []
+    t = r.ont.resolve(item.hpo_id)
+    out = [r.ont.name(t)] + list(getattr(r.ont.terms[t], "synonyms", []) or [])
+    if item.words:
+        out.append(item.words)
+    return [n.lower() for n in out if n]
+
+
+def check_sentence(s, pack, r, case, disease_names=()):
+    ids = cites(s)
+    body = strip_cites(s).lower()
+    # V1: cites something, and every cited ID is in this disease's pack
+    if not ids:
+        return {"ok": False, "reason": "V1: no citation"}
+    missing = [i for i in ids if i not in pack]
+    if missing:
+        return {"ok": False, "reason": f"V1: {', '.join(missing)} not in the evidence"}
+    items = [pack[i] for i in ids]
+    # V2: cited patient findings are still in the record with that status; absent ones are stated as absent
+    status_now = {r.ont.resolve(f.hpo_id): f.status.value for f in case.findings}
+    for it in items:
+        if it.kind != "patient":
+            continue
+        if status_now.get(it.hpo_id) != it.status:
+            return {"ok": False, "reason": f"V2: {it.id} is no longer in the record as {it.status}"}
+        if it.status == "absent" and not NEGATION.search(body):
+            return {"ok": False, "reason": f"V2: {it.id} is absent but the sentence does not say so"}
+    # V3: the sentence names the finding of each cited item that has one
+    for it in items:
+        names = names_of(r, it)
+        if names and not any(n in body for n in names):
+            return {"ok": False, "reason": f"V3: does not name the finding of {it.id}"}
+    # V4: every number in the sentence appears in the cited evidence (or a disease name)
+    allowed = set(NUMBER.findall(" ".join(it.text for it in items) + " " + " ".join(disease_names)))
+    for num in NUMBER.findall(body):
+        if num not in allowed:
+            return {"ok": False, "reason": f"V4: {num} is not in the cited evidence"}
+    kinds = {it.kind for it in items}
+    grade = "Verified" if kinds == {"patient", "knowledge"} else "KB only" if kinds == {"knowledge"} else "Patient only"
+    return {"ok": True, "grade": grade, "reason": ""}
+
+
+def check_trace(trace, pack, r, case, disease_names=()):
+    kept, removed = {s: [] for s in trace}, []
+    for sec, sents in trace.items():
+        for s in sents:
+            res = check_sentence(s, pack, r, case, disease_names)
+            if res["ok"]:
+                kept[sec].append({"text": s, "grade": res["grade"]})
+            else:
+                removed.append({"section": sec, "text": s, "reason": res["reason"]})
+    return kept, removed
