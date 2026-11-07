@@ -17,7 +17,30 @@ ex = frozenset(case.source_pmids)            # leakage control
 ranking = r.score(case, ex)
 top = ranking.top(4)
 
-out = {"case": case.case_id, "diseases": []}
+# the original document text, and where in it each finding was read (Stage 1 keeps the character offsets)
+raw = json.loads(Path(CASE).read_text())
+texts = {k: v for k, v in raw.items() if k in ("note_text", "image_context") and isinstance(v, str) and v}
+prov = case.meta.get("provenance", {})
+
+
+def spans_for(hpo_id):
+    out = []
+    for e in prov.get(hpo_id, []):
+        if e.get("field") in texts and e.get("start") is not None:
+            out.append({"field": e["field"], "start": e["start"], "end": e["end"], "quote": e["quote"],
+                        "cue": e.get("status_cue"), "grounding": e.get("grounding")})
+    return out
+
+
+def item_json(i):
+    d = vars(i) | {"refs": list(i.refs)}
+    if i.kind == "patient":
+        d["spans"] = spans_for(i.hpo_id)
+    return d
+
+
+out = {"case": case.case_id, "source": {"path": CASE, "kind": "clinical note" if texts else "phenopacket (structured)",
+                                        "texts": texts}, "diseases": []}
 for n, (d, score, p) in enumerate(top[:3], 1):
     runner = top[n][0]
     claims = explain(r, case, ranking, n, ex, max_claims=8)[n - 1][2]
@@ -31,7 +54,7 @@ for n, (d, score, p) in enumerate(top[:3], 1):
     for x in removed:
         print(f"   [REMOVED     ] {x['text']}  ->  {x['reason']}")
     out["diseases"].append({"id": d, "name": r.db.names[d], "probability": p, "runner_up": runner,
-                            "pack": [vars(i) | {"refs": list(i.refs)} for i in pack.values()],
+                            "pack": [item_json(i) for i in pack.values()],
                             "explanation": kept, "removed": removed})
 
 Path("results").mkdir(exist_ok=True)
