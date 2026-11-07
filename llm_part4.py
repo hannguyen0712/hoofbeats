@@ -61,7 +61,8 @@ for path in cases:
     print(f"{Path(path).name}: {r.db.names[d]} | written {n_sent}, kept {n_sent - len(removed)}, removed {len(removed)}")
 
 Path("results").mkdir(exist_ok=True)
-with open(f"results/part4_llm_sentences_{VERSION}.jsonl", "w") as f:
+SET = "" if len(sys.argv) < 2 or sys.argv[1] == "part4_cases.txt" else "_" + Path(sys.argv[1]).stem.replace("part4_cases_", "")
+with open(f"results/part4_llm_sentences_{VERSION}{SET}.jsonl", "w") as f:
     for row in rows:
         f.write(json.dumps(row) + "\n")
 
@@ -75,4 +76,4 @@ print("kept per section:", dict(sections))
 print("\nexamples removed:")
 for row in [x for x in rows if not x["ok"]][:10]:
     print(f"  {row['reason']}\n     {row['text']}")
-print(f"\nsaved results/part4_llm_sentences_{VERSION}.jsonl")
+print(f"\nsaved results/part4_llm_sentences_{VERSION}{SET}.jsonl")
