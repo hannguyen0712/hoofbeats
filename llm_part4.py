@@ -35,6 +35,8 @@ for path in cases:
     claims = explain(r, case, ranking, 1, ex, max_claims=8)[0][2]
     pack = g.build_pack(r, case, d, p, ex, runner, claims)
     names = [r.db.names[d], r.db.names[runner]]
+    def ev(s):
+        return {c: (pack[c].text if c in pack else "(this ID is not in the evidence)") for c in g.cites(s)}
 
     raw = llm.chat(make_prompt(r, d, p, pack, runner))
     trace = g.parse_trace(raw)
@@ -47,11 +49,11 @@ for path in cases:
         for x in v:
             grades[x["grade"]] += 1
             sections[sec] += 1
-            rows.append({"case": path, "disease": d, "section": sec, "text": x["text"], "ok": True,
+            rows.append({"case": path, "disease": d, "disease_name": r.db.names[d], "evidence": ev(x["text"]), "section": sec, "text": x["text"], "ok": True,
                          "grade": x["grade"], "reason": ""})
     for x in removed:
         by_check[x["reason"][:2]] += 1
-        rows.append({"case": path, "disease": d, "section": x["section"], "text": x["text"], "ok": False,
+        rows.append({"case": path, "disease": d, "disease_name": r.db.names[d], "evidence": ev(x["text"]), "section": x["section"], "text": x["text"], "ok": False,
                      "grade": "", "reason": x["reason"]})
     stats["written"] += n_sent
     stats["kept"] += sum(len(v) for v in kept.values())
