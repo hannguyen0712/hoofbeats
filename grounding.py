@@ -117,6 +117,7 @@ def runner_up_items(r, case, d, runner, ex, start, max_items = 2):
     """Make one R item for each runner-up disease."""
     items = {}
     mine = {c.hpo_id: c.log_lr for c in r.contributions(case, d, ex)}
+    status = {c.hpo_id: c.status.value for c in r.contributions(case, d, ex)}
     theirs = {c.hpo_id: c.log_lr for c in r.contributions(case, runner, ex)}
 
     diffs = []
@@ -130,7 +131,12 @@ def runner_up_items(r, case, d, runner, ex, start, max_items = 2):
         if gap <0.5:
             break
         kid = f"K{n}"
-        text = f"'{r.ont.name(t)}' fits {r.db.names[d]} better than {r.db.names[runner]}: " f"likelihood ratio {math.exp(mine[t]):.2f} against {math.exp(theirs[t]):.2f}"
+        if status[t] == "absent":
+            text = (f"The absence of '{r.ont.name(t)}' counts less against {r.db.names[d]} than against "
+                    f"{r.db.names[runner]}: likelihood ratio {math.exp(mine[t]):.2f} against {math.exp(theirs[t]):.2f}")
+        else:
+            text = (f"'{r.ont.name(t)}' fits {r.db.names[d]} better than {r.db.names[runner]}: "
+                    f"likelihood ratio {math.exp(mine[t]):.2f} against {math.exp(theirs[t]):.2f}")
         items[kid] = Item(
             kid,
             "knowledge",
@@ -224,6 +230,9 @@ def cites(sentence):
 def strip_cites(sentence):
     return re.sub(r"\[[^\]]*\b[PK]\d+\b[^\]]*\]", "", sentence)
 
+def negated(body, name):
+    # a negation word up to 3 words before the finding's name: "does not have aortic root aneurysm"
+    return re.search(NEGATION.pattern + r"(?:\W+\w+){0,3}?\W+" + re.escape(name), body, re.I) is not None
 
 def names_of(r, item):
     if not item.hpo_id:
@@ -254,6 +263,8 @@ def check_sentence(s, pack, r, case, disease_names=()):
             return {"ok": False, "reason": f"V2: {it.id} is no longer in the record as {it.status}"}
         if it.status == "absent" and not NEGATION.search(body):
             return {"ok": False, "reason": f"V2: {it.id} is absent but the sentence does not say so"}
+        if it.status == "present" and any(negated(body, n) for n in names_of(r, it)):
+            return {"ok": False, "reason": f"V2: {it.id} is present but the sentence says it is not"}
     # V3: the sentence names the finding of each cited item that has one
     for it in items:
         names = names_of(r, it)
