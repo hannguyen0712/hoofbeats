@@ -21,7 +21,10 @@ DEFAULT_W = {"present_exact": 1.0, "present_partial": 1.0, "present_unexplained"
 # signs fixed so a weight can scale evidence but never flip its meaning
 BOUNDS = {"present_exact": (0, 5), "present_partial": (0, 5), "present_unexplained": (-10, 0),
           "absent_hallmark": (0, 5), "absent_other": (0, 5), "absent_excluded": (0, 5),
-          "log_annotations": (-2, 2), "log_references": (-2, 2), "gene": (0, 0)}   # genes off: near-answer ablation
+          "log_annotations": (0, 0), "log_references": (0, 0), "gene": (0, 0)}   # genes off: near-answer ablation
+# annotation/reference counts are off by default: leakage control strips the true disease's own-paper annotations
+# but only one reference, so "few annotations per reference" points at the answer (--kb-size turns them on)
+KB_SIZE = {"log_annotations": (-2, 2), "log_references": (-2, 2)}
 
 
 def default_weights(r: LRRanker) -> dict:
@@ -112,26 +115,35 @@ def rerank_learned(r: LRRanker, case: Case, ew: EvidenceWeights, exclude=frozens
 
 
 def fit_weights(Xs: list[np.ndarray], priors: list[np.ndarray], gold: list[int], l2: float = 1.0,
-                init: dict | None = None) -> np.ndarray:
+                init: dict | None = None, bounds: dict | None = None) -> np.ndarray:
     # softmax over each case's candidates; L2 pull toward the default weights; signs bounded
+    # present_exact is held at 1 and a free temperature T sets the overall scale, so weights are relative to an
+    # exact match (otherwise the fit shrinks every weight to flatten the softmax and clips the small ones to 0)
+    # returns the effective weights w / T (what re-scoring uses)
     from scipy.optimize import minimize
     w0 = np.array([(init or DEFAULT_W)[f] for f in FEATURES])
+    w0[FEATURES.index("present_exact")] = 1.0
     scale = np.std(np.vstack(Xs), axis=0) + 1e-6               # penalty in units of each feature's spread
     n = len(Xs)
 
-    def loss(w):
-        tot, grad = 0.0, np.zeros_like(w)
+    def loss(v):
+        w, T = v[:-1], math.exp(v[-1])
+        tot, gw, gu = 0.0, np.zeros_like(w), 0.0
         for X, pr, g in zip(Xs, priors, gold):
-            z = X @ w + pr
+            xw = X @ w
+            z = xw / T + pr
             z = z - z.max()
             p = np.exp(z) / np.exp(z).sum()
             tot -= z[g] - math.log(np.exp(z).sum())
-            grad += X.T @ p - X[g]
+            e = p.copy(); e[g] -= 1
+            gw += X.T @ e / T
+            gu -= xw @ e / T
         d = (w - w0) * scale
-        return tot / n + l2 * (d @ d), grad / n + 2 * l2 * d * scale
+        return tot / n + l2 * (d @ d), np.append(gw / n + 2 * l2 * d * scale, gu / n)
 
-    res = minimize(loss, w0, jac=True, method="L-BFGS-B", bounds=[BOUNDS[f] for f in FEATURES])
-    return res.x
+    bnd = [(1.0, 1.0) if f == "present_exact" else (bounds or BOUNDS)[f] for f in FEATURES] + [(0.0, 5.0)]   # T in [1, 150]: never sharper than the defaults
+    res = minimize(loss, np.append(w0, 0.0), jac=True, method="L-BFGS-B", bounds=bnd)
+    return res.x[:-1] / math.exp(res.x[-1])
 
 
 def load_weights(a, run: dict | None = None):
@@ -198,17 +210,19 @@ def cmd_train(a, hb):
         ds, X, pr = candidates(r, c, ex, a.candidates, add_truth=True)
         g = next(j for j, d in enumerate(ds) if d in c.truth)
         data.append((X, pr, g, r.score(c, ex).rank_of(c.truth)))
-        print(f"\r[train] features {i}/{len(cases)}", end="", flush=True)
-    print()
+        if i % 250 == 0 or i == len(cases):
+            print(f"[train] features {i}/{len(cases)}", flush=True)
     in_top = sum(g < a.candidates for _, _, g, _ in data)
     rng = random.Random(a.seed)
     order = sorted(set(groups)); rng.shuffle(order)
     fold_of = {gid: i % a.folds for i, gid in enumerate(order)}
     dw = default_weights(r)
     w0 = np.array([dw[f] for f in FEATURES])
+    bounds = {**BOUNDS, **(KB_SIZE if a.kb_size else {})}
 
     def fit(idx, l2):
-        return fit_weights([data[i][0] for i in idx], [data[i][1] for i in idx], [data[i][2] for i in idx], l2, dw)
+        return fit_weights([data[i][0] for i in idx], [data[i][1] for i in idx], [data[i][2] for i in idx], l2, dw,
+                           bounds)
 
     def nll(w, idx):
         tot = 0.0
@@ -232,7 +246,7 @@ def cmd_train(a, hb):
             best = min(best or (loss, l2), (loss, l2))
         return best[1]
 
-    base, learned, fold_w = [], [], []
+    base, learned, fold_w, held = [], [], [], []
     for f in range(a.folds):
         tr = [i for i in range(len(cases)) if fold_of[groups[i]] != f]
         te = [i for i in range(len(cases)) if fold_of[groups[i]] == f]
@@ -242,11 +256,12 @@ def cmd_train(a, hb):
         for i in te:
             X, pr, g, b = data[i]
             base.append(b)
+            held.append(groups[i])
             learned.append(_cand_rank(X @ w + pr, g, a.candidates) or b)
         print(f"[train] fold {f + 1}/{a.folds}: {len(tr)} train, {len(te)} test cases, l2 {l2}")
     mb, ml = hb.topk(base), hb.topk(learned)
     diff = hit_at(learned, 1) - hit_at(base, 1)
-    lo, hi = boot_ci(diff)
+    lo, hi = boot_ci(diff, groups=held)        # resample disease/paper groups
     print(f"\nHeld-out diseases and papers ({a.folds}-fold), truth in the top {a.candidates} for "
           f"{in_top}/{len(cases)} cases (re-scoring cannot help the rest):")
     print("| scoring | Top-1 | Top-3 | Top-10 | MRR |\n|---|---|---|---|---|")
@@ -260,9 +275,12 @@ def cmd_train(a, hb):
     W = np.array(fold_w)
     print(f"\nFinal weights (all cases, l2 {l2}); fold spread shows how stable each one is:")
     print("| evidence | default | learned | fold min | fold max |\n|---|---|---|---|---|")
+    pe = FEATURES.index("present_exact")
+    rel, Wr = w / w[pe], W / W[:, pe:pe + 1]
+    print(f"(relative to an exact present match; fitted temperature {1 / w[pe]:.2f})")
     for j, name in enumerate(FEATURES):
-        print(f"| {name} | {w0[j]:.2f} | {w[j]:.2f} | {W[:, j].min():.2f} | {W[:, j].max():.2f} |")
-    meta = {"absent_weight": r.absent_weight, "absent_min_freq": r.absent_min_freq, "dataset": a.dataset, "cases": len(cases), "candidates": a.candidates, "l2": l2, "folds": a.folds,
+        print(f"| {name} | {w0[j]:.2f} | {rel[j]:.2f} | {Wr[:, j].min():.2f} | {Wr[:, j].max():.2f} |")
+    meta = {"absent_weight": r.absent_weight, "absent_min_freq": r.absent_min_freq, "dataset": a.dataset, "kb_size": a.kb_size, "cases": len(cases), "candidates": a.candidates, "l2": l2, "folds": a.folds,
             "seed": a.seed, "hpo": hb.RUN["settings"].get("hpo"), "annotations": hb.RUN["settings"].get("annotations"),
             "trained": time.strftime("%Y-%m-%d %H:%M"), "cv_default": mb, "cv_learned": ml}
     EvidenceWeights(dict(zip(FEATURES, map(float, w))), meta).save(hb.wrote(Path(a.weights_out)))
@@ -284,6 +302,7 @@ def add_arguments(p, sub):
     s.add_argument("--folds", type=int, default=5)
     s.add_argument("--l2", type=float, nargs="+", default=[0.01, 0.1, 1.0], help="pull toward default weights (picked by inner CV)")
     s.add_argument("--seed", type=int, default=13)
+    s.add_argument("--kb-size", action="store_true", help="also learn weights on annotation/reference counts (see KB_SIZE)")
     s.add_argument("--out", default="results/train")
     s.add_argument("--weights-out", default="results/train/weights.json")
 
