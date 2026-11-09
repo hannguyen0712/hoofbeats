@@ -1186,7 +1186,8 @@ class TestFollowup(unittest.TestCase):
         from hoofbeats.followup import merge, result_kind, result_line
         orig = {"case_id": "c1", "note_text": "Tall.", "images": [{"path": "a.png"}], "genes": ["X"], "policy": "open",
                 "labs": [{"name": "ALT", "value": 30}], "truth": ["OMIM:1"]}
-        new = {"date": "2026-11-20", "note_text": "Echo done.", "images": [{"path": "b.png"}, {"path": "/abs/a.png"}],
+        absolute = str(Path("/abs/a.png").resolve())       # absolute on any system (Windows adds the drive)
+        new = {"date": "2026-11-20", "note_text": "Echo done.", "images": [{"path": "b.png"}, {"path": absolute}],
                "labs": [{"name": "AST", "value": 40}], "genes": ["Y"], "policy": "local_only",
                "test_results": [{"test": "FBN1 gene testing", "result": "positive", "genes": ["FBN1"],
                                  "classification": "pathogenic"}, {"test": "angiography", "result": "negative"}]}
@@ -1196,7 +1197,7 @@ class TestFollowup(unittest.TestCase):
         self.assertIn("FBN1 gene testing: positive (pathogenic variant in FBN1).", m["followup_text"])
         self.assertIn("angiography: negative.", m["followup_text"])
         self.assertEqual([x["path"] for x in m["images"]], [str(Path("/case/a.png").resolve()),
-                                                             str(Path("/fu/b.png").resolve()), str(Path("/abs/a.png"))])
+                                                             str(Path("/fu/b.png").resolve()), absolute])
         self.assertEqual([x["name"] for x in m["labs"]], ["ALT", "AST"])
         self.assertEqual((m["genes"], m["policy"], m["truth"]), (["X", "Y"], "local_only", ["OMIM:1"]))
         self.assertEqual([result_kind(x) for x in ("Positive", "normal", "not detected", "4.6 cm", None)],
