@@ -73,10 +73,22 @@ Examples of errors the checks removed:
 - six comparisons with the runner-up whose likelihood ratio of 1.00 was made up (V4);
 - a number copied from the prompt's own example (V4).
 
+**Hand labels** (150 sentences: all 8 the checks removed, 142 random kept test sentences; one annotator, blind to the
+check results; judged against the cited evidence only):
+
+| | Annotator: supported | Annotator: not supported |
+| --- | --- | --- |
+| Checks kept | 142 | 0 |
+| Checks removed | 1 | 7 |
+
+- Removals: 7 of 8 were unsupported sentences; the eighth was correct but had a missing bracket.
+- Recall: the checks removed all 7 unsupported sentences.
+- No kept sentence was unsupported (0 of 142; with 142 sentences, the true rate is below about 2% with 95% confidence).
+
 ## Limitations
 
-- "Kept" means the sentence passed the checks, not that it is correct; hand labels of 150 sentences (two annotators,
-  Cohen's kappa) measure this.
+- One annotator labelled the sentences; a second annotator (for Cohen's kappa) is still to come.
+- One removed sentence was correct in content but missed its closing bracket, so its citation could not be read (V1).
 - V4 checks which numbers appear, not where: a changed number that happens to appear elsewhere in the cited
   evidence is not caught.
 - V3 matches finding names and their HPO synonyms; a correct paraphrase with other words is removed.
