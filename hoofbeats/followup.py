@@ -11,9 +11,10 @@
 #  1. before: the original case through the whole pipeline (Stage A, Stage 1, ranking, evidence, tests)
 #  2. merge: original + follow-up into one case. Notes are appended; images, labs, genes and HPO terms are added; every
 #     test result is also written into the note, so Stage 1 reads it like any other text. A negative result of a test
-#     marks the findings that test looks for in the diseases shown before as absent; a positive result marks the
-#     finding present when the test looks for exactly one. A gene result classified pathogenic or likely pathogenic
-#     adds the gene to the case (the ranker then counts it).
+#     marks absent the findings the test was suggested for (or, if it was not suggested, the findings it shows in the
+#     top 3 diseases); a positive result marks the finding present when there is exactly one. A gene result classified
+#     pathogenic or likely pathogenic adds the gene to the case (the ranker then counts it); a negative gene test makes
+#     the diseases of those genes 10x less likely (LRRanker.GENE_NEG_LR).
 #  3. after: the merged case through the whole pipeline again, from Stage A (images already described come from the
 #     reply cache, so only new images are sent to the vision model)
 #  4. compare: rank and probability of each disease before and after, the new findings, and a status per disease:
@@ -117,6 +118,16 @@ def find_test(wk, before: dict, t: dict) -> str | None:
     return hits.pop() if len(hits) == 1 else None
 
 
+def suggested_for(before: dict, tid: str) -> set[str]:
+    # the findings this test was suggested for (its "shows"), over every disease shown before
+    out = set()
+    for d in ((before.get("tests") or {}).get("diseases") or {}).values():
+        for x in (d.get("tests") or []) + (d.get("review") or []):
+            if x.get("id") == tid:
+                out |= {s["hpo_id"] for s in x.get("shows") or []}
+    return out
+
+
 def looks_for(wk, case, ex, tid: str, diseases: list[str]) -> set[str]:
     # the findings a (phenotype) test would show in these diseases
     from .workup import known_sets
@@ -130,10 +141,10 @@ def looks_for(wk, case, ex, tid: str, diseases: list[str]) -> set[str]:
     return out
 
 
-def interpret(wk, before: dict, c0, ex0, results: list[dict]) -> tuple[list[dict], list[str], list[dict]]:
-    # (HPO terms to add, genes to add, one row per result saying what it did)
+def interpret(wk, before: dict, c0, ex0, results: list[dict]) -> tuple[list[dict], list[str], list[str], list[dict]]:
+    # (HPO terms to add, genes with a causal variant, genes with a negative test, one row per result saying what it did)
     shown = [x["id"] for x in before.get("top", [])]
-    terms, genes, rows = [], [], []
+    terms, genes, negative, rows = [], [], [], []
     for t in results:
         if not isinstance(t, dict):
             continue
@@ -151,11 +162,13 @@ def interpret(wk, before: dict, c0, ex0, results: list[dict]) -> tuple[list[dict
             elif kind == "positive":
                 row["warning"] = ("a positive gene result counts only with a classification of pathogenic or likely "
                                   "pathogenic" + (f" (given: {cls})" if cls else ""))
-            elif kind == "negative":
-                row["effect"].append("read from the note only: a negative gene test lowers, but does not rule out, "
-                                     "the diseases of these genes")
+            elif kind == "negative" and gs:
+                negative += [g for g in gs if g not in negative]
+                row["effect"].append(f"diseases of {', '.join(gs)} made 10x less likely (a negative gene test lowers, "
+                                     "but does not rule out, a disease)")
         elif tid and wk and kind in ("positive", "negative"):
-            found = sorted(looks_for(wk, c0, ex0, tid, shown))
+            # the findings it was suggested for; if it was not suggested, what it shows in the top 3 diseases
+            found = sorted(suggested_for(before, tid) or looks_for(wk, c0, ex0, tid, shown[:3]))
             if kind == "negative" and found:
                 terms += [{"id": u, "status": "absent"} for u in found]
                 row["effect"].append("absent: " + ", ".join(wk.r.ont.name(u) for u in found))
@@ -171,7 +184,7 @@ def interpret(wk, before: dict, c0, ex0, results: list[dict]) -> tuple[list[dict
             row["warning"] = row["warning"] or ("not one of the suggested tests: the result is read from the note "
                                                 "only (give the test's name or id as shown in the suggestions)")
         rows.append(row)
-    return terms, genes, rows
+    return terms, genes, negative, rows
 
 
 def statuses(wk, before: dict, after: dict, rows: list[dict], probs: dict) -> list[dict]:
@@ -230,9 +243,10 @@ def cmd_followup(a, hb):
         r.use_genes = bool(orig.get("genes"))
         c0, ex0, rk0 = hb.diagnose_one(a, r, orig_path, reader, s1, out / "before", describer, wk)
         before = json.loads((out / "before" / f"{c0.case_id}.json").read_text(encoding="utf-8"))
-        terms, genes, rows = interpret(wk, before, c0, ex0, new.get("test_results") or [])
+        terms, genes, negative, rows = interpret(wk, before, c0, ex0, new.get("test_results") or [])
         merged["hpo_terms"] = list(merged.get("hpo_terms") or []) + terms
         merged["genes"] = list(dict.fromkeys(list(merged.get("genes") or []) + genes))
+        merged["genes_negative"] = list(dict.fromkeys(list(merged.get("genes_negative") or []) + negative))
         merged_path.write_text(json.dumps(merged, indent=1), encoding="utf-8")
         print(f"\n===== after the follow-up: {new_path} (merged: {merged_path}) =====")
         r.use_genes = bool(merged["genes"])
@@ -242,10 +256,11 @@ def cmd_followup(a, hb):
         r.use_genes = use_genes
 
     p0, p1 = ranker_probs(rk0), ranker_probs(rk1)
-    ids = list(dict.fromkeys([x["id"] for x in after["top"]] + [x["id"] for x in before["top"]]))
+    truth = [d for d in (c1.truth or []) if d in r.d_index]
+    ids = list(dict.fromkeys([x["id"] for x in after["top"]] + [x["id"] for x in before["top"][:5]] + truth))
     changes = [{"id": d, "name": r.db.names[d], "rank_before": rk0.rank_of([d]), "rank_after": rk1.rank_of([d]),
-                "p_before": round(float(p0[r.d_index[d]]), 4), "p_after": round(float(p1[r.d_index[d]]), 4)}
-               for d in ids]
+                "p_before": round(float(p0[r.d_index[d]]), 4), "p_after": round(float(p1[r.d_index[d]]), 4),
+                "truth": d in truth} for d in ids]
     old = {(f["hpo_id"], f["status"]) for f in before["findings"]}
     new_findings = [f for f in after["findings"] if (f["hpo_id"], f["status"]) not in old]
     probs = {x["id"]: x["p_after"] for x in changes}
@@ -262,11 +277,13 @@ def cmd_followup(a, hb):
         print(f"test {x['test']}: {x['result']} -> " + ("; ".join(x["effect"]) or "read from the note")
               + (f"  [!] {x['warning']}" if x["warning"] else ""))
     print(f"\nNew findings ({len(new_findings)}): " + ("; ".join(f"{f['status']} {f['term']}" for f in new_findings) or "none"))
-    print("\n| disease | rank before -> after | probability before -> after | status |\n|---|---|---|---|")
+    print("\n| disease (shown now, top 5 before, truth) | rank before -> after | probability before -> after | status |"
+          "\n|---|---|---|---|")
     st = {x["id"]: x for x in status}
     for x in changes:
         s = st.get(x["id"])
-        print(f"| {x['name'][:45]} | {x['rank_before']} -> {x['rank_after']} | {x['p_before']:.1%} -> {x['p_after']:.1%} "
+        print(f"| {'[truth] ' if x['truth'] else ''}{x['name'][:45]} | {x['rank_before']} -> {x['rank_after']} | "
+              f"{x['p_before']:.1%} -> {x['p_after']:.1%} "
               f"| {s['status'] if s else 'not shown now'} |")
     best = next((x for x in status if x["status"] == "confirmed"), None) or \
         next((x for x in status if x["status"] == "strongly supported"), None) or (status[0] if status else None)

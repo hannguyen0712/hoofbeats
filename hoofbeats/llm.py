@@ -570,46 +570,52 @@ def read_images(llm, ext: Extractor, case: Case, max_images: int = 4, cache: dic
 # The images stay on the case as records (modality, plane, location). No model ranks diagnoses from the images.
 # The prompt was written after small models were seen to (a) confuse left and right, (b) call an enlarged ventricle a
 # mass, (c) deny "hydrocephalus" while describing enlarged ventricles because they were told not to diagnose.
-CONTEXT_SYSTEM = """You are an experienced, board-certified radiologist. You write the findings section of a report for a \
-clinician who cannot see the images. Software then turns each of your findings into a standard phenotype term (Human \
-Phenotype Ontology), so exact wording matters as much as accurate looking.
+CONTEXT_SYSTEM = """You are an experienced, board-certified physician who reads every kind of medical image: radiology \
+(X-ray, CT, MRI, ultrasound, echocardiography, nuclear medicine), tracings (ECG, EEG, rhythm strips), clinical \
+photographs (face, skin, hands, feet, whole body), eye images (fundus, slit lamp, OCT), microscopy (histopathology, \
+blood smears) and endoscopy. You write the findings section of a report for a clinician who cannot see the image. \
+Software then turns each of your findings into a standard phenotype term (Human Phenotype Ontology), so exact wording \
+matters as much as accurate looking.
 
 How to look:
-- Examine the whole image before writing: every structure in the field of view, both sides, and the edges of the image.
-- Compare left with right, and judge each size against what is normal for the patient's age and sex.
-- Tell normal anatomy, normal variants and artefacts (motion, positioning, windowing, beam hardening) apart from disease.
+- First decide what kind of image this is, and read it the way a specialist in that kind of image would.
+- Examine the whole image before writing: everything in the field of view or on the tracing, both sides, and the edges.
+- Compare left with right where there are two sides, and judge every size, rate or interval against what is normal \
+for the patient's age and sex.
+- Tell normal anatomy, normal variants and artefacts (motion, positioning, lighting, windowing, lead or electrode \
+problems, staining or cutting artefacts) apart from disease.
 - Use the clinical question only to decide where to look most carefully. Report what the image shows, even if it does \
 not fit the question, and never report something because the question expects it.
-- If the image is limited (cropped, low resolution, a single slice, an unknown sequence), say so and lower your \
+- If the image is limited (cropped, low resolution, a single slice or lead, unknown settings), say so and lower your \
 confidence. Never describe what lies outside the image.
 
 How to write:
 - Describe what you see, not the disease behind it: never name a disease, syndrome or diagnosis.
-- Use standard radiological and medical terms (for example ventriculomegaly, hydronephrosis, pleural effusion, ectopia \
-lentis, hepatomegaly, cerebral calcification), one finding per item, each with its location, side and size.
-- Give sizes in millimetres or centimetres only when the image lets you estimate them; never invent a measurement.
-- State absent findings plainly as "No ..." (for example "No hydrocephalus", "No pleural effusion").
+- Use the standard medical terms of that field, one finding per item, each with its location (side, structure, lead \
+or body part) and its size or value: for example ventriculomegaly, hydronephrosis, pleural effusion, prolonged QT \
+interval, left axis deviation, ST segment elevation, hypertelorism, cafe-au-lait spots, arachnodactyly, retinal \
+hemorrhage, ectopia lentis, cerebral calcification.
+- Give sizes, rates and intervals only when the image lets you measure or estimate them (from a scale, the ECG grid or \
+known anatomy); never invent a number.
+- State absent findings plainly as "No ..." (for example "No hydrocephalus", "No ST segment elevation").
 - Put your certainty in the confidence field (definite, probable or possible), not in words such as "may represent".
 - If nothing is abnormal, say so: an empty findings list with pertinent negatives is a valid answer.
 
 Answer only with the JSON requested: no text before or after it."""
 CONTEXT_PROMPT = """{intro}{patient}{question}
 
-Write the findings section of a radiology report for {it}. Go through {it} systematically:
-- technique: modality, view or plane, contrast phase, image quality and limitations
-- anatomy: the body region and every structure visible
-- each structure: size, shape, left-right symmetry, density / signal / echogenicity{checklist}
-- findings: every abnormality, with location, side, approximate size, margins and effect on nearby structures,
-  and how sure you are (definite, probable or possible)
-- pertinent negatives: important structures that look normal, or signs that are absent
+Write the findings section of a report for {it}. Go through {it} systematically:
+- technique: what kind of image it is, the view, plane, leads or stain, settings (contrast phase, paper speed and
+  gain, magnification), image quality and limitations
+- anatomy: what the image covers (body region and structures, or the leads and length of a tracing)
+- each part: {parts}{checklist}
+- findings: every abnormality, with location and side, size or value, appearance, and how sure you are (definite,
+  probable or possible)
+- pertinent negatives: important structures or features that look normal, or signs that are absent
 - summary: 2-4 sentences on the key abnormal features
 
-Rules:
-- Use the patient's left and right. On axial and coronal images the patient's right is on the left of the image.
-- Before calling something a mass or lesion, check whether it is a normal structure that is enlarged or displaced
-  (a ventricle, vessel, cyst, bowel loop, bladder or fluid collection). Fluid is dark on CT and bright on T2 MRI.
-- Name imaging findings and patterns when you see them (for example pleural effusion, pneumothorax,
-  hydronephrosis, ventricular enlargement, mass effect), but not the disease or cause behind them.
+Rules:{rules}
+- Name findings and patterns when you see them, but not the disease or cause behind them.
 - Report only what you can see. Your pertinent negatives must not contradict your findings.
 - Reply with the JSON only: no plan, checklist or notes before or after it.
 
@@ -618,6 +624,61 @@ Return only JSON:
   "findings": [{{"finding": "...", "location": "...", "details": "...", "confidence": "definite|probable|possible"}}],
   "pertinent_negatives": ["..."],
   "summary": "..."}}"""
+
+# Kinds of image (matched on the image's modality and location; first match wins). Each kind has what to describe
+# for every part of the image and its own reading rules; radiology also gets a checklist by body region (CHECKLISTS).
+IMAGE_KINDS = (
+    ("ecg", r"\b(ecg|ekg|electrocardio\w*|rhythm strip|holter)\b",
+     "rate, rhythm, P waves, PR interval, QRS duration and axis, ST segments, T waves, QT and QTc interval, voltage",
+     ("Read the calibration first (normally 25 mm/s and 10 mm/mV): one small square is 40 ms and 0.1 mV. Measure "
+      "the rate and every interval from the grid and give them in ms or beats per minute.",
+      "Go through the leads in groups (I, aVL, V5-V6; II, III, aVF; V1-V4; aVR) and name the leads of every "
+      "change.")),
+    ("eeg", r"\b(eeg|electroencephalo\w*)\b",
+     "background rhythm and frequency, symmetry, reactivity, sleep features, focal or generalized slowing, "
+     "epileptiform discharges (spikes, sharp waves, spike-wave), their location and frequency",
+     ("Read the montage, time scale and sensitivity first, and name the electrodes or regions of every change.",)),
+    ("eye", r"\b(fundus|fundoscop\w*|retina\w*|slit[- ]?lamp|optical coherence|oct|ophthalm\w*|eye photo\w*)\b",
+     "optic disc (size, cup-to-disc ratio, colour, margins), vessels, macula and fovea, retina in each quadrant; on "
+     "slit lamp: lids, conjunctiva, cornea, iris, pupil, lens position and clarity",
+     ("Say which eye it is if the image shows it.",)),
+    ("microscopy", r"\b(histo\w*|patholog\w*|biops\w*|microscop\w*|smear|cytolog\w*|h&e|stain\w*|marrow)\b",
+     "stain and magnification, tissue or cell type, architecture, cell size and shape, nuclei, inclusions or "
+     "deposits, inflammation, abnormal cells (for a gross specimen: size, colour, surface and cut surface, lesions)",
+     ("Describe cells and tissue as a pathologist would; give sizes only against a scale bar or known cell size.",)),
+    ("endoscopy", r"\b(endo|colono|gastro|broncho|laryngo|cysto|arthro|naso|esophagogastroduodeno)scop\w*|capsule",
+     "the segment shown, mucosa (colour, pattern, vessels), lumen, folds, lesions (size, shape, surface), bleeding",
+     ("Name the segment if the image shows it.",)),
+    ("photo", r"\b(photo\w*|clinical image|clinical picture|dermatolog\w*|skin|facial|face|dysmorph\w*|"
+              r"whole body|hand photo|foot photo|nail\w*|hair)\b",
+     "for the face: head shape, forehead, eyes and their spacing, nose, philtrum, lips, mouth, chin, ears; for skin: "
+     "each lesion's type, colour, size, number, shape, border and distribution; for limbs: proportions, fingers and "
+     "toes, joints, nails",
+     ("Use the standard terms of dysmorphology (Elements of Morphology) and dermatology (macule, papule, plaque, "
+      "vesicle; cafe-au-lait spot, hypopigmentation).",
+      "Describe what the photograph shows, not the person's identity, and only the features you can see.")),
+    ("radiology", r"\b(ct|mri?|mr[a-z]?|x-?ray|xr|radiograph\w*|ultraso\w*|us|sonogra\w*|echo\w*|doppler|mammo\w*|"
+                  r"nuclear|pet|spect|angiogra\w*|fluoro\w*|ugi|upper gi|barium|contrast study|dexa|t1|t2|flair|dwi|"
+                  r"scan)\b",
+     "size, shape, left-right symmetry, density / signal / echogenicity",
+     ("Use the patient's left and right. On axial and coronal images the patient's right is on the left of the image.",
+      "Before calling something a mass or lesion, check whether it is a normal structure that is enlarged or "
+      "displaced (a ventricle, vessel, cyst, bowel loop, bladder or fluid collection). Fluid is dark on CT and "
+      "bright on T2 MRI.")),
+)
+GENERAL_PARTS = "size, shape, colour or density, symmetry, and anything that differs from normal"
+
+
+def image_kind(imgs: list[dict]) -> str:
+    # "ecg", "eeg", "eye", "microscopy", "endoscopy", "photo", "radiology" or "general" (nothing matched). The modality
+    # decides first (a CT of the orbit is radiology, whatever its location says); the location only if it does not
+    for text in (" ".join(str(img.get("modality") or "") for img in imgs),
+                 " ".join(f"{img.get('modality') or ''} {img.get('location') or ''}" for img in imgs)):
+        kind = next((k for k, pat, *_ in IMAGE_KINDS if re.search(pat, text.lower())), None)
+        if kind:
+            return kind
+    return "general"
+
 
 def details_of(case: Case) -> dict:
     # patient details: meta["details"] plus age and sex from the image records (MedPix keeps them there)
@@ -663,6 +724,9 @@ CHECKLISTS = (
 
 
 def _checklist(imgs: list[dict]) -> str:
+    # body-region checklists are for radiology; the other kinds list their parts in IMAGE_KINDS
+    if image_kind(imgs) not in ("radiology", "general"):
+        return ""
     where = " ".join(f"{img.get('location') or ''} {img.get('modality') or ''}" for img in imgs).lower()
     found = [items for keys, items in CHECKLISTS if any(k in where for k in keys)]
     return "".join(f"\n- check in particular: {items}" for items in dict.fromkeys(found))
@@ -677,9 +741,12 @@ def context_prompt(imgs: list[dict], details: dict, clinical: str = "") -> str:
         intro, it = f"These are {len(imgs)} images from one patient:\n{listing}", "these images"
     pt = details_text(details)
     question = " ".join(clinical.split())[:1500]
+    kind = next((k for k in IMAGE_KINDS if k[0] == image_kind(imgs)), None)
+    parts, rules = (kind[2], kind[3]) if kind else (GENERAL_PARTS, ())
     return CONTEXT_PROMPT.format(intro=intro, patient=f"\nPatient: {pt}" if pt else "", it=it,
                                  question=f"\nClinical question: {question}" if question else "",
-                                 checklist=_checklist(imgs))
+                                 parts=parts, checklist=_checklist(imgs),
+                                 rules="".join(f"\n- {r}" for r in rules))
 
 
 def render_context(obj, raw: str, label: str) -> str:
@@ -721,6 +788,24 @@ class ImageContext:
     unchecked: str = ""        # the description before the check (same as text when the check is off)
     checked: int = 0           # findings the model was asked to confirm
     kept: int = 0              # findings it confirmed (answered yes)
+    definite: str = ""         # the description with only the findings the model called definite
+
+
+# --context-confidence: keep only findings the describing model rated at least this sure (its "confidence" field;
+# a finding without one counts as "possible"). The summary is dropped when a finding is, since it restates them.
+CONFIDENCE = {"possible": 1, "probable": 2, "definite": 3}
+
+
+def by_confidence(obj: dict, level: str) -> dict:
+    if level not in CONFIDENCE or not isinstance(obj, dict):
+        return obj
+    found = _findings(obj)
+    keep = [f for f in found if CONFIDENCE.get(str(f.get("confidence", "")).strip().lower(), 1) >= CONFIDENCE[level]]
+    out = {k: v for k, v in obj.items() if k != "findings"}
+    out["findings"] = keep
+    if len(keep) < len(found):
+        out.pop("summary", None)
+    return out
 
 
 # The check (--context-verify): a second request with the same image(s) asks, for each finding of the description,
@@ -815,6 +900,7 @@ def image_context(llm, case: Case, max_images: int = 4, per_call: int = 1,
     # finding with a second request (None = the model's own setting, llm.verify, set by --context-verify)
     check_policy(llm, [case])
     verify = getattr(llm, "verify", False) if verify is None else verify
+    level = getattr(llm, "min_confidence", "all")       # --context-confidence
     imgs = case.meta.get("images", [])[:max_images]
     if imgs and not llm.sees_images:
         raise ValueError(f"{llm.model} cannot read images; the image-context model must be a vision model")
@@ -832,13 +918,17 @@ def image_context(llm, case: Case, max_images: int = 4, per_call: int = 1,
         # free text is passed on only if it is a finished, short answer, not a reply that ran out of tokens
         usable = isinstance(obj, dict) or (raw.strip() and not stopped and len(raw) < 4000)
         text = render_context(obj, raw, label) if usable else ""
+        definite = render_context(by_confidence(obj, "definite"), "", label) if isinstance(obj, dict) else ""
+        if level in CONFIDENCE and isinstance(obj, dict):
+            obj = by_confidence(obj, level)
+            text = render_context(obj, "", label)        # no raw-text fallback: it would bring the dropped ones back
         unchecked, asked, kept = text, 0, 0
         if verify and isinstance(obj, dict):
             checked, asked, kept = verify_findings(llm, grp, obj)
             if asked:      # no raw-text fallback: it would bring back the findings the check removed
                 text = render_context(checked, "", label)
         out.append(ImageContext([g.get("id", g["path"]) for g in grp], label, text, isinstance(obj, dict),
-                                getattr(llm, "model", ""), stopped, unchecked, asked, kept))
+                                getattr(llm, "model", ""), stopped, unchecked, asked, kept, definite))
     return out
 
 

@@ -60,6 +60,7 @@ def context_llm(hb, a):
     llm = MedGemma(model, endpoint, a.context_max_tokens or a.llm_max_tokens, key, True, extra, a.llm_rpm,
                    cache, a.dry_run, a.llm_timeout, offline=a.llm_offline)
     llm.verify = bool(getattr(a, "context_verify", False))    # read by llm.image_context
+    llm.min_confidence = getattr(a, "context_confidence", "all") or "all"
     hb.RUN["settings"].update({"context_model": llm.model, "context_endpoint": llm.endpoint or "in-process",
                                "context_verify": llm.verify})
     print(f"[llm] image context (Stage A) by {llm.model} via {llm.endpoint or 'transformers (in-process)'}: {why}"
@@ -123,8 +124,9 @@ def cmd_multimodal(a, hb):
 MM_CONDITIONS = {"text": "history/exam text",
                  "context": "text + image context (Stage A)",
                  "verified": "text + image context, findings checked by the vision model",
+                 "definite": "text + image context, only findings the vision model called definite",
                  "reference": "text + radiologist findings (upper bound for a context)"}
-CONTEXT_CONDS = ("context", "verified")     # conditions that need the image context
+CONTEXT_CONDS = ("context", "verified", "definite")     # conditions that need the image context
 
 
 def medpix_context_case(c, conds, ctx_llm, r: LRRanker, ext, max_images=2, per_call=1, agreement=None,
@@ -143,7 +145,8 @@ def medpix_context_case(c, conds, ctx_llm, r: LRRanker, ext, max_images=2, per_c
     if any(x in conds for x in CONTEXT_CONDS):
         parts = image_context(ctx_llm, c, max_images, per_call, verify="verified" in conds)
         texts = {"context": "\n\n".join(x.unchecked for x in parts if x.unchecked),
-                 "verified": "\n\n".join(x.text for x in parts if x.text)}
+                 "verified": "\n\n".join(x.text for x in parts if x.text),
+                 "definite": "\n\n".join(x.definite for x in parts if x.definite)}
         ref = {f.hpo_id for f in ext.findings(c.meta["reference_text"]) if f.status == Status.PRESENT}
         for cond, text in texts.items():
             _, info = delabel(text, c.meta.get("names") or [c.meta.get("title", "")], [], ext.vocab)
@@ -260,15 +263,16 @@ def cmd_medpix_context(a, hb):
         for case, g in df.groupby("case", sort=False):
             print(f"  {case} ({g.title.iloc[0]}): " + ", ".join(f"{x.condition} {num(x.rank)}" for x in g.itertuples()))
     pct = lambda k: "–" if k not in summary else f"{summary[k]:.1%}"
-    for cond in ("context", "verified"):
+    for cond in ("context", "verified", "definite"):
         cx = df[df.condition == cond]
         if not len(cx):
             continue
-        pre = "context_" if cond == "context" else "verified_"
+        pre = {"context": "context_", "verified": "verified_", "definite": "definite_"}[cond]
         summary.update({pre + k.removeprefix("context_"): round(cx[k].mean(), 3)
                         for k in ("context_named_diagnosis", "context_parsed", "context_precision", "context_recall")
                         if k in cx and cx[k].notna().any()})
-        what = "Image context" if cond == "context" else "Checked image context"
+        what = {"context": "Image context", "verified": "Checked image context",
+                "definite": "Image context, definite findings only"}[cond]
         print(f"\n{what} vs the radiologist's findings (HPO terms): precision {pct(pre + 'precision')}, "
               f"recall {pct(pre + 'recall')}; contexts that named the diagnosis {pct(pre + 'named_diagnosis')} "
               f"(disease names are never turned into findings); replies parsed {pct(pre + 'parsed')}")
@@ -276,7 +280,7 @@ def cmd_medpix_context(a, hb):
             asked, kept = int(cx.findings_checked.sum()), int(cx.findings_kept.sum())
             summary.update({"findings_checked": asked, "findings_kept": kept})
             print(f"Check: {kept} of {asked} described findings confirmed ({kept / max(asked, 1):.0%}); the rest dropped")
-    cx = df[df.condition.isin(["context", "verified"])]
+    cx = df[df.condition.isin(["context", "verified", "definite"])]
     if len(cx):
         if cx.context_cut_off.fillna(False).astype(bool).any():
             print(f"\n[llm] {cx.context_cut_off.fillna(False).astype(bool).mean():.0%} of image contexts stopped before their JSON was finished. "
@@ -308,6 +312,8 @@ def add_arguments(p, sub):
     p.add_argument("--context-extra", help="extra JSON request fields for it (default: --llm-extra when the endpoint is the same)")
     p.add_argument("--context-max-images", type=int, default=4, help="images described per case (diagnose, multimodal)")
     p.add_argument("--context-images-per-call", type=int, default=1, help="images described together in one request")
+    p.add_argument("--context-confidence", choices=("all", "probable", "definite"), default="all",
+                   help="keep only image findings the vision model rated at least this sure (default: all)")
     p.add_argument("--context-verify", action="store_true",
                    help="check each described finding with a second request to the vision model and keep only the "
                         "confirmed ones (diagnose, multimodal; medpix-context compares both with --conditions verified)")

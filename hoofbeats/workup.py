@@ -55,6 +55,17 @@ LR_RULE_OUT = 0.2      # LR- <= 0.2: a negative result does
 CALIB_T, CALIB_IN, DIFFERENTIAL = 2.18, 0.475, 20
 MAX_UP = 3             # a finding inherits the tests of an annotated ancestor at most this many levels up
 DD_ID = ("HP:0012758", "HP:0001249")    # neurodevelopmental delay, intellectual disability (ACMG 2021 note)
+# Broad genetic test (ACMG, Manickam et al. 2021; EuroGentest WGS recommendations, Souche et al. 2022): exome or genome
+# sequencing finds the cause whether or not it is among the diseases shown. It is always listed, and listed FIRST when
+# the shown diseases together are unlikely to contain the diagnosis: on 500 Phenopacket cases, when their calibrated
+# probabilities summed to < 0.30 (19% of cases) the diagnosis was missing from the top 10 in 89% of them (64% otherwise).
+BROAD_FIRST = 0.30
+# Gene tests that need a special method (EuroGentest: standard sequencing misses repeat expansions; imprinting
+# disorders need methylation analysis): read from how GTR's registered tests for the disease are made. A disease needs
+# repeat-expansion testing when >= 15% of its targeted tests are repeat tests (>= 3 tests), methylation analysis when
+# >= 25% use methylation analysis (>= 5 tests).
+REPEAT_NAME = re.compile(r"repeat|triplet|trinucleotide|\b(CTG|CAG|CGG|CCTG|GGGGCC|ATTCT)\b", re.I)
+REPEAT_SHARE, METHYL_SHARE = 0.15, 0.25
 OTHER_SEX = {"male": ("HP:0010460",), "female": ("HP:0010461",)}   # female / male genitalia: not for the other sex
 PRENATAL = "HP:0001197"   # abnormality of prenatal development or birth: history, not something a test shows now
 
@@ -275,6 +286,23 @@ class GTR:
                 out.append(t)
         return out[:n]
 
+    def method_profile(self, d: str) -> dict:
+        # share of the disease's targeted tests (one per lab and name) that are repeat-expansion or methylation tests
+        ts = {}
+        for t in self.for_disease(d):
+            if t.kind == "targeted":
+                ts.setdefault((t.name.lower(), t.lab), t)
+        n = len(ts)
+        rep = sum(bool(REPEAT_NAME.search(t.name)) for t in ts.values()) / n if n else 0.0
+        met = sum("Methylation analysis" in t.methods for t in ts.values()) / n if n else 0.0
+        return {"n": n, "repeat": rep if n >= 3 else 0.0, "methylation": met if n >= 5 else 0.0}
+
+    def method(self, d: str) -> str:
+        # "repeat", "methylation" or "sequencing"
+        m = self.method_profile(d)
+        return "repeat" if m["repeat"] >= REPEAT_SHARE else "methylation" if m["methylation"] >= METHYL_SHARE \
+            else "sequencing"
+
     def gene_counts(self, d: str) -> dict[str, int]:
         c = defaultdict(int)
         for t in self.for_disease(d):
@@ -451,6 +479,7 @@ class Workup:
     notes: list[str]
     gtr_panels: list[dict] = field(default_factory=list)
     separate: list[dict] = field(default_factory=list)   # tests that best tell the leading diseases apart
+    broad: dict | None = None                             # exome / genome sequencing (Workupper.broad)
 
 
 # "may already be answered": a finding the test looks for that Stage 1 did not pick up, but whose name or synonym is
@@ -598,8 +627,29 @@ class Workupper:
             notes.append("Developmental delay or intellectual disability: ACMG (Manickam et al. 2021) recommends exome "
                          "or genome sequencing as a first- or second-tier test (onset before 18).")
         gtr_panels = self.gtr.panels([(d, float(p[r.d_index[d]])) for d in targets]) if self.gtr else []
+        broad = self.broad(case, targets, p, yes)
         return Workup(case.case_id, out, panel, self.verify(case), sorted(self.cat.tests[t].name for t in done),
-                      notes, gtr_panels, separate)
+                      notes, gtr_panels, separate, broad)
+
+    def broad(self, case, targets, p, yes) -> dict | None:
+        # exome / genome sequencing: finds the cause even if it is not among the diseases shown (see BROAD_FIRST).
+        # Genome rather than exome when a shown disease needs repeat-expansion testing (exome misses repeats);
+        # trio (both parents too) for developmental delay / intellectual disability in a child (de novo variants).
+        if case.genes:
+            return None                     # a gene result is already known
+        cover = float(sum(p[self.r.d_index[d]] for d in targets))
+        special = [d for d in targets if self.gtr and self.gtr.method(d) == "repeat"]
+        trio = self.dd_id(case, yes)
+        test = ("genome" if special else "exome") + " sequencing" + (", trio (with both parents)" if trio else "")
+        first = cover < BROAD_FIRST
+        why = (f"the diseases shown add up to {cover:.0%}: the cause may well be another disease, and "
+               f"{test.split(',')[0]} tests (nearly) all genes at once" if first else
+               f"if the targeted tests are negative: the diseases shown add up to {cover:.0%}")
+        if special:
+            why += ("; genome, not exome, because " + ", ".join(self.r.db.names[d] for d in special[:3])
+                    + " need repeat-expansion detection")
+        return {"test": test, "first": first, "p_in_list": round(cover, 4), "why": why,
+                "repeat_diseases": special}
 
     def separate(self, case, ds: list[str], p, exclude, yes, no, sex, done, n: int = 3) -> list[dict]:
         # the tests that best tell the leading diseases apart: information (bits) about which of them it is, from a
@@ -699,9 +749,13 @@ class Workupper:
         lr_pos, lr_neg, post_pos, post_neg, bits = score_test(pd_, self.gene_sens, p_pos_other)
         kl = lambda a, b: a * math.log(a / b) + (1 - a) * math.log((1 - a) / (1 - b))
         sens, fpos = min(max(self.gene_sens, LEAK), 1 - LEAK), min(max(p_pos_other, LEAK), 1 - LEAK)
-        test = Test("GENE:" + ",".join(genes), f"{', '.join(genes[:6])}{' ...' if len(genes) > 6 else ''} "
-                    f"gene testing (sequencing and deletion/duplication analysis)", "gene", 4, source,
-                    tuple(genes))
+        method = self.gtr.method(d) if self.gtr else "sequencing"
+        what = {"repeat": "repeat expansion testing (standard sequencing misses repeat expansions)",
+                "methylation": "methylation analysis first (imprinting), then sequencing and deletion/duplication "
+                               "analysis if normal",
+                "sequencing": "gene testing (sequencing and deletion/duplication analysis)"}[method]
+        test = Test("GENE:" + ",".join(genes), f"{', '.join(genes[:6])}{' ...' if len(genes) > 6 else ''} {what}",
+                    "gene", 4, source, tuple(genes))
         res = TestResult(test, [], self.gene_sens, p_pos_other, lr_pos, lr_neg, post_pos, post_neg, bits, 0.0,
                          False, kl(sens, fpos), kl(fpos, sens))
         res.score = ORDER_BY[ORDERING](res, pd_) / 4
@@ -851,6 +905,8 @@ def print_compact(w: Workup):
         for x in w.separate:
             print(f"      {x['test']} [burden {x['burden']}{', done: review' if x['done'] else ''}], {x['bits']:.2f} bits; "
                   "positive in " + ", ".join(f"{names.get(d, d)[:28]} {pct(v)}" for d, v in x["p_pos"].items()))
+    if w.broad:
+        print(f"   broad genetic test{' (FIRST)' if w.broad['first'] else ''}: {w.broad['test']} - {w.broad['why']}")
     if w.verify:
         print("   findings to verify: " + "; ".join(f"{v['term']} ({' or '.join(v['tests'])})" for v in w.verify))
 
@@ -870,6 +926,7 @@ def workup_json(w: Workup, per_list: int = 3) -> dict:
                                          "targeted": [gt(t) for t in g["targeted"]],
                                          "biochemical": [gt(t) for t in g["biochemical"]]}
     return {"case_id": w.case_id, "tests_done": w.done, "notes": w.notes, "panel": w.panel, "verify": w.verify,
+            "broad_test": w.broad,
             "gtr_panels": [{**gt(x["test"]), "covers": x["covers"], "pre_test_covered": round(x["p"], 4)}
                            for x in w.gtr_panels],
             "separate": [{k: v for k, v in x.items() if k != "score"} for x in w.separate],

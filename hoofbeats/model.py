@@ -362,15 +362,28 @@ class LRRanker:
             for g in case.genes:
                 for d in self.db.gene_diseases.get(g, ()):
                     s[self.d_index[d]] += math.log(self.gene_lr)
+        s += self._gene_negative(case)
         # recompute exactly the diseases whose profile changes once leaked references are removed
         for d in {d for r in exclude for d in self.db.ref_index.get(r, ())}:
             j = self.d_index[d]
             gene = math.log(self.gene_lr) if self.use_genes and set(case.genes) & self.db.disease_genes[d] else 0
-            s[j] = sum(c.log_lr for c in self.contributions(case, d, exclude)) + gene
+            s[j] = sum(c.log_lr for c in self.contributions(case, d, exclude)) + gene + self._gene_negative(case)[j]
         s = s + self.prior_weight * self.log_prior
         z = s / self.temperature
         p = np.exp(z - z.max())
         return Ranking(self.diseases, s, p / p.sum(), np.lexsort((np.arange(n), -s)))
+
+    # a negative gene test (follow-up, case.meta["genes_negative"]): each disease of those genes is multiplied by
+    # GENE_NEG_LR, the likelihood ratio of a negative result for a test that finds 90% of causal variants
+    # (1 - sensitivity; no test is perfect, so a negative result lowers a disease but never rules it out)
+    GENE_NEG_LR = 0.1
+
+    def _gene_negative(self, case: Case) -> np.ndarray:
+        out = np.zeros(len(self.diseases))
+        for g in (case.meta or {}).get("genes_negative", ()):
+            for d in self.db.gene_diseases.get(g, ()):
+                out[self.d_index[d]] = math.log(self.GENE_NEG_LR)    # once per disease, however many of its genes
+        return out
 
     def contributions(self, case: Case, d: str, exclude: frozenset[str] = frozenset()) -> list[Contribution]:
         # per-finding log-LR for one disease (matches score())

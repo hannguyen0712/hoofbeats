@@ -1077,6 +1077,39 @@ class FakeVision:
         return ""
 
 
+class TestConfidence(unittest.TestCase):
+    def test_by_confidence(self):
+        from hoofbeats.llm import by_confidence, render_context
+        obj = {"technique": "CT", "findings": [{"finding": "A", "confidence": "definite"},
+                                              {"finding": "B", "confidence": "probable"}, {"finding": "C"}],
+               "pertinent_negatives": ["No D"], "summary": "A, B and C."}
+        self.assertEqual([f["finding"] for f in by_confidence(obj, "definite")["findings"]], ["A"])
+        self.assertEqual([f["finding"] for f in by_confidence(obj, "probable")["findings"]], ["A", "B"])
+        self.assertNotIn("summary", by_confidence(obj, "definite"))
+        self.assertIs(by_confidence(obj, "all"), obj)
+        self.assertIn("No D", render_context(by_confidence(obj, "definite"), "", "Image 1"))
+
+
+class TestImageKinds(unittest.TestCase):
+    def test_kinds_and_prompts(self):
+        from hoofbeats.llm import context_prompt, image_kind
+        kind = lambda m, l="": image_kind([{"modality": m, "location": l}])
+        self.assertEqual([kind("CT - noncontrast", "Head"), kind("CT w/contrast (IV)", "Eye and Orbit"),
+                          kind("12-lead ECG"), kind("Fundus photograph", "Eye"), kind("Photograph", "Face"),
+                          kind("Histology - H&E", "Liver"), kind("Colonoscopy"), kind("Fluoroscopy"),
+                          kind("EEG"), kind("Image")],
+                         ["radiology", "radiology", "ecg", "eye", "photo", "microscopy", "endoscopy", "radiology",
+                          "eeg", "general"])
+        ecg = context_prompt([{"modality": "12-lead ECG", "location": "Heart"}], {"age": 30, "sex": "female"})
+        self.assertIn("QT and QTc interval", ecg)
+        self.assertIn("one small square is 40 ms", ecg)
+        self.assertNotIn("patient's right is on the left", ecg)           # radiology rules only for radiology
+        self.assertNotIn("lungs (each side)", ecg)                         # no body-region checklist
+        face = context_prompt([{"modality": "Clinical photograph", "location": "Face"}], {})
+        self.assertIn("Elements of Morphology", face)
+        self.assertIn("size, shape, colour or density", context_prompt([{"modality": "Image"}], {}))
+
+
 class TestFollowup(unittest.TestCase):
     def test_merge_and_results(self):
         from hoofbeats.followup import merge, result_kind, result_line
@@ -1497,6 +1530,41 @@ class TestWorkup(unittest.TestCase):
         saved = workup_json(w)
         self.assertEqual(saved["gtr_panels"][0]["accession"], "GTR000000002.1")
         self.assertEqual(next(d for d in saved["diseases"] if d["id"] == "OMIM:1")["gtr"]["targeted"][0]["lab"], "Lab A")
+
+    def test_gene_method_and_broad_test(self):
+        from hoofbeats.workup import BROAD_FIRST, GtrTest, workup_json
+        g = self.gtr
+        saved_tests, saved_by = dict(g.tests), {k: list(v) for k, v in g.by_disease.items()}
+        try:     # three repeat-expansion tests for OMIM:3 (GTR names them so): its gene test becomes a repeat test
+            for i, name in enumerate(["GAMMA CAG Repeat Expansion", "Gamma triplet repeat analysis", "Gamma disease"]):
+                acc = f"GTR00000009{i}.1"
+                g.tests[acc] = GtrTest(acc, name, f"Lab {i}", "United States", ("Targeted variant analysis",),
+                                       ("GAMMA",), frozenset({"OMIM:3"}))
+                g.by_disease["OMIM:3"].append(acc)
+            self.assertEqual((g.method("OMIM:3"), g.method("OMIM:1")), ("repeat", "sequencing"))
+            c = Case("x", P("HP:0000098"), ["OMIM:1"])
+            w = self.wk.build(c, self.r.score(c), k=4, shown=["OMIM:1", "OMIM:3"])
+            gene3 = next(d for d in w.diseases if d.disease == "OMIM:3").gene
+            self.assertIn("repeat expansion testing", gene3.test.name)
+            self.assertIn("sequencing and deletion/duplication", next(d for d in w.diseases if d.disease == "OMIM:1").gene.test.name)
+            b = workup_json(w)["broad_test"]
+            self.assertTrue(b["test"].startswith("genome sequencing"))        # a shown disease needs repeat detection
+            self.assertEqual(b["first"], b["p_in_list"] < BROAD_FIRST)
+            self.assertEqual(b["repeat_diseases"], ["OMIM:3"])
+        finally:
+            g.tests.clear(); g.tests.update(saved_tests)
+            g.by_disease.clear(); g.by_disease.update(saved_by)
+        c = Case("x", P("HP:0000098"), ["OMIM:1"], genes=["FBN1"])
+        self.assertIsNone(self.wk.build(c, self.r.score(c), k=4).broad)     # a gene result is already known
+
+    def test_negative_gene_result(self):
+        r = LRRanker(self.ont, AnnotationDB(self.kb / "phenotype.hpoa", self.ont, ("OMIM",), self.kb / "genes_to_disease.txt"))
+        c = Case("x", P("HP:0000098"), ["OMIM:1"])
+        neg = Case("x", P("HP:0000098"), ["OMIM:1"], meta={"genes_negative": ["FBN1"]})
+        i = r.d_index["OMIM:1"]
+        self.assertAlmostEqual(r.score(neg).log_scores[i] - r.score(c).log_scores[i], math.log(0.1))
+        others = [j for j in range(len(r.diseases)) if j != i]
+        self.assertTrue(np.allclose(r.score(neg).log_scores[others], r.score(c).log_scores[others]))
 
     def names(self, term):
         return sorted(self.cat.tests[t].name for t in self.cat.observing(term))
