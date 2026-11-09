@@ -324,7 +324,8 @@ def diagnose_setup(a, paths):
             except (OSError, UnicodeDecodeError, json.JSONDecodeError):
                 continue
             if is_intake(obj):
-                items += [(obj.get("note_text") or "", "note", "note_text", str(obj.get("case_id", ""))),
+                items += [(obj.get("followup_text") or "", "followup", "followup_text", str(obj.get("case_id", ""))),
+                          (obj.get("note_text") or "", "note", "note_text", str(obj.get("case_id", ""))),
                           (obj.get("image_context") or "", "image_context", "image_context", str(obj.get("case_id", "")))]
         reader.prefetch(items)
     from .workup import load_workupper

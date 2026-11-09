@@ -168,8 +168,10 @@ never turned into a finding.
   that sure.
 - Any kind of medical image: radiology (X-ray, CT, MRI, ultrasound, echocardiography, nuclear medicine), ECG and
   EEG tracings, clinical photographs (face, skin, limbs), eye images (fundus, slit lamp, OCT), microscopy and
-  endoscopy. The image's `modality` (then its `location`) decides the kind, and the prompt asks for what a specialist
-  in that kind of image would report (e.g. rate, intervals and axis for an ECG; dysmorphology terms for a face).
+  endoscopy. The image's `modality` (then its `location`) decides the kind; if neither names one, the vision model is
+  first asked what kind of image it is. Radiology images get a radiologist's prompt; every other kind gets its own
+  specialist and asks for what that specialist would report (e.g. rate, intervals and axis for an ECG; dysmorphology
+  terms for a face).
 
 Any image with a short history, on ASU Sol (one vLLM server; Qwen2.5-VL reads both the text and the image). The
 example uses a MedPix image, so clone MedPix first (Setup):
@@ -243,8 +245,9 @@ python -m hoofbeats --common none followup examples/marfan_note.json examples/fo
   `{"test": "angiography", "result": "negative"}` or
   `{"test": "FBN1 gene testing", "result": "positive", "genes": ["FBN1"], "classification": "pathogenic"}`.
   `test` is the test's name or id as the suggestions show it.
-- Every test result is also written into the note, so Stage 1 reads it. A negative test marks absent the findings it
-  was suggested for; a positive test marks its finding present when it looks for only one (otherwise `details` says
+- The original note is not read again: the follow-up's note and every test result go into `followup_text`, which
+  Stage 1 reads as a text of its own, so the change from before to after comes only from the follow-up. A negative
+  test marks absent the findings it was suggested for; a positive test marks its finding present when it looks for only one (otherwise `details` says
   which). A pathogenic or likely pathogenic gene result adds the gene to the case; a negative gene test makes the
   diseases of that gene 10x less likely (lower, never ruled out).
 - Status per disease: **confirmed** (a pathogenic / likely pathogenic variant in its gene; if several displayed

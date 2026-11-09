@@ -570,16 +570,63 @@ def read_images(llm, ext: Extractor, case: Case, max_images: int = 4, cache: dic
 # The images stay on the case as records (modality, plane, location). No model ranks diagnoses from the images.
 # The prompt was written after small models were seen to (a) confuse left and right, (b) call an enlarged ventricle a
 # mass, (c) deny "hydrocephalus" while describing enlarged ventricles because they were told not to diagnose.
-CONTEXT_SYSTEM = """You are an experienced, board-certified physician who reads every kind of medical image: radiology \
-(X-ray, CT, MRI, ultrasound, echocardiography, nuclear medicine), tracings (ECG, EEG, rhythm strips), clinical \
-photographs (face, skin, hands, feet, whole body), eye images (fundus, slit lamp, OCT), microscopy (histopathology, \
-blood smears) and endoscopy. You write the findings section of a report for a clinician who cannot see the image. \
+# Stage A prompts. Radiology (most images, and all of MedPix) keeps the radiologist prompt it was evaluated with;
+# every other kind of image gets a specialist of its own (KIND_ROLES) and its own parts and rules (IMAGE_KINDS).
+RADIOLOGY_SYSTEM = """You are an experienced, board-certified radiologist. You write the findings section of a report for a \
+clinician who cannot see the images. Software then turns each of your findings into a standard phenotype term (Human \
+Phenotype Ontology), so exact wording matters as much as accurate looking.
+
+How to look:
+- Examine the whole image before writing: every structure in the field of view, both sides, and the edges of the image.
+- Compare left with right, and judge each size against what is normal for the patient's age and sex.
+- Tell normal anatomy, normal variants and artefacts (motion, positioning, windowing, beam hardening) apart from disease.
+- Use the clinical question only to decide where to look most carefully. Report what the image shows, even if it does \
+not fit the question, and never report something because the question expects it.
+- If the image is limited (cropped, low resolution, a single slice, an unknown sequence), say so and lower your \
+confidence. Never describe what lies outside the image.
+
+How to write:
+- Describe what you see, not the disease behind it: never name a disease, syndrome or diagnosis.
+- Use standard radiological and medical terms (for example ventriculomegaly, hydronephrosis, pleural effusion, ectopia \
+lentis, hepatomegaly, cerebral calcification), one finding per item, each with its location, side and size.
+- Give sizes in millimetres or centimetres only when the image lets you estimate them; never invent a measurement.
+- State absent findings plainly as "No ..." (for example "No hydrocephalus", "No pleural effusion").
+- Put your certainty in the confidence field (definite, probable or possible), not in words such as "may represent".
+- If nothing is abnormal, say so: an empty findings list with pertinent negatives is a valid answer.
+
+Answer only with the JSON requested: no text before or after it."""
+RADIOLOGY_PROMPT = """{intro}{patient}{question}
+
+Write the findings section of a radiology report for {it}. Go through {it} systematically:
+- technique: modality, view or plane, contrast phase, image quality and limitations
+- anatomy: the body region and every structure visible
+- each structure: size, shape, left-right symmetry, density / signal / echogenicity{checklist}
+- findings: every abnormality, with location, side, approximate size, margins and effect on nearby structures,
+  and how sure you are (definite, probable or possible)
+- pertinent negatives: important structures that look normal, or signs that are absent
+- summary: 2-4 sentences on the key abnormal features
+
+Rules:
+- Use the patient's left and right. On axial and coronal images the patient's right is on the left of the image.
+- Before calling something a mass or lesion, check whether it is a normal structure that is enlarged or displaced
+  (a ventricle, vessel, cyst, bowel loop, bladder or fluid collection). Fluid is dark on CT and bright on T2 MRI.
+- Name imaging findings and patterns when you see them (for example pleural effusion, pneumothorax,
+  hydronephrosis, ventricular enlargement, mass effect), but not the disease or cause behind them.
+- Report only what you can see. Your pertinent negatives must not contradict your findings.
+- Reply with the JSON only: no plan, checklist or notes before or after it.
+
+Return only JSON:
+{{"technique": "...", "anatomy": "...",
+  "findings": [{{"finding": "...", "location": "...", "details": "...", "confidence": "definite|probable|possible"}}],
+  "pertinent_negatives": ["..."],
+  "summary": "..."}}"""
+
+KIND_SYSTEM = """You are {role}. You write the findings section of a report for a clinician who cannot see the image. \
 Software then turns each of your findings into a standard phenotype term (Human Phenotype Ontology), so exact wording \
 matters as much as accurate looking.
 
 How to look:
-- First decide what kind of image this is, and read it the way a specialist in that kind of image would.
-- Examine the whole image before writing: everything in the field of view or on the tracing, both sides, and the edges.
+{first}- Examine the whole image before writing: everything in the field of view or on the tracing, both sides, and the edges.
 - Compare left with right where there are two sides, and judge every size, rate or interval against what is normal \
 for the patient's age and sex.
 - Tell normal anatomy, normal variants and artefacts (motion, positioning, lighting, windowing, lead or electrode \
@@ -602,7 +649,7 @@ known anatomy); never invent a number.
 - If nothing is abnormal, say so: an empty findings list with pertinent negatives is a valid answer.
 
 Answer only with the JSON requested: no text before or after it."""
-CONTEXT_PROMPT = """{intro}{patient}{question}
+KIND_PROMPT = """{intro}{patient}{question}
 
 Write the findings section of a report for {it}. Go through {it} systematically:
 - technique: what kind of image it is, the view, plane, leads or stain, settings (contrast phase, paper speed and
@@ -624,6 +671,43 @@ Return only JSON:
   "findings": [{{"finding": "...", "location": "...", "details": "...", "confidence": "definite|probable|possible"}}],
   "pertinent_negatives": ["..."],
   "summary": "..."}}"""
+
+KIND_ROLES = {
+    "ecg": "an experienced, board-certified cardiologist who reads ECGs and rhythm strips",
+    "eeg": "an experienced, board-certified clinical neurophysiologist who reads EEGs",
+    "eye": "an experienced, board-certified ophthalmologist who reads fundus photographs, slit-lamp images and OCT",
+    "microscopy": "an experienced, board-certified pathologist who reads histology, cytology and blood smears",
+    "endoscopy": "an experienced, board-certified endoscopist",
+    "photo": ("an experienced, board-certified clinical geneticist and dermatologist who describes clinical "
+              "photographs of the face, skin, hands, feet and body"),
+    "general": ("an experienced, board-certified physician who reads every kind of medical image: radiology, ECG "
+                "and EEG tracings, clinical photographs, eye images, microscopy and endoscopy"),
+}
+CONTEXT_SYSTEM = RADIOLOGY_SYSTEM      # the default (radiology) system prompt
+
+
+def context_system(kind: str) -> str:
+    if kind == "radiology":
+        return RADIOLOGY_SYSTEM
+    first = ("- First decide what kind of image this is, and read it the way a specialist in that kind of image "
+             "would.\n") if kind == "general" else ""
+    return KIND_SYSTEM.replace("{role}", KIND_ROLES.get(kind, KIND_ROLES["general"])).replace("{first}", first)
+
+
+# Images whose labels name no kind (image_kind -> "general"): the vision model is asked what the image is first
+CLASSIFY_PROMPT = """What kind of medical image is this? Answer with one word from this list:
+radiology (X-ray, CT, MRI, ultrasound, echocardiography, nuclear medicine), ecg (ECG or rhythm strip), eeg,
+eye (fundus photograph, slit lamp, OCT), microscopy (histology, cytology, blood smear), endoscopy,
+photo (a photograph of a person's face, skin, hands, feet or body), other.
+Reply with the one word only."""
+
+
+def classify_image(llm, grp: list[dict]) -> str:
+    raw = llm.chat(CLASSIFY_PROMPT, "", images=tuple(g["path"] for g in grp))
+    words = re.findall(r"[a-z]+", str(raw or "").lower())
+    kinds = [k for k, *_ in IMAGE_KINDS]
+    return next((w for w in words if w in kinds), "general")
+
 
 # Kinds of image (matched on the image's modality and location; first match wins). Each kind has what to describe
 # for every part of the image and its own reading rules; radiology also gets a checklist by body region (CHECKLISTS).
@@ -732,8 +816,9 @@ def _checklist(imgs: list[dict]) -> str:
     return "".join(f"\n- check in particular: {items}" for items in dict.fromkeys(found))
 
 
-def context_prompt(imgs: list[dict], details: dict, clinical: str = "") -> str:
-    # the patient details and the clinical question (the history) are given, as a radiologist would get them
+def context_prompt(imgs: list[dict], details: dict, clinical: str = "", kind: str | None = None) -> str:
+    # the patient details and the clinical question (the history) are given, as a specialist would get them.
+    # kind: from image_kind (or classify_image); radiology gets the radiologist prompt, the others KIND_PROMPT
     if len(imgs) == 1:
         intro, it = f"This is one medical image: {_img_label(imgs[0])}.", "this image"
     else:
@@ -741,12 +826,16 @@ def context_prompt(imgs: list[dict], details: dict, clinical: str = "") -> str:
         intro, it = f"These are {len(imgs)} images from one patient:\n{listing}", "these images"
     pt = details_text(details)
     question = " ".join(clinical.split())[:1500]
-    kind = next((k for k in IMAGE_KINDS if k[0] == image_kind(imgs)), None)
-    parts, rules = (kind[2], kind[3]) if kind else (GENERAL_PARTS, ())
-    return CONTEXT_PROMPT.format(intro=intro, patient=f"\nPatient: {pt}" if pt else "", it=it,
-                                 question=f"\nClinical question: {question}" if question else "",
-                                 parts=parts, checklist=_checklist(imgs),
-                                 rules="".join(f"\n- {r}" for r in rules))
+    kind = kind or image_kind(imgs)
+    patient, question = f"\nPatient: {pt}" if pt else "", f"\nClinical question: {question}" if question else ""
+    if kind == "radiology":
+        return RADIOLOGY_PROMPT.format(intro=intro, patient=patient, it=it, question=question,
+                                       checklist=_checklist(imgs))
+    spec = next((k for k in IMAGE_KINDS if k[0] == kind), None)
+    parts, rules = (spec[2], spec[3]) if spec else (GENERAL_PARTS, ())
+    return KIND_PROMPT.format(intro=intro, patient=patient, it=it, question=question, parts=parts,
+                              checklist=_checklist(imgs) if kind == "general" else "",
+                              rules="".join(f"\n- {r}" for r in rules))
 
 
 def render_context(obj, raw: str, label: str) -> str:
@@ -789,6 +878,7 @@ class ImageContext:
     checked: int = 0           # findings the model was asked to confirm
     kept: int = 0              # findings it confirmed (answered yes)
     definite: str = ""         # the description with only the findings the model called definite
+    kind: str = ""             # the kind of image (image_kind, or classify_image when the labels name none)
 
 
 # --context-confidence: keep only findings the describing model rated at least this sure (its "confidence" field;
@@ -908,7 +998,10 @@ def image_context(llm, case: Case, max_images: int = 4, per_call: int = 1,
     clinical = str(case.meta.get("history") or "")
     for i in range(0, len(imgs), step):
         grp = imgs[i:i + step]
-        raw = llm.chat(context_prompt(grp, details, clinical), CONTEXT_SYSTEM,
+        kind = image_kind(grp)
+        if kind == "general":         # the labels name no kind: the vision model says what the image is
+            kind = classify_image(llm, grp)
+        raw = llm.chat(context_prompt(grp, details, clinical, kind), context_system(kind),
                        images=tuple(g["path"] for g in grp))
         obj = reply_json(raw, ("findings", "summary", "technique"))
         label = (f"Image {i + 1} ({_img_label(grp[0])})" if len(grp) == 1 else
@@ -928,7 +1021,7 @@ def image_context(llm, case: Case, max_images: int = 4, per_call: int = 1,
             if asked:      # no raw-text fallback: it would bring back the findings the check removed
                 text = render_context(checked, "", label)
         out.append(ImageContext([g.get("id", g["path"]) for g in grp], label, text, isinstance(obj, dict),
-                                getattr(llm, "model", ""), stopped, unchecked, asked, kept, definite))
+                                getattr(llm, "model", ""), stopped, unchecked, asked, kept, definite, kind))
     return out
 
 

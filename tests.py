@@ -1063,7 +1063,9 @@ class FakeVision:
         self.calls = []
 
     def chat(self, user, system="", images=()):
-        from hoofbeats.llm import CONTEXT_SYSTEM, VERIFY_SYSTEM
+        from hoofbeats.llm import CLASSIFY_PROMPT, CONTEXT_SYSTEM, VERIFY_SYSTEM
+        if user == CLASSIFY_PROMPT:                # an image without labels: say it is radiology
+            return "radiology"
         self.calls.append((system, user, tuple(images)))
         if system == VERIFY_SYSTEM:
             n = user.count("\n1. ") + sum(f"\n{i}. " in user for i in range(2, 20))
@@ -1109,6 +1111,34 @@ class TestImageKinds(unittest.TestCase):
         self.assertIn("Elements of Morphology", face)
         self.assertIn("size, shape, colour or density", context_prompt([{"modality": "Image"}], {}))
 
+    def test_unlabelled_image_is_classified_first(self):
+        from hoofbeats.llm import CLASSIFY_PROMPT, KIND_ROLES, RADIOLOGY_SYSTEM, context_system, image_context
+
+        class Fake:
+            model, endpoint, is_local, dry_run, sees_images = "fake-vision", None, True, False, True
+
+            def __init__(self, kind):
+                self.kind, self.calls = kind, []
+
+            def chat(self, user, system="", images=()):
+                self.calls.append((user, system))
+                return self.kind if user == CLASSIFY_PROMPT else json.dumps({"findings": [], "summary": "Normal."})
+
+        case = Case("x", [], [], meta={"policy": "open", "images": [{"path": "a.png"}], "history": ""})
+        ecg = Fake("ECG.")
+        parts = image_context(ecg, case, 1)
+        self.assertEqual([u == CLASSIFY_PROMPT for u, _ in ecg.calls], [True, False])
+        self.assertEqual(parts[0].kind, "ecg")
+        self.assertIn(KIND_ROLES["ecg"], ecg.calls[1][1])
+        self.assertIn("QT and QTc interval", ecg.calls[1][0])
+        self.assertEqual(image_context(Fake("no idea"), case, 1)[0].kind, "general")
+        labelled = Case("x", [], [], meta={"policy": "open", "images": [{"path": "a.png", "modality": "CT"}],
+                                           "history": ""})
+        ct = Fake("ecg")
+        self.assertEqual(image_context(ct, labelled, 1)[0].kind, "radiology")
+        self.assertEqual([s for _, s in ct.calls], [RADIOLOGY_SYSTEM])        # labelled: no classification
+        self.assertEqual(context_system("radiology"), RADIOLOGY_SYSTEM)
+
 
 class TestFollowup(unittest.TestCase):
     def test_merge_and_results(self):
@@ -1120,10 +1150,10 @@ class TestFollowup(unittest.TestCase):
                "test_results": [{"test": "FBN1 gene testing", "result": "positive", "genes": ["FBN1"],
                                  "classification": "pathogenic"}, {"test": "angiography", "result": "negative"}]}
         m = merge(orig, new, Path("/case"), Path("/fu"))
-        self.assertEqual(m["case_id"], "c1")
-        self.assertTrue(m["note_text"].startswith("Tall.\n\nFollow-up (2026-11-20):\nEcho done.\nTest results:"))
-        self.assertIn("FBN1 gene testing: positive (pathogenic variant in FBN1).", m["note_text"])
-        self.assertIn("angiography: negative.", m["note_text"])
+        self.assertEqual((m["case_id"], m["note_text"]), ("c1", "Tall."))      # the original note is not re-read
+        self.assertTrue(m["followup_text"].startswith("Follow-up (2026-11-20):\nEcho done.\nTest results:"))
+        self.assertIn("FBN1 gene testing: positive (pathogenic variant in FBN1).", m["followup_text"])
+        self.assertIn("angiography: negative.", m["followup_text"])
         self.assertEqual([x["path"] for x in m["images"]], [str(Path("/case/a.png").resolve()),
                                                              str(Path("/fu/b.png").resolve()), str(Path("/abs/a.png"))])
         self.assertEqual([x["name"] for x in m["labs"]], ["ALT", "AST"])

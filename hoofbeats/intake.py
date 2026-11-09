@@ -76,6 +76,7 @@ class IntakeCase(BaseModel):
     case_id: str = Field(min_length=1)
     note_text: Optional[str] = None
     image_context: Optional[str] = None
+    followup_text: Optional[str] = None   # follow-up notes and test results (followup.py), read like note_text
     labs: list[Lab] = []
     vitals: Optional[Vitals] = None
     age: Optional[Union[int, float, str]] = None
@@ -279,9 +280,10 @@ def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancesto
     w = warnings.append
     normals: list[dict] = []
     nv = {"emit_normal_vitals": emit_normal_vitals, "normals": normals}
-    text = (lambda t, src: read_text(t, ext, src, src if src != "note" else "note_text", diseases, mentions)) \
+    field = {"note": "note_text", "followup": "followup_text"}.get
+    text = (lambda t, src: read_text(t, ext, src, field(src, src), diseases, mentions)) \
         if rules_text else (lambda t, src: [])
-    llm = (lambda t, src: llm_reader(t, src, src if src != "note" else "note_text")) if llm_reader else (lambda t, src: [])
+    llm = (lambda t, src: llm_reader(t, src, field(src, src))) if llm_reader else (lambda t, src: [])
     if llm_reader is not None:
         llm_reader.case_id = d.case_id
     findings, prov = fuse([read_hpo_terms(d.hpo_terms, ont, w, pos.get("hpo_terms")),
@@ -289,6 +291,8 @@ def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancesto
                            read_numbers(d.note_text, "note", "note_text", age, w, **nv),
                            text(d.image_context, "image_context"), llm(d.image_context, "image_context"),
                            read_numbers(d.image_context, "image_context", "image_context", age, w, **nv),
+                           text(d.followup_text, "followup"), llm(d.followup_text, "followup"),
+                           read_numbers(d.followup_text, "followup", "followup_text", age, w, **nv),
                            read_image_findings(d.image_findings, ont, ext, w, pos.get("image_findings")),
                            read_labs(d.labs, w, age), read_structured_vitals(d.vitals, w, age, **nv)], ont, drop_ancestors,
                           status_policy)
@@ -298,6 +302,7 @@ def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancesto
     meta = {"input_format": FORMAT, "policy": d.policy, "images": images, "age": d.age, "sex": d.sex,
             "genes_negative": list(dict.fromkeys(g.strip() for g in d.genes_negative if g.strip())),
             "details": dict(d.details), "history": d.note_text or "", "image_context": d.image_context or "",
+            "followup": d.followup_text or "",
             "described": described,
             "vitals": d.vitals.model_dump(exclude_none=True) if d.vitals else {},
             "provenance": prov, "disease_mentions": mentions, "intake_warnings": warnings}
