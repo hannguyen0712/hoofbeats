@@ -501,6 +501,47 @@ class Tests(unittest.TestCase):
         with self.assertRaises(PolicyError):
             require_local(MedGemma("x/m", "https://api.example.com/v1"))
 
+    def test_learned_weights(self):
+        import numpy as np
+        from hoofbeats.train import BOUNDS, FEATURES, candidates, default_weights, fit_weights
+        c = Case("x", P("HP:0000098", "HP:0001263") + [Finding("HP:0001250", Status.ABSENT)], ["OMIM:1"])
+        ds, X, pr = candidates(self.r, c, k=5, add_truth=True)
+        dw = default_weights(self.r)
+        w = np.array([dw[f] for f in FEATURES])
+        base = self.r.score(c)
+        for i, d in enumerate(ds):         # default weights reproduce the current score
+            self.assertAlmostEqual(X[i] @ w + pr[i], base.log_scores[self.r.d_index[d]], places=6)
+        fitted = fit_weights([X] * 3, [pr] * 3, [ds.index("OMIM:1")] * 3, l2=0.01, init=dw)
+        for f, v in zip(FEATURES, fitted):  # signs never flip
+            self.assertTrue(BOUNDS[f][0] - 1e-9 <= v <= BOUNDS[f][1] + 1e-9, f)
+
+    def test_onset_and_age(self):
+        from hoofbeats.data import iso_years, patient_context
+        from hoofbeats.model import patient_onset_classes
+        self.assertAlmostEqual(iso_years("P2Y6M"), 2.5)
+        self.assertIsNone(iso_years("soon"))
+        ctx = patient_context({"subject": {"sex": "FEMALE", "timeAtLastEncounter": {"age": {"iso8601duration": "P6M"}}},
+                               "phenotypicFeatures": [{"onset": {"age": {"iso8601duration": "P2M"}}}]})
+        self.assertEqual((ctx["sex"], ctx["age_years"]), ("female", 0.5))
+        self.assertEqual(patient_onset_classes(self.ont, ctx), {3})                       # infantile
+        self.assertEqual(patient_onset_classes(self.ont, {"age_years": 3}), {0, 1, 2, 3, 4})  # onset at or before 3 y
+        self.assertEqual(patient_onset_classes(self.ont, {}), set())
+
+    def test_absent_min_freq(self):
+        c = Case("x", P("HP:0000098") + [Finding("HP:0001250", Status.ABSENT)], ["OMIM:1"])
+        old = self.r.score(c).log_scores
+        self.r.absent_min_freq = 1.01          # nothing qualifies: absent findings change nothing
+        try:
+            from dataclasses import replace
+            same = self.r.score(replace(c, findings=c.findings[:1])).log_scores
+            self.assertTrue(np.allclose(self.r.score(c).log_scores, same))
+            for d in self.r.diseases[:5]:     # score() and contributions() agree under the rule
+                self.assertAlmostEqual(sum(x.log_lr for x in self.r.contributions(c, d)),
+                                       self.r.score(c).log_scores[self.r.d_index[d]], places=5)
+        finally:
+            self.r.absent_min_freq = 0.0
+        self.assertEqual(old.shape, same.shape)
+
     def test_quota_errors(self):
         from hoofbeats.llm import quota_info
         body = json.dumps([{"error": {"code": 429, "message": "quota", "details": [

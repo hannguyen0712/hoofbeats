@@ -23,6 +23,7 @@ from .model import (AnnotationDB, Case, Finding, LRRanker, Ontology, Status, exp
                     most_frequent_test, suggest_tests, verify_claim)
 from .context import add_arguments as add_context_arguments, commands as context_commands
 from .workup import add_arguments as add_workup_arguments, commands as workup_commands
+from .train import add_arguments as add_train_arguments, commands as train_commands, load_weights, rerank_learned
 from .followup import add_arguments as add_followup_arguments, commands as followup_commands
 
 
@@ -168,7 +169,12 @@ def load_kb(a, prefixes=("OMIM",)):
                             "common": a.profiles["source"] if a.profiles else None, "prior_weight": a.prior_weight})
     print(f"[kb] HPO {ont.version}, annotations {db.version}: {n_rare} rare + {len(db.names) - n_rare} common diseases"
           + (f" (common from {a.profiles['source']}, rare prior mass {rare_mass:.1%})" if a.profiles else ""))
-    return LRRanker(ont, db, prior_weight=a.prior_weight, rare_mass=rare_mass)
+    RUN["settings"].update({"absent_weight": a.absent_weight, "absent_min_freq": a.absent_min_freq,
+                            "use_onset": a.use_onset, "use_sex": a.use_sex})
+    r = LRRanker(ont, db, prior_weight=a.prior_weight, rare_mass=rare_mass,
+                 absent_weight=a.absent_weight, absent_min_freq=a.absent_min_freq)
+    r.use_onset, r.use_sex = a.use_onset, a.use_sex
+    return r
 
 
 def label(r: LRRanker, d: str) -> str:
@@ -343,6 +349,17 @@ def diagnose_one(a, r: LRRanker, path, reader, s1: dict, out: Path, describer=No
         print(f"   {x['status']:9s} {x['term']} ({x['hpo_id']}) [{'+'.join(x['readers'])}, {x['grounding']}]"
               + (f" <- {x['quote'][:80]!r}" if x["quote"] else ""))
     ranking = r.score(c, ex)
+    ew = load_weights(a, RUN)
+    if ew:      # learned weights re-score the top candidates; show each disease's weighted evidence
+        from .train import FEATURES, evidence_features
+        learned = rerank_learned(r, c, ew, ex, ew.meta.get("candidates", 50))
+        print(f"[weights] truth rank {ranking.rank_of(c.truth)} with default weights, "
+              f"{learned.rank_of(c.truth)} with learned weights")
+        for d, _, _ in learned.top(a.k):
+            x = evidence_features(r, c, d, ex)
+            parts = ", ".join(f"{f} {ew.w[f] * v:+.1f}" for f, v in zip(FEATURES, x) if abs(ew.w[f] * v) >= 0.05)
+            print(f"   {r.db.names[d][:50]} ({d}): {parts}")
+        ranking = learned
     rank = ranking.rank_of(c.truth)
     print(f"\n{c.case_id}: truth {c.truth}, rank {rank}\n")
     n_ok = n_all = 0
@@ -429,8 +446,12 @@ def cmd_benchmark(a):
     ev = [evaluable(r, c) for c in cases]
     no_absent = lambda c: replace(c, findings=[f for f in c.findings if f.status != Status.ABSENT])
     runs = {"present only": (no_absent, True, False), "present + absent": (lambda c: c, True, False),
+            "present + all absent, weight 1 (old rule)": (lambda c: c, True, False),
             "present + absent, NO leakage control": (lambda c: c, False, False),
-            "present + absent + gene": (lambda c: c, True, True)}
+            "present + absent + gene": (lambda c: c, True, True),
+            "present + absent + onset": (lambda c: c, True, False),
+            "present + absent + sex": (lambda c: c, True, False),
+            "present + absent + onset + sex": (lambda c: c, True, False)}
     if r.db.prior:   # common diseases loaded: also show ranking without prevalence weighting
         runs["present + absent, evidence only (no prevalence)"] = (lambda c: c, True, False)
     rows, scores = [], {}
@@ -440,6 +461,10 @@ def cmd_benchmark(a):
     for name, (prep, control, genes) in runs.items():
         r.use_genes, ranks = genes, []
         r.prior_weight = 0.0 if "no prevalence" in name else a.prior_weight
+        old = "old rule" in name
+        r.use_onset = a.use_onset or "onset" in name
+        r.use_sex = a.use_sex or name.endswith("sex") or "+ sex" in name
+        r.absent_weight, r.absent_min_freq = (1.0, 0.0) if old else (a.absent_weight, a.absent_min_freq)
         for c in cases:
             rk = r.score(prep(c), leak(c) if control else frozenset())
             ranks.append(rk.rank_of(c.truth))
@@ -448,18 +473,37 @@ def cmd_benchmark(a):
         print(f"| {name} | {fmt(topk(ranks))} | {topk([x for x, e in zip(ranks, ev) if e])['top1']:.3f} |")
         note("conditions", **{name: {**topk(ranks), "evaluable": topk([x for x, e in zip(ranks, ev) if e])}})
     r.use_genes, r.prior_weight = False, a.prior_weight
+    r.absent_weight, r.absent_min_freq = a.absent_weight, a.absent_min_freq
+    r.use_onset, r.use_sex = a.use_onset, a.use_sex
+    ew = load_weights(a, RUN)
+    if ew:
+        k = ew.meta.get("candidates", 50)
+        ranks = [rerank_learned(r, c, ew, leak(c), k).rank_of(c.truth) for c in cases]
+        name = f"learned weights ({ew.meta.get('dataset')})"
+        rows += [{"condition": name, "case": c.case_id, "truth": c.truth[0], "rank": x, "evaluable": e}
+                 for c, x, e in zip(cases, ranks, ev)]
+        print(f"| {name} | {fmt(topk(ranks))} | {topk([x for x, e in zip(ranks, ev) if e])['top1']:.3f} |")
+        note("conditions", **{name: {**topk(ranks), "evaluable": topk([x for x, e in zip(ranks, ev) if e])}})
+        print("   (optimistic if these cases were used in training; `train` reports held-out numbers)")
 
-    print("\nWeight on absent evidence (evaluable cases):\n| weight | Top-1 | Top-10 |\n|---|---|---|")
+    # absent-finding rule: weight x minimum frequency (evaluable cases; tuned on these cases, so optimistic --
+    # held-out numbers come from `train`)
     gold = [np.array([d in c.truth for d in r.diseases]) for c in cases]
-    for w in (0, 0.25, 0.5, 1):
-        ranks = []
-        for sp, sa, g, e in zip(scores["present only"], scores["present + absent"], gold, ev):
-            if e:
-                s = sp + w * (sa - sp)
-                ranks.append(int((s[~g] >= s[g].max()).sum()) + 1)
-        m = topk(ranks)
-        print(f"| {w} | {m['top1']:.3f} | {m['top10']:.3f} |")
-        note("absent_weight", **{str(w): m})
+    sub = [c for c, e in zip(cases, ev) if e]
+    print("\nAbsent findings, Top-1 on evaluable cases (rows: minimum disease frequency, columns: weight):")
+    weights, mins = (0.25, 0.5, 1.0), (0.0, 0.5, 0.8, 0.9)
+    print("| min freq | " + " | ".join(f"w={w}" for w in weights) + " |\n|---|" + "---|" * len(weights))
+    grid = {}
+    for mf in mins:
+        cells = []
+        for w in weights:
+            r.absent_weight, r.absent_min_freq = w, mf
+            m = topk([r.score(c, leak(c)).rank_of(c.truth) for c in sub])
+            grid[f"{mf}/{w}"] = m
+            cells.append(f"{m['top1']:.3f}")
+        print(f"| {mf} | " + " | ".join(cells) + " |")
+    note("absent_rule", **grid)
+    r.absent_weight, r.absent_min_freq = a.absent_weight, a.absent_min_freq
 
     # calibration: fit temperature on half the diseases, measure on the other half
     dis = sorted({c.truth[0] for c in cases})
@@ -1075,6 +1119,7 @@ def cmd_medpix(a):
         cases = [c for c in cases if c.truth]
     if a.limit:
         cases = cases[: a.limit]
+    ew = load_weights(a, RUN)
     llm = get_llm(a)
     if llm and not llm.sees_images:
         raise SystemExit(f"{llm.model} cannot read images; pick a vision model or pass --llm-vision yes")
@@ -1100,6 +1145,8 @@ def cmd_medpix(a):
         oracle = Case(c.case_id, text + [f for f in ref if f.hpo_id not in have], c.truth)
         row = {"case": c.case_id, "title": c.meta["title"], "truth": ";".join(c.truth),
                "rank_text": r.score(c).rank_of(c.truth) if c.truth else None,
+               **({"rank_text_learned": rerank_learned(r, c, ew, frozenset(), ew.meta.get("candidates", 50)).rank_of(c.truth)
+                   if c.truth else None} if ew else {}),
                "rank_radiologist": r.score(oracle).rank_of(c.truth) if c.truth else None,
                "n_text": len(text), "n_radiologist": len(ref), "n_images": len(c.meta["images"])}
         if llm:
@@ -1142,6 +1189,8 @@ def cmd_medpix(a):
           f"median findings from history/exam {df.n_text.median():.0f}, from radiologist report {df.n_radiologist.median():.0f}")
     print("\n| input | Top-1 | Top-3 | Top-10 | MRR |\n|---|---|---|---|---|")
     conds = [("history + exam text", "rank_text"), ("text + radiologist image findings (upper bound)", "rank_radiologist")]
+    if ew:
+        conds.insert(1, (f"history + exam text, learned weights ({ew.meta.get('dataset')})", "rank_text_learned"))
     if llm:
         conds += [("LLM image findings only", "rank_image"), ("text + LLM image findings", "rank_multimodal")]
     summary = {"model": llm.model if llm else "none", "task": "medpix", "cases": len(df), "labeled": len(lab),
@@ -1174,6 +1223,11 @@ def main(argv=None):
     p.add_argument("--common", default="data/kb/common_profiles.json",
                    help="common-disease profiles from learn-common; used whenever the file exists")
     p.add_argument("--prior-weight", type=float, default=1.0, help="0 = ignore how common each disease is")
+    p.add_argument("--absent-weight", type=float, default=0.5, help="weight on absent findings (1 = old rule)")
+    p.add_argument("--use-onset", action="store_true", help="score the patient's age of onset (or age) against disease onset")
+    p.add_argument("--use-sex", action="store_true", help="X-linked recessive / Y-linked diseases count against female patients")
+    p.add_argument("--absent-min-freq", type=float, default=0.8,
+                   help="absent findings only count for features the disease shows this often (0 = old rule)")
     p.add_argument("--pubmed", action="store_true", help="add verified PubMed abstract sentences as evidence")
     p.add_argument("--pubmed-cache", default="data/kb/pubmed_cache.json")
     p.add_argument("--pubmed-per-disease", type=int, default=3)
@@ -1312,6 +1366,7 @@ def main(argv=None):
     s.add_argument("--latex", action="store_true", help="also write LaTeX tables")
     add_context_arguments(p, sub)     # multimodal, medpix-context and their options (context.py)
     add_workup_arguments(p, sub)      # download-tests, workup, workup-eval (workup.py)
+    add_train_arguments(p, sub)       # train and --weights (train.py)
     add_followup_arguments(p, sub)    # followup (followup.py)
     a = p.parse_args(argv)
     if a.cmd == "download":
@@ -1373,7 +1428,7 @@ def _logged(a):
          "hpo-index": cmd_hpo_index, "llm-eval": cmd_llm_eval,
          "chooser-sheet": cmd_chooser_sheet, "chooser-score": cmd_chooser_score,
          "pmc-test-run": cmd_pmc_test_run, **context_commands(sys.modules[__name__]),
-         **workup_commands(sys.modules[__name__]), **followup_commands(sys.modules[__name__])}[a.cmd](a)
+         **workup_commands(sys.modules[__name__]), **train_commands(sys.modules[__name__]), **followup_commands(sys.modules[__name__])}[a.cmd](a)
     except KeyboardInterrupt:
         status = "stopped (Ctrl-C)"
         raise

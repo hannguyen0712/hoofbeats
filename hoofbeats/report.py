@@ -8,7 +8,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# colour-blind-safe palette (Okabe-Ito)
 COLORS = ["#0072B2", "#E69F00", "#009E73", "#CC79A7", "#56B4E9", "#D55E00", "#F0E442", "#000000"]
 K = (1, 3, 10)
 
@@ -180,6 +179,21 @@ def benchmark_section(rep: Report, csv: Path | None, runs: list[dict]):
         rep.figure(fig, "absent_weight", "Effect of the weight on absent findings")
         best = max(ws, key=lambda w: aw[w]["top1"])
         rep.note(f"Best absent-finding weight on this sample: {best} (Top-1 {_pct(aw[best]['top1'])}).")
+    if "absent_rule" in met:      # weight x minimum disease frequency for an absent finding to count
+        g = met["absent_rule"]
+        mins = sorted({float(k.split("/")[0]) for k in g})
+        ws = sorted({float(k.split("/")[1]) for k in g})
+        fig, ax = plt.subplots(figsize=(4.5, 3))
+        for i, w in enumerate(ws):
+            ax.plot(mins, [g[f"{m}/{w}"]["top1"] for m in mins], "o-", color=COLORS[i], label=f"weight {w}")
+        ax.set_xlabel("absent finding counts only if the disease shows it at least this often")
+        ax.set_ylabel("Top-1 (evaluable cases)")
+        ax.legend(frameon=False)
+        rep.figure(fig, "absent_rule", "Absent findings: minimum frequency and weight (tuned on these cases)")
+        best = max(g, key=lambda k: g[k]["top1"])
+        m, w = best.split("/")
+        rep.note(f"Absent findings work best counted only for features at >= {float(m):.0%} frequency, weight {w} "
+                 f"(Top-1 {_pct(g[best]['top1'])}; tuned on the same cases).")
     cal = met["calibration"]
     rel = cal.get("reliability", [])
     if rel:

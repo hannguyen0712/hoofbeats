@@ -188,6 +188,8 @@ class AnnotationDB:
         self.scope: dict[str, set[str]] = {}       # common diseases: the terms their source could observe
         self.prior: dict[str, float] = {}          # common diseases: share of admissions with the diagnosis
         self.policy = "open"                       # "local_only" once credentialed-derived profiles are added
+        self.onset: dict[str, list[tuple[str, frozenset]]] = defaultdict(list)      # aspect C: onset terms + refs
+        self.inherit: dict[str, list[tuple[str, frozenset]]] = defaultdict(list)    # aspect I: inheritance + refs
         self.version = ""
         lines = []
         for line in Path(hpoa_path).read_text(encoding="utf-8").splitlines(keepends=True):
@@ -197,9 +199,14 @@ class AnnotationDB:
                 lines.append(line)
         for row in csv.DictReader(lines, delimiter="\t"):
             did, hpo = row["database_id"], ont.resolve(row["hpo_id"])
-            if did.split(":")[0] not in prefixes or row["aspect"] != "P" or hpo is None:
+            if did.split(":")[0] not in prefixes:
                 continue
             refs = frozenset(r.strip() for r in row["reference"].split(";") if r.strip())
+            if row["aspect"] in ("C", "I") and row["qualifier"].strip() != "NOT":
+                (self.onset if row["aspect"] == "C" else self.inherit)[did].append((row["hpo_id"], refs))
+                continue
+            if row["aspect"] != "P" or hpo is None:
+                continue
             neg = row["qualifier"].strip() == "NOT"
             self.names[did] = row["disease_name"]
             self.annos[did].append(Annotation(hpo, 0.0 if neg else parse_frequency(row["frequency"]), refs, neg))
@@ -227,6 +234,34 @@ class AnnotationDB:
     def annotations(self, d: str, exclude: frozenset[str] = frozenset()) -> list[Annotation]:
         # drop annotations supported only by excluded references
         return [a for a in self.annos.get(d, []) if not a.refs or not a.refs <= exclude]
+
+
+# onset classes in age order, with the age (years) where each starts
+ONSET = [("HP:0030674", -1.0), ("HP:0003577", 0.0), ("HP:0003623", 0.003), ("HP:0003593", 0.077),
+         ("HP:0011463", 1.0), ("HP:0003621", 5.0), ("HP:0011462", 16.0), ("HP:0003596", 40.0), ("HP:0003584", 60.0)]
+X_RECESSIVE, X_LINKED, Y_LINKED = "HP:0001419", "HP:0001417", "HP:0001450"
+
+
+def onset_classes(ont: Ontology, t: str) -> set[int]:
+    # onset term -> class indices: the class it falls under, or every class under a broad term (Adult onset)
+    anc = ont.ancestors(t)
+    hit = {i for i, (c, _) in enumerate(ONSET) if c in anc}
+    if hit:
+        return {max(hit)}
+    return {i for i, (c, _) in enumerate(ONSET) if t in ont.ancestors(c)}
+
+
+def patient_onset_classes(ont: Ontology, meta: dict) -> set[int]:
+    # known onset -> its class; else current age -> every class that starts at or before it
+    y = meta.get("onset_years")
+    if y is not None:
+        return {max(i for i, (_, start) in enumerate(ONSET) if y >= start)} if y >= -1 else {0}
+    if meta.get("onset_term"):
+        return onset_classes(ont, meta["onset_term"])
+    age = meta.get("age_years")
+    if age is not None:
+        return {i for i, (_, start) in enumerate(ONSET) if start <= age}
+    return set()
 
 
 # ranker
@@ -262,12 +297,14 @@ class Ranking:
 
 
 class LRRanker:
-    def __init__(self, ont: Ontology, db: AnnotationDB, lr_floor=0.05, absent_weight=1.0,
+    def __init__(self, ont: Ontology, db: AnnotationDB, lr_floor=0.05, absent_weight=1.0, absent_min_freq=0.0,
                  use_genes=False, gene_lr=100.0, temperature=1.0, prior_weight=1.0, rare_mass=0.04):
         # prior_weight 0 = evidence only; rare_mass = share of rare admissions
+        # absent_min_freq: an absent finding only counts against diseases that show it at least this often
+        # (case-report negatives are picked with the diagnosis in mind; lacking a 30% feature says little)
         self.ont, self.db = ont, db
         self.prior_weight = prior_weight
-        self.lr_floor, self.absent_weight = lr_floor, absent_weight
+        self.lr_floor, self.absent_weight, self.absent_min_freq = lr_floor, absent_weight, absent_min_freq
         self.use_genes, self.gene_lr, self.temperature = use_genes, gene_lr, temperature
         self.diseases = sorted(db.names)
         self.d_index = {d: i for i, d in enumerate(self.diseases)}
@@ -298,6 +335,54 @@ class LRRanker:
         n_rare = sum(d not in db.prior for d in self.diseases)
         self.log_prior = np.array([math.log(db.prior[d]) if d in db.prior else math.log(rare_mass / max(n_rare, 1))
                                    for d in self.diseases]) if db.prior else np.zeros(len(self.diseases))
+
+        self.use_onset, self.use_sex = False, False
+        self._onset_P = np.vstack([self._onset_dist(d) for d in self.diseases]) if db.onset else None
+        has = self._onset_P is not None and self._onset_P.sum(axis=1) > 0
+        self._onset_bg = self._onset_P[has].mean(axis=0) if has is not False and np.any(has) else None
+        self._xlr = np.array([self._sex_lr("female", d) for d in self.diseases]) if db.inherit else None
+
+    # age of onset and sex (opt-in): onset classes from aspect C, X-/Y-linked inheritance from aspect I
+    def _onset_dist(self, d: str, exclude: frozenset[str] = frozenset()) -> np.ndarray:
+        S = set()
+        for t, refs in self.db.onset.get(d, []):
+            if not refs or not refs <= exclude:
+                S |= onset_classes(self.ont, t)
+        if not S:
+            return np.zeros(len(ONSET))
+        k = np.array([1.0 if i in S else 0.3 if (i - 1 in S or i + 1 in S) else 0.0 for i in range(len(ONSET))])
+        p = k / k.sum()
+        return 0.98 * p + 0.02 / len(ONSET)
+
+    def _sex_lr(self, sex: str | None, d: str, exclude: frozenset[str] = frozenset()) -> float:
+        if sex != "female":
+            return 1.0
+        modes = {t for t, refs in self.db.inherit.get(d, []) if not refs or not refs <= exclude}
+        if modes and modes <= {Y_LINKED}:
+            return 0.02
+        if modes and modes <= {X_RECESSIVE, X_LINKED}:
+            return 0.2      # female carriers can be affected, but rarely
+        return 1.0
+
+    def _onset_lr(self, case: Case, dist: np.ndarray) -> np.ndarray | float:
+        # P(patient's onset or age | disease) / P(same | any disease); diseases without onset data get 1
+        want = patient_onset_classes(self.ont, case.meta)
+        if not want or self._onset_bg is None:
+            return 1.0
+        idx = sorted(want)
+        num = dist[..., idx].sum(axis=-1)
+        lr = num / max(self._onset_bg[idx].sum(), 1e-9)
+        return np.where(dist.sum(axis=-1) > 0, np.maximum(lr, self.lr_floor), 1.0)
+
+    def context(self, case: Case, d: str, exclude: frozenset[str] = frozenset()) -> list[tuple[str, float]]:
+        # (label, log LR) for onset and sex, for one disease
+        out = []
+        if self.use_onset and patient_onset_classes(self.ont, case.meta):
+            lr = float(self._onset_lr(case, self._onset_dist(d, exclude)))
+            out.append(("age of onset", math.log(lr)))
+        if self.use_sex and case.meta.get("sex"):
+            out.append(("sex", math.log(self._sex_lr(case.meta.get("sex"), d, exclude))))
+        return out
 
     def in_scope(self, t: str, d: str) -> bool:
         if d not in self.db.scope:
@@ -356,18 +441,25 @@ class LRRanker:
             lr, bg = np.ones(n), min(self.bg[i], 0.99)
             lr[self.NEG[i].toarray().ravel()] = 1 / (1 - bg)
             row = self.M[i]
-            lr[row.indices] = (1 - row.data) / (1 - bg)
+            ok = row.data >= self.absent_min_freq
+            lr[row.indices[ok]] = (1 - row.data[ok]) / (1 - bg)
             s += self.absent_weight * np.log(self._unscope(t, np.maximum(lr, self.lr_floor)))
         if self.use_genes:
             for g in case.genes:
                 for d in self.db.gene_diseases.get(g, ()):
                     s[self.d_index[d]] += math.log(self.gene_lr)
-        s += self._gene_negative(case)
+        gneg = self._gene_negative(case)
+        s += gneg
+        if self.use_onset and self._onset_P is not None:
+            s += np.log(self._onset_lr(case, self._onset_P))
+        if self.use_sex and self._xlr is not None and case.meta.get("sex") == "female":
+            s += np.log(self._xlr)
         # recompute exactly the diseases whose profile changes once leaked references are removed
         for d in {d for r in exclude for d in self.db.ref_index.get(r, ())}:
             j = self.d_index[d]
             gene = math.log(self.gene_lr) if self.use_genes and set(case.genes) & self.db.disease_genes[d] else 0
-            s[j] = sum(c.log_lr for c in self.contributions(case, d, exclude)) + gene + self._gene_negative(case)[j]
+            s[j] = (sum(c.log_lr for c in self.contributions(case, d, exclude)) + gene + gneg[j]
+                    + sum(v for _, v in self.context(case, d, exclude)))
         s = s + self.prior_weight * self.log_prior
         z = s / self.temperature
         p = np.exp(z - z.max())
@@ -406,9 +498,11 @@ class LRRanker:
             if t not in self.t_index or not self.in_scope(t, d):
                 continue
             bg = min(self.bg_of(t), 0.99)
-            lr = (1 - freq[t]) / (1 - bg) if t in freq else (1 / (1 - bg) if t in lacks else 1.0)
+            counts = t in freq and freq[t] >= self.absent_min_freq
+            lr = (1 - freq[t]) / (1 - bg) if counts else (1 / (1 - bg) if t in lacks and t not in freq else 1.0)
             out.append(Contribution(t, Status.ABSENT, self.absent_weight * math.log(max(lr, self.lr_floor)),
-                                    t if t in freq else None, freq.get(t), tuple(sorted(refs.get(t, ())))))
+                                    t if counts else None, freq.get(t) if counts else None,
+                                    tuple(sorted(refs.get(t, ()))) if counts else ()))
         return out
 
     def calibrate(self, score_sets: list[np.ndarray], gold_idx: list[int]) -> float:
