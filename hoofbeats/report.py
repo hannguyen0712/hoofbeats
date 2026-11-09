@@ -8,7 +8,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# colour-blind-safe palette (Okabe-Ito)
 COLORS = ["#0072B2", "#E69F00", "#009E73", "#CC79A7", "#56B4E9", "#D55E00", "#F0E442", "#000000"]
 K = (1, 3, 10)
 
@@ -33,12 +32,20 @@ def topk(ranks) -> dict:
     return m
 
 
-def boot_ci(hits: np.ndarray, n_boot: int = 2000, seed: int = 0) -> tuple[float, float]:
+def boot_ci(hits: np.ndarray, n_boot: int = 2000, seed: int = 0, groups=None) -> tuple[float, float]:
     # 95% bootstrap interval of a mean (hits are 0/1 or paired differences)
+    # groups: resample whole groups (e.g. the true disease), since cases of one disease are not independent
+    hits = np.asarray(hits, float)
     if len(hits) == 0:
         return float("nan"), float("nan")
     rng = np.random.default_rng(seed)
-    means = rng.choice(hits, (n_boot, len(hits))).mean(axis=1)
+    if groups is None:
+        means = rng.choice(hits, (n_boot, len(hits))).mean(axis=1)
+    else:
+        _, g = np.unique(np.asarray(groups, str), return_inverse=True)
+        tot, cnt = np.bincount(g, hits), np.bincount(g)
+        pick = rng.integers(0, len(cnt), (n_boot, len(cnt)))
+        means = tot[pick].sum(axis=1) / cnt[pick].sum(axis=1)
     return float(np.percentile(means, 2.5)), float(np.percentile(means, 97.5))
 
 
@@ -134,7 +141,7 @@ def benchmark_section(rep: Report, csv: Path | None, runs: list[dict]):
     for cond, g in df.groupby("condition", sort=False):
         ev = g[g.evaluable.astype(bool)]
         m, me = topk(_ranks(g["rank"])), topk(_ranks(ev["rank"]))
-        lo, hi = boot_ci(hit_at(_ranks(ev["rank"]), 1))
+        lo, hi = boot_ci(hit_at(_ranks(ev["rank"]), 1), groups=ev["truth"])
         rows.append({"condition": cond, "cases": len(g), "Top-1": _pct(m["top1"]), "Top-3": _pct(m["top3"]),
                      "Top-10": _pct(m["top10"]), "MRR": f"{m['mrr']:.3f}", "evaluable": len(ev),
                      "evaluable Top-1 (95% CI)": f"{_pct(me['top1'])} ({_pct(lo)}–{_pct(hi)})", "_m": me})
@@ -180,6 +187,26 @@ def benchmark_section(rep: Report, csv: Path | None, runs: list[dict]):
         rep.figure(fig, "absent_weight", "Effect of the weight on absent findings")
         best = max(ws, key=lambda w: aw[w]["top1"])
         rep.note(f"Best absent-finding weight on this sample: {best} (Top-1 {_pct(aw[best]['top1'])}).")
+    if "absent_rule" in met:      # weight x minimum disease frequency for an absent finding to count
+        g = met["absent_rule"]
+        mins = sorted({float(k.split("/")[0]) for k in g})
+        ws = sorted({float(k.split("/")[1]) for k in g})
+        fig, ax = plt.subplots(figsize=(4.5, 3))
+        for i, w in enumerate(ws):
+            ax.plot(mins, [g[f"{m}/{w}"]["top1"] for m in mins], "o-", color=COLORS[i], label=f"weight {w}")
+        ax.set_xlabel("absent finding counts only if the disease shows it at least this often")
+        ax.set_ylabel("Top-1 (evaluable cases)")
+        ax.legend(frameon=False)
+        rep.figure(fig, "absent_rule", "Absent findings: minimum frequency and weight (tuned on these cases)")
+        best = max(g, key=lambda k: g[k]["top1"])
+        m, w = best.split("/")
+        rep.note(f"Absent findings work best counted only for features at >= {float(m):.0%} frequency, weight {w} "
+                 f"(Top-1 {_pct(g[best]['top1'])}; tuned on the same cases).")
+    cov = met.get("coverage")
+    if cov:
+        rep.note(f"Onset/sex coverage: onset or age known and the true disease has onset annotations in "
+                 f"{cov['onset_usable']}/{cov['cases']} cases; female with an X-/Y-linked true disease in "
+                 f"{cov['female_with_x_or_y_linked_truth']}.")
     cal = met["calibration"]
     rel = cal.get("reliability", [])
     if rel:
@@ -191,8 +218,13 @@ def benchmark_section(rep: Report, csv: Path | None, runs: list[dict]):
         ax.set_xlabel("predicted probability of top disease")
         ax.set_ylabel("observed Top-1 accuracy")
         ax.set_xlim(0, 1), ax.set_ylim(0, 1)
-        rep.figure(fig, "calibration", f"Calibration on held-out diseases (T = {cal['temperature']:.2f}, ECE = {cal['ece']:.3f}); numbers are cases per bin")
-        rep.note(f"Calibration: temperature {cal['temperature']:.2f}, expected calibration error {cal['ece']:.3f}.")
+        how = cal.get("method", "softmax")
+        rep.figure(fig, "calibration", f"Calibration on held-out diseases ({how}, T = {cal['temperature']:.2f}, "
+                                       f"ECE = {cal['ece']:.3f}); numbers are cases per bin")
+        extra = (f" (a plain softmax over all diseases: ECE {cal['full_softmax_ece']:.3f})"
+                 if cal.get("full_softmax_ece") is not None else "")
+        rep.note(f"Calibration ({how}): temperature {cal['temperature']:.2f}, expected calibration error "
+                 f"{cal['ece']:.3f}{extra}.")
 
 
 def llm_section(rep: Report, compare: pd.DataFrame | None, per_case: dict[str, Path]):

@@ -501,6 +501,47 @@ class Tests(unittest.TestCase):
         with self.assertRaises(PolicyError):
             require_local(MedGemma("x/m", "https://api.example.com/v1"))
 
+    def test_learned_weights(self):
+        import numpy as np
+        from hoofbeats.train import BOUNDS, FEATURES, candidates, default_weights, fit_weights
+        c = Case("x", P("HP:0000098", "HP:0001263") + [Finding("HP:0001250", Status.ABSENT)], ["OMIM:1"])
+        ds, X, pr = candidates(self.r, c, k=5, add_truth=True)
+        dw = default_weights(self.r)
+        w = np.array([dw[f] for f in FEATURES])
+        base = self.r.score(c)
+        for i, d in enumerate(ds):         # default weights reproduce the current score
+            self.assertAlmostEqual(X[i] @ w + pr[i], base.log_scores[self.r.d_index[d]], places=6)
+        fitted = fit_weights([X] * 3, [pr] * 3, [ds.index("OMIM:1")] * 3, l2=0.01, init=dw)
+        for f, v in zip(FEATURES, fitted):  # signs never flip
+            self.assertTrue(BOUNDS[f][0] - 1e-9 <= v <= BOUNDS[f][1] + 1e-9, f)
+
+    def test_onset_and_age(self):
+        from hoofbeats.data import iso_years, patient_context
+        from hoofbeats.model import patient_onset_classes
+        self.assertAlmostEqual(iso_years("P2Y6M"), 2.5)
+        self.assertIsNone(iso_years("soon"))
+        ctx = patient_context({"subject": {"sex": "FEMALE", "timeAtLastEncounter": {"age": {"iso8601duration": "P6M"}}},
+                               "phenotypicFeatures": [{"onset": {"age": {"iso8601duration": "P2M"}}}]})
+        self.assertEqual((ctx["sex"], ctx["age_years"]), ("female", 0.5))
+        self.assertEqual(patient_onset_classes(self.ont, ctx), {3})                       # infantile
+        self.assertEqual(patient_onset_classes(self.ont, {"age_years": 3}), {0, 1, 2, 3, 4})  # onset at or before 3 y
+        self.assertEqual(patient_onset_classes(self.ont, {}), set())
+
+    def test_absent_min_freq(self):
+        c = Case("x", P("HP:0000098") + [Finding("HP:0001250", Status.ABSENT)], ["OMIM:1"])
+        old = self.r.score(c).log_scores
+        self.r.absent_min_freq = 1.01          # nothing qualifies: absent findings change nothing
+        try:
+            from dataclasses import replace
+            same = self.r.score(replace(c, findings=c.findings[:1])).log_scores
+            self.assertTrue(np.allclose(self.r.score(c).log_scores, same))
+            for d in self.r.diseases[:5]:     # score() and contributions() agree under the rule
+                self.assertAlmostEqual(sum(x.log_lr for x in self.r.contributions(c, d)),
+                                       self.r.score(c).log_scores[self.r.d_index[d]], places=5)
+        finally:
+            self.r.absent_min_freq = 0.0
+        self.assertEqual(old.shape, same.shape)
+
     def test_quota_errors(self):
         from hoofbeats.llm import quota_info
         body = json.dumps([{"error": {"code": 429, "message": "quota", "details": [
@@ -1077,6 +1118,39 @@ class FakeVision:
         return ""
 
 
+class TestConfidence(unittest.TestCase):
+    def test_by_confidence(self):
+        from hoofbeats.llm import by_confidence, render_context
+        obj = {"technique": "CT", "findings": [{"finding": "A", "confidence": "definite"},
+                                              {"finding": "B", "confidence": "probable"}, {"finding": "C"}],
+               "pertinent_negatives": ["No D"], "summary": "A, B and C."}
+        self.assertEqual([f["finding"] for f in by_confidence(obj, "definite")["findings"]], ["A"])
+        self.assertEqual([f["finding"] for f in by_confidence(obj, "probable")["findings"]], ["A", "B"])
+        self.assertNotIn("summary", by_confidence(obj, "definite"))
+        self.assertIs(by_confidence(obj, "all"), obj)
+        self.assertIn("No D", render_context(by_confidence(obj, "definite"), "", "Image 1"))
+
+
+class TestImageKinds(unittest.TestCase):
+    def test_kinds_and_prompts(self):
+        from hoofbeats.llm import context_prompt, image_kind
+        kind = lambda m, l="": image_kind([{"modality": m, "location": l}])
+        self.assertEqual([kind("CT - noncontrast", "Head"), kind("CT w/contrast (IV)", "Eye and Orbit"),
+                          kind("12-lead ECG"), kind("Fundus photograph", "Eye"), kind("Photograph", "Face"),
+                          kind("Histology - H&E", "Liver"), kind("Colonoscopy"), kind("Fluoroscopy"),
+                          kind("EEG"), kind("Image")],
+                         ["radiology", "radiology", "ecg", "eye", "photo", "microscopy", "endoscopy", "radiology",
+                          "eeg", "general"])
+        ecg = context_prompt([{"modality": "12-lead ECG", "location": "Heart"}], {"age": 30, "sex": "female"})
+        self.assertIn("QT and QTc interval", ecg)
+        self.assertIn("one small square is 40 ms", ecg)
+        self.assertNotIn("patient's right is on the left", ecg)           # radiology rules only for radiology
+        self.assertNotIn("lungs (each side)", ecg)                         # no body-region checklist
+        face = context_prompt([{"modality": "Clinical photograph", "location": "Face"}], {})
+        self.assertIn("Elements of Morphology", face)
+        self.assertIn("size, shape, colour or density", context_prompt([{"modality": "Image"}], {}))
+
+
 class TestFollowup(unittest.TestCase):
     def test_merge_and_results(self):
         from hoofbeats.followup import merge, result_kind, result_line
@@ -1497,6 +1571,41 @@ class TestWorkup(unittest.TestCase):
         saved = workup_json(w)
         self.assertEqual(saved["gtr_panels"][0]["accession"], "GTR000000002.1")
         self.assertEqual(next(d for d in saved["diseases"] if d["id"] == "OMIM:1")["gtr"]["targeted"][0]["lab"], "Lab A")
+
+    def test_gene_method_and_broad_test(self):
+        from hoofbeats.workup import BROAD_FIRST, GtrTest, workup_json
+        g = self.gtr
+        saved_tests, saved_by = dict(g.tests), {k: list(v) for k, v in g.by_disease.items()}
+        try:     # three repeat-expansion tests for OMIM:3 (GTR names them so): its gene test becomes a repeat test
+            for i, name in enumerate(["GAMMA CAG Repeat Expansion", "Gamma triplet repeat analysis", "Gamma disease"]):
+                acc = f"GTR00000009{i}.1"
+                g.tests[acc] = GtrTest(acc, name, f"Lab {i}", "United States", ("Targeted variant analysis",),
+                                       ("GAMMA",), frozenset({"OMIM:3"}))
+                g.by_disease["OMIM:3"].append(acc)
+            self.assertEqual((g.method("OMIM:3"), g.method("OMIM:1")), ("repeat", "sequencing"))
+            c = Case("x", P("HP:0000098"), ["OMIM:1"])
+            w = self.wk.build(c, self.r.score(c), k=4, shown=["OMIM:1", "OMIM:3"])
+            gene3 = next(d for d in w.diseases if d.disease == "OMIM:3").gene
+            self.assertIn("repeat expansion testing", gene3.test.name)
+            self.assertIn("sequencing and deletion/duplication", next(d for d in w.diseases if d.disease == "OMIM:1").gene.test.name)
+            b = workup_json(w)["broad_test"]
+            self.assertTrue(b["test"].startswith("genome sequencing"))        # a shown disease needs repeat detection
+            self.assertEqual(b["first"], b["p_in_list"] < BROAD_FIRST)
+            self.assertEqual(b["repeat_diseases"], ["OMIM:3"])
+        finally:
+            g.tests.clear(); g.tests.update(saved_tests)
+            g.by_disease.clear(); g.by_disease.update(saved_by)
+        c = Case("x", P("HP:0000098"), ["OMIM:1"], genes=["FBN1"])
+        self.assertIsNone(self.wk.build(c, self.r.score(c), k=4).broad)     # a gene result is already known
+
+    def test_negative_gene_result(self):
+        r = LRRanker(self.ont, AnnotationDB(self.kb / "phenotype.hpoa", self.ont, ("OMIM",), self.kb / "genes_to_disease.txt"))
+        c = Case("x", P("HP:0000098"), ["OMIM:1"])
+        neg = Case("x", P("HP:0000098"), ["OMIM:1"], meta={"genes_negative": ["FBN1"]})
+        i = r.d_index["OMIM:1"]
+        self.assertAlmostEqual(r.score(neg).log_scores[i] - r.score(c).log_scores[i], math.log(0.1))
+        others = [j for j in range(len(r.diseases)) if j != i]
+        self.assertTrue(np.allclose(r.score(neg).log_scores[others], r.score(c).log_scores[others]))
 
     def names(self, term):
         return sorted(self.cat.tests[t].name for t in self.cat.observing(term))

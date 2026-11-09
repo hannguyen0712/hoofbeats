@@ -81,6 +81,7 @@ class IntakeCase(BaseModel):
     age: Optional[Union[int, float, str]] = None
     sex: Optional[Literal["male", "female", "other", "unknown"]] = None
     genes: list[str] = []
+    genes_negative: list[str] = []   # genes a negative gene test found no causal variant in (follow-up)
     hpo_terms: list[HpoTerm] = []
     image_findings: list[ImageFinding] = []
     images: list[Image] = []    # Stage A describes them; the description is read like image_context
@@ -94,7 +95,7 @@ class IntakeCase(BaseModel):
         return v.strip().lower() if isinstance(v, str) else v
 
 
-LIST_FIELDS = ("labs", "genes", "hpo_terms", "image_findings", "images", "truth")
+LIST_FIELDS = ("labs", "genes", "genes_negative", "hpo_terms", "image_findings", "images", "truth")
 
 
 def is_intake(obj) -> bool:
@@ -295,6 +296,7 @@ def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancesto
     warnings += [f"{c['hpo_id']} {ont.name(c['hpo_id'])}: {c['reason']} "
                  f"({', '.join(c['contradicted_by'])}); {c['status']} {c['action']}" for c in prov["conflicts"]]
     meta = {"input_format": FORMAT, "policy": d.policy, "images": images, "age": d.age, "sex": d.sex,
+            "genes_negative": list(dict.fromkeys(g.strip() for g in d.genes_negative if g.strip())),
             "details": dict(d.details), "history": d.note_text or "", "image_context": d.image_context or "",
             "described": described,
             "vitals": d.vitals.model_dump(exclude_none=True) if d.vitals else {},

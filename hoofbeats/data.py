@@ -38,6 +38,43 @@ def download(dest="data"):
 
 
 # Phenopacket Store
+def iso_years(x) -> float | None:
+    # ISO 8601 duration (P2Y3M, P6M, P1D, P10W) -> years
+    m = re.fullmatch(r"P(?:(\d+(?:\.\d+)?)Y)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)W)?(?:(\d+(?:\.\d+)?)D)?", str(x or ""))
+    if not m or not any(m.groups()):
+        return None
+    y, mo, w, d = (float(g) if g else 0.0 for g in m.groups())
+    return y + mo / 12 + w / 52.18 + d / 365.25
+
+
+def _time_years(t) -> float | None:
+    if not isinstance(t, dict):
+        return None
+    if "age" in t:
+        return iso_years(t["age"].get("iso8601duration"))
+    if "gestationalAge" in t:
+        return -0.1
+    return None
+
+
+def _time_term(t) -> str | None:
+    return t.get("ontologyClass", {}).get("id") if isinstance(t, dict) else None
+
+
+def patient_context(obj: dict) -> dict:
+    # sex, current age and age of onset from a phenopacket (onset: disease onset, else earliest feature onset)
+    subj = obj.get("subject", {}) or {}
+    sex = {"MALE": "male", "FEMALE": "female"}.get(subj.get("sex"))
+    age = _time_years(subj.get("timeAtLastEncounter"))
+    onsets = [d.get("onset") for d in obj.get("diseases", []) if d.get("onset")]
+    if not onsets:
+        onsets = [f.get("onset") for f in obj.get("phenotypicFeatures", []) if f.get("onset") and not f.get("excluded")]
+    years = [y for y in map(_time_years, onsets) if y is not None]
+    terms = [t for t in map(_time_term, onsets) if t]
+    return {"sex": sex, "age_years": age, "onset_years": min(years) if years else None,
+            "onset_term": terms[0] if terms and not years else None}
+
+
 def load_phenopackets(root) -> list[Case]:
     # root is a folder (searched recursively) or one phenopacket file
     root, cases = Path(root), []
@@ -63,7 +100,7 @@ def load_phenopackets(root) -> list[Case]:
         pmids += [f"PMID:{m}" for m in re.findall(r"PMID_(\d+)", obj.get("id", ""))]
         cases.append(Case(obj.get("id", p.stem), findings, [t for t in dict.fromkeys(truth) if t],
                           [g for g in dict.fromkeys(genes) if g], list(dict.fromkeys(pmids)),
-                          {"path": str(p)}))
+                          {"path": str(p), **patient_context(obj)}))
     return cases
 
 

@@ -19,10 +19,11 @@ import re
 from .data import (DiseaseMatcher, Extractor, download, learn_common, load_medpix, load_mimic,
                    load_phenopackets, orphadata_icd10)
 from .grounding import level_of
-from .model import (AnnotationDB, Case, Finding, LRRanker, Ontology, Status, explain,
+from .model import (AnnotationDB, Case, Finding, LRRanker, Ontology, Ranking, Status, explain,
                     most_frequent_test, suggest_tests, verify_claim)
 from .context import add_arguments as add_context_arguments, commands as context_commands
 from .workup import add_arguments as add_workup_arguments, commands as workup_commands
+from .train import add_arguments as add_train_arguments, commands as train_commands, load_weights, rerank_learned
 from .followup import add_arguments as add_followup_arguments, commands as followup_commands
 
 
@@ -168,7 +169,12 @@ def load_kb(a, prefixes=("OMIM",)):
                             "common": a.profiles["source"] if a.profiles else None, "prior_weight": a.prior_weight})
     print(f"[kb] HPO {ont.version}, annotations {db.version}: {n_rare} rare + {len(db.names) - n_rare} common diseases"
           + (f" (common from {a.profiles['source']}, rare prior mass {rare_mass:.1%})" if a.profiles else ""))
-    return LRRanker(ont, db, prior_weight=a.prior_weight, rare_mass=rare_mass)
+    RUN["settings"].update({"absent_weight": a.absent_weight, "absent_min_freq": a.absent_min_freq,
+                            "use_onset": a.use_onset, "use_sex": a.use_sex})
+    r = LRRanker(ont, db, prior_weight=a.prior_weight, rare_mass=rare_mass,
+                 absent_weight=a.absent_weight, absent_min_freq=a.absent_min_freq)
+    r.use_onset, r.use_sex = a.use_onset, a.use_sex
+    return r
 
 
 def label(r: LRRanker, d: str) -> str:
@@ -342,6 +348,17 @@ def diagnose_one(a, r: LRRanker, path, reader, s1: dict, out: Path, describer=No
         print(f"   {x['status']:9s} {x['term']} ({x['hpo_id']}) [{'+'.join(x['readers'])}, {x['grounding']}]"
               + (f" <- {x['quote'][:80]!r}" if x["quote"] else ""))
     ranking = r.score(c, ex)
+    ew = load_weights(a, RUN)
+    if ew:      # learned weights re-score the top candidates; show each disease's weighted evidence
+        from .train import FEATURES, evidence_features
+        learned = rerank_learned(r, c, ew, ex, ew.meta.get("candidates", 50))
+        print(f"[weights] truth rank {ranking.rank_of(c.truth)} with default weights, "
+              f"{learned.rank_of(c.truth)} with learned weights")
+        for d, _, _ in learned.top(a.k):
+            x = evidence_features(r, c, d, ex)
+            parts = ", ".join(f"{f} {ew.w[f] * v:+.1f}" for f, v in zip(FEATURES, x) if abs(ew.w[f] * v) >= 0.05)
+            print(f"   {r.db.names[d][:50]} ({d}): {parts}")
+        ranking = learned
     rank = ranking.rank_of(c.truth)
     print(f"\n{c.case_id}: truth {c.truth}, rank {rank}\n")
     n_ok = n_all = 0
@@ -422,65 +439,154 @@ def diagnose_one(a, r: LRRanker, path, reader, s1: dict, out: Path, describer=No
     wrote(out / f"{c.case_id}.json")
     return c, ex, ranking
 
+def coverage(r: LRRanker, cases: list[Case]):
+    # how many cases the onset and sex terms can act on
+    from .model import X_LINKED, X_RECESSIVE, Y_LINKED, patient_onset_classes
+    n = len(cases)
+    has_age = [bool(patient_onset_classes(r.ont, c.meta)) for c in cases]
+    kb_onset = [bool(r.db.onset.get(c.truth[0])) for c in cases]
+    modes = [{t for t, _ in r.db.inherit.get(c.truth[0], [])} for c in cases]
+    sexed = [m and m <= {X_LINKED, X_RECESSIVE, Y_LINKED} for m in modes]
+    cov = {"cases": n, "sex_known": sum(bool(c.meta.get("sex")) for c in cases),
+           "female": sum(c.meta.get("sex") == "female" for c in cases),
+           "onset_or_age_known": sum(has_age), "truth_has_onset": sum(kb_onset),
+           "onset_usable": sum(x and y for x, y in zip(has_age, kb_onset)),
+           "truth_x_or_y_linked": sum(map(bool, sexed)),
+           "female_with_x_or_y_linked_truth": sum(bool(x) and c.meta.get("sex") == "female" for x, c in zip(sexed, cases))}
+    note("coverage", **cov)
+    print(f"[coverage] sex known {cov['sex_known']}/{n} ({cov['female']} female); onset or age known "
+          f"{cov['onset_or_age_known']}, truth has onset annotations {cov['truth_has_onset']}, both {cov['onset_usable']}; "
+          f"truth X-/Y-linked {cov['truth_x_or_y_linked']} ({cov['female_with_x_or_y_linked_truth']} female)\n")
+
+
 def cmd_benchmark(a):
     r = load_kb(a)
     cases = pick_cases(r, a.phenopackets, a.sample, seed=a.seed)
     ev = [evaluable(r, c) for c in cases]
     no_absent = lambda c: replace(c, findings=[f for f in c.findings if f.status != Status.ABSENT])
     runs = {"present only": (no_absent, True, False), "present + absent": (lambda c: c, True, False),
+            "present + all absent, weight 1 (old rule)": (lambda c: c, True, False),
             "present + absent, NO leakage control": (lambda c: c, False, False),
-            "present + absent + gene": (lambda c: c, True, True)}
+            "present + absent + gene": (lambda c: c, True, True),
+            "present + absent + onset": (lambda c: c, True, False),
+            "present + absent + sex": (lambda c: c, True, False),
+            "present + absent + onset + sex": (lambda c: c, True, False)}
     if r.db.prior:   # common diseases loaded: also show ranking without prevalence weighting
         runs["present + absent, evidence only (no prevalence)"] = (lambda c: c, True, False)
     rows, scores = [], {}
     print(f"[data] {len(cases)} cases, {len({c.truth[0] for c in cases})} diseases, {sum(ev)} evaluable\n")
     note("data", cases=len(cases), diseases=len({c.truth[0] for c in cases}), evaluable=int(sum(ev)))
-    print("| condition | Top-1 | Top-3 | Top-10 | MRR | evaluable Top-1 |\n|---|---|---|---|---|---|")
-    for name, (prep, control, genes) in runs.items():
+    coverage(r, cases)
+    from .report import boot_ci
+    grp = [c.truth[0] for c, e in zip(cases, ev) if e]
+    hits = {}
+
+    def line(name, ranks):
+        # evaluable Top-1 with a 95% CI (resampling diseases), and the paired change vs the main condition
+        h = np.array([1.0 if x == 1 else 0.0 for x, e in zip(ranks, ev) if e])
+        hits[name] = h
+        lo, hi = boot_ci(h, groups=grp)
+        base = hits.get("present + absent")
+        d = "–"
+        if base is not None and name != "present + absent":
+            dl, dh = boot_ci(h - base, groups=grp)
+            d = f"{100 * (h - base).mean():+.1f} ({100 * dl:+.1f} to {100 * dh:+.1f})"
+        note("ci", **{name: {"top1": float(h.mean()), "lo": lo, "hi": hi,
+                             "delta_vs_main": None if d == "–" else float((h - base).mean())}})
+        print(f"| {name} | {fmt(topk(ranks))} | {h.mean():.3f} ({lo:.3f}–{hi:.3f}) | {d} |")
+
+    print("| condition | Top-1 | Top-3 | Top-10 | MRR | evaluable Top-1 (95% CI) | Δ pts vs present + absent (95% CI) |\n"
+          "|---|---|---|---|---|---|---|")
+    order = ["present + absent"] + [k for k in runs if k != "present + absent"]   # main condition first: the Δ baseline
+    for name in order:
+        prep, control, genes = runs[name]
         r.use_genes, ranks = genes, []
         r.prior_weight = 0.0 if "no prevalence" in name else a.prior_weight
+        old = "old rule" in name
+        r.use_onset = a.use_onset or "onset" in name
+        r.use_sex = a.use_sex or name.endswith("sex") or "+ sex" in name
+        r.absent_weight, r.absent_min_freq = (1.0, 0.0) if old else (a.absent_weight, a.absent_min_freq)
         for c in cases:
             rk = r.score(prep(c), leak(c) if control else frozenset())
             ranks.append(rk.rank_of(c.truth))
             scores.setdefault(name, []).append(rk.log_scores)
             rows.append({"condition": name, "case": c.case_id, "truth": c.truth[0], "rank": ranks[-1], "evaluable": ev[len(ranks) - 1]})
-        print(f"| {name} | {fmt(topk(ranks))} | {topk([x for x, e in zip(ranks, ev) if e])['top1']:.3f} |")
+        line(name, ranks)
         note("conditions", **{name: {**topk(ranks), "evaluable": topk([x for x, e in zip(ranks, ev) if e])}})
     r.use_genes, r.prior_weight = False, a.prior_weight
+    r.absent_weight, r.absent_min_freq = a.absent_weight, a.absent_min_freq
+    r.use_onset, r.use_sex = a.use_onset, a.use_sex
+    ew = load_weights(a, RUN)
+    if ew:
+        k = ew.meta.get("candidates", 50)
+        ranks = [rerank_learned(r, c, ew, leak(c), k).rank_of(c.truth) for c in cases]
+        name = f"learned weights ({ew.meta.get('dataset')})"
+        rows += [{"condition": name, "case": c.case_id, "truth": c.truth[0], "rank": x, "evaluable": e}
+                 for c, x, e in zip(cases, ranks, ev)]
+        line(name, ranks)
+        note("conditions", **{name: {**topk(ranks), "evaluable": topk([x for x, e in zip(ranks, ev) if e])}})
+        print("   (optimistic if these cases were used in training; `train` reports held-out numbers)")
 
-    print("\nWeight on absent evidence (evaluable cases):\n| weight | Top-1 | Top-10 |\n|---|---|---|")
+    # absent-finding rule: weight x minimum frequency (evaluable cases; tuned on these cases, so optimistic --
+    # held-out numbers come from `train`)
     gold = [np.array([d in c.truth for d in r.diseases]) for c in cases]
-    for w in (0, 0.25, 0.5, 1):
-        ranks = []
-        for sp, sa, g, e in zip(scores["present only"], scores["present + absent"], gold, ev):
-            if e:
-                s = sp + w * (sa - sp)
-                ranks.append(int((s[~g] >= s[g].max()).sum()) + 1)
-        m = topk(ranks)
-        print(f"| {w} | {m['top1']:.3f} | {m['top10']:.3f} |")
-        note("absent_weight", **{str(w): m})
+    sub = [c for c, e in zip(cases, ev) if e]
+    print("\nAbsent findings, Top-1 on evaluable cases (rows: minimum disease frequency, columns: weight):")
+    weights, mins = (0.25, 0.5, 1.0), (0.0, 0.5, 0.8, 0.9)
+    print("| min freq | " + " | ".join(f"w={w}" for w in weights) + " |\n|---|" + "---|" * len(weights))
+    grid = {}
+    for mf in mins:
+        cells = []
+        for w in weights:
+            r.absent_weight, r.absent_min_freq = w, mf
+            m = topk([r.score(c, leak(c)).rank_of(c.truth) for c in sub])
+            grid[f"{mf}/{w}"] = m
+            cells.append(f"{m['top1']:.3f}")
+        print(f"| {mf} | " + " | ".join(cells) + " |")
+    note("absent_rule", **grid)
+    se = math.sqrt(0.25 / max(len(sub), 1))
+    print(f"(one standard error is about {100 * se:.1f} points here; cells closer than ~{200 * se:.0f} points are a tie)")
+    r.absent_weight, r.absent_min_freq = a.absent_weight, a.absent_min_freq
 
-    # calibration: fit temperature on half the diseases, measure on the other half
+    # calibration of the probabilities the system shows (workup.ranker_probs: softmax over the top DIFFERENTIAL,
+    # scaled to how often the truth is in it), fitted on half the diseases and measured on the other half
+    from .workup import DIFFERENTIAL, calibrate as fit_probs, ranker_probs
     dis = sorted({c.truth[0] for c in cases})
     random.Random(a.seed).shuffle(dis)
     dev = set(dis[: len(dis) // 2])
-    S, G = scores["present + absent"], [int(np.argmax(g)) for g in gold]
-    T = r.calibrate([s for s, c in zip(S, cases) if c.truth[0] in dev], [g for g, c in zip(G, cases) if c.truth[0] in dev])
-    conf, hit = [], []
-    for s, g, c in zip(S, G, cases):
-        if c.truth[0] not in dev:
-            p = np.exp((s - s.max()) / T)
-            conf.append(p.max() / p.sum())
-            hit.append(float(s[g] >= s.max()))
-    conf, hit = np.array(conf), np.array(hit)
+    r.use_genes = False
+    T, inside = fit_probs(r, [c for c in cases if c.truth[0] in dev], leak)
+    S, conf, hit, flat = scores["present + absent"], [], [], []
+    T_full = r.calibrate([s for s, c in zip(S, cases) if c.truth[0] in dev],
+                         [int(np.argmax(g)) for g, c in zip(gold, cases) if c.truth[0] in dev])
+    for s, g, c in zip(S, gold, cases):
+        if c.truth[0] in dev:
+            continue
+        order = np.lexsort((np.arange(len(s)), -s))
+        p = ranker_probs(Ranking(r.diseases, s, None, order), (T, inside))
+        conf.append(float(p[order[0]]))
+        hit.append(float(s[g].max() > s[~g].max()))       # ties count against the truth, as in rank_of
+        z = np.exp((s - s.max()) / T_full)
+        flat.append(float(z.max() / z.sum()))
+    conf, hit, flat = np.array(conf), np.array(hit), np.array(flat)
+
+    def ece(cf):
+        bins = np.minimum((cf * 10).astype(int), 9)
+        return float(sum(abs(cf[bins == b].mean() - hit[bins == b].mean()) * (bins == b).mean() for b in set(bins)))
     bins = np.minimum((conf * 10).astype(int), 9)
-    ece = sum(abs(conf[bins == b].mean() - hit[bins == b].mean()) * (bins == b).mean() for b in set(bins))
     rel = [{"bin": int(b), "confidence": float(conf[bins == b].mean()), "accuracy": float(hit[bins == b].mean()),
             "n": int((bins == b).sum())} for b in sorted(set(bins))]
-    note("calibration", temperature=T, ece=float(ece), reliability=rel,
-         top1_confident_half=float(hit[np.argsort(-conf)[: len(conf) // 2]].mean()))
-    print(f"\nCalibration on held-out diseases: temperature {T:.2f}, ECE {ece:.3f}, "
-          f"Top-1 when answering the 50% most confident: {hit[np.argsort(-conf)[: len(conf) // 2]].mean():.3f}")
+    half = float(hit[np.argsort(-conf, kind="stable")[: len(conf) // 2]].mean())
+    note("calibration", method=f"top-{DIFFERENTIAL} softmax", temperature=T, inside=inside, ece=ece(conf),
+         reliability=rel, top1_confident_half=half, full_softmax_temperature=T_full, full_softmax_ece=ece(flat),
+         mean_confidence=float(conf.mean()), accuracy=float(hit.mean()), cases=len(hit))
+    print(f"\nCalibration on held-out diseases ({len(hit)} cases): top-{DIFFERENTIAL} softmax T {T:.2f}, "
+          f"truth in top-{DIFFERENTIAL} {inside:.1%}; mean confidence {conf.mean():.3f} vs Top-1 {hit.mean():.3f}, "
+          f"ECE {ece(conf):.3f} (full softmax over all diseases: T {T_full:.1f}, ECE {ece(flat):.3f})")
+    print("| predicted | cases | observed Top-1 |\n|---|---|---|")
+    for b in rel:
+        print(f"| {b['confidence']:.3f} | {b['n']} | {b['accuracy']:.3f} |")
+    print(f"Top-1 when answering only the 50% most confident: {half:.3f}")
     Path(a.out).mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).to_csv(wrote(Path(a.out) / "benchmark.csv"), index=False)
 
@@ -1074,6 +1180,7 @@ def cmd_medpix(a):
         cases = [c for c in cases if c.truth]
     if a.limit:
         cases = cases[: a.limit]
+    ew = load_weights(a, RUN)
     llm = get_llm(a)
     if llm and not llm.sees_images:
         raise SystemExit(f"{llm.model} cannot read images; pick a vision model or pass --llm-vision yes")
@@ -1099,6 +1206,8 @@ def cmd_medpix(a):
         oracle = Case(c.case_id, text + [f for f in ref if f.hpo_id not in have], c.truth)
         row = {"case": c.case_id, "title": c.meta["title"], "truth": ";".join(c.truth),
                "rank_text": r.score(c).rank_of(c.truth) if c.truth else None,
+               **({"rank_text_learned": rerank_learned(r, c, ew, frozenset(), ew.meta.get("candidates", 50)).rank_of(c.truth)
+                   if c.truth else None} if ew else {}),
                "rank_radiologist": r.score(oracle).rank_of(c.truth) if c.truth else None,
                "n_text": len(text), "n_radiologist": len(ref), "n_images": len(c.meta["images"])}
         if llm:
@@ -1141,6 +1250,8 @@ def cmd_medpix(a):
           f"median findings from history/exam {df.n_text.median():.0f}, from radiologist report {df.n_radiologist.median():.0f}")
     print("\n| input | Top-1 | Top-3 | Top-10 | MRR |\n|---|---|---|---|---|")
     conds = [("history + exam text", "rank_text"), ("text + radiologist image findings (upper bound)", "rank_radiologist")]
+    if ew:
+        conds.insert(1, (f"history + exam text, learned weights ({ew.meta.get('dataset')})", "rank_text_learned"))
     if llm:
         conds += [("LLM image findings only", "rank_image"), ("text + LLM image findings", "rank_multimodal")]
     summary = {"model": llm.model if llm else "none", "task": "medpix", "cases": len(df), "labeled": len(lab),
@@ -1173,6 +1284,11 @@ def main(argv=None):
     p.add_argument("--common", default="data/kb/common_profiles.json",
                    help="common-disease profiles from learn-common; used whenever the file exists")
     p.add_argument("--prior-weight", type=float, default=1.0, help="0 = ignore how common each disease is")
+    p.add_argument("--absent-weight", type=float, default=0.5, help="weight on absent findings (1 = old rule)")
+    p.add_argument("--use-onset", action="store_true", help="score the patient's age of onset (or age) against disease onset")
+    p.add_argument("--use-sex", action="store_true", help="X-linked recessive / Y-linked diseases count against female patients")
+    p.add_argument("--absent-min-freq", type=float, default=0.8,
+                   help="absent findings only count for features the disease shows this often (0 = old rule)")
     p.add_argument("--pubmed", action="store_true", help="add verified PubMed abstract sentences as evidence")
     p.add_argument("--pubmed-cache", default="data/kb/pubmed_cache.json")
     p.add_argument("--pubmed-per-disease", type=int, default=3)
@@ -1311,6 +1427,7 @@ def main(argv=None):
     s.add_argument("--latex", action="store_true", help="also write LaTeX tables")
     add_context_arguments(p, sub)     # multimodal, medpix-context and their options (context.py)
     add_workup_arguments(p, sub)      # download-tests, workup, workup-eval (workup.py)
+    add_train_arguments(p, sub)       # train and --weights (train.py)
     add_followup_arguments(p, sub)    # followup (followup.py)
     a = p.parse_args(argv)
     if a.cmd == "download":
@@ -1372,7 +1489,7 @@ def _logged(a):
          "hpo-index": cmd_hpo_index, "llm-eval": cmd_llm_eval,
          "chooser-sheet": cmd_chooser_sheet, "chooser-score": cmd_chooser_score,
          "pmc-test-run": cmd_pmc_test_run, **context_commands(sys.modules[__name__]),
-         **workup_commands(sys.modules[__name__]), **followup_commands(sys.modules[__name__])}[a.cmd](a)
+         **workup_commands(sys.modules[__name__]), **train_commands(sys.modules[__name__]), **followup_commands(sys.modules[__name__])}[a.cmd](a)
     except KeyboardInterrupt:
         status = "stopped (Ctrl-C)"
         raise
