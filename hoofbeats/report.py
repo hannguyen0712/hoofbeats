@@ -413,16 +413,21 @@ def mimic_section(rep: Report, csv: Path | None):
     if not csv:
         return
     d = pd.read_csv(csv)
+    if "condition" not in d:
+        d["condition"] = "labs + prior"
     rep.section("Rare and common diseases (MIMIC-IV)")
     rows = []
-    for name, sel in (("rare diagnosis", d.rare_truth.astype(bool)),
-                      ("common diagnosis", (~d.rare_truth.astype(bool)) & d.truth.notna())):
-        g = d[sel]
-        if len(g):
-            m = topk(_ranks(g["rank"]))
-            rows.append({"admissions": name, "n": len(g), "Top-1": _pct(m["top1"]), "Top-3": _pct(m["top3"]), "Top-10": _pct(m["top10"])})
+    for cond, dc in d.groupby("condition", sort=False):
+        for name, sel in (("rare", dc.rare_truth.astype(bool)), ("common", (~dc.rare_truth.astype(bool)) & dc.truth.notna())):
+            g = dc[sel]
+            for on, col in (("any", "rank"), ("primary", "rank_primary")):
+                if len(g) and col in g:
+                    m = topk(_ranks(g[col]))
+                    rows.append({"condition": cond, "diagnosis": name, "scored on": on, "n": len(g),
+                                 "Top-1": _pct(m["top1"]), "Top-3": _pct(m["top3"]), "Top-10": _pct(m["top10"])})
     if rows:
-        rep.table(pd.DataFrame(rows), "mimic", "One ranked list for rare and common diseases")
+        rep.table(pd.DataFrame(rows), "mimic", "One ranked list for rare and common diseases, with prior-only and "
+                                               "labs-only baselines; any = a hit on any listed diagnosis, primary = the top-ranked one only")
 
 
 def _slug(model: str) -> str:

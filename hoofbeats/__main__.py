@@ -767,25 +767,41 @@ def cmd_mimic(a):
     held_out = set(a.profiles["test_subjects"]) if a.profiles else None   # never test on training patients
     cases = load_mimic(a.mimic, icd, names, r.db.disease_genes, a.notes, ext, labeled_only=not a.all,
                        extract_fn=fn, common=a.profiles, subjects=held_out)
+    # baselines: the prior alone (no findings) and the labs alone (no prior), to show what each part adds
+    conds = {"labs + prior": (lambda c: c, a.prior_weight), "prior only": (lambda c: replace(c, findings=[]), a.prior_weight),
+             "labs only (no prior)": (lambda c: c, 0.0)}
     rows = []
-    for c in cases:
-        rk = r.score(c)
-        rows.append({"case": c.case_id, "truth": ";".join(c.truth), "rank": rk.rank_of(c.truth),
-                     "rare_truth": any(t.startswith("ORPHA") for t in c.truth),
-                     "top3": "; ".join(f"{d} {r.db.names[d][:40]}" for d, _, _ in rk.top(3)),
-                     "n_present": len(c.present), "n_absent": len(c.absent), "policy": c.meta["policy"],
-                     "delabel_residual": ";".join(c.meta.get("delabel", {}).get("residual", []))})
+    for cond, (prep, pw) in conds.items():
+        r.prior_weight = pw
+        for c in cases:
+            rk = r.score(prep(c))
+            prim = c.meta.get("primary") or c.truth[:1]
+            rows.append({"condition": cond, "case": c.case_id, "truth": ";".join(c.truth), "rank": rk.rank_of(c.truth),
+                         "primary": ";".join(prim), "rank_primary": rk.rank_of(prim) if prim else None,
+                         "n_truth": len(c.truth), "rare_truth": any(t.startswith("ORPHA") for t in c.truth),
+                         "top3": "; ".join(f"{d} {r.db.names[d][:40]}" for d, _, _ in rk.top(3)),
+                         "n_present": len(c.present), "n_absent": len(c.absent), "policy": c.meta["policy"],
+                         "delabel_residual": ";".join(c.meta.get("delabel", {}).get("residual", []))})
+    r.prior_weight = a.prior_weight
     Path(a.out).mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).to_csv(wrote(Path(a.out) / "mimic.csv"), index=False)
+    main = [x for x in rows if x["condition"] == "labs + prior"]
+    n_truth = np.mean([x["n_truth"] for x in main]) if main else 0
     print(f"[mimic] {len(cases)} admissions" + (" from held-out patients" if held_out is not None else "")
-          + f", policy {cases[0].meta['policy'] if cases else '-'}")
-    for name, sel in (("rare diagnosis", lambda x: x["rare_truth"]),
-                      ("common diagnosis", lambda x: x["truth"] and not x["rare_truth"])):
-        ranks = [x["rank"] for x in rows if sel(x)]
-        if ranks:
-            note("mimic", **{name: {"n": len(ranks), **topk(ranks)}})
-            print(f"   {name}: n={len(ranks)}, Top-1 {topk(ranks)['top1']:.3f}, Top-3 {topk(ranks)['top3']:.3f}, "
-                  f"Top-10 {topk(ranks)['top10']:.3f}")
+          + f", policy {cases[0].meta['policy'] if cases else '-'}; {n_truth:.1f} diagnoses per admission "
+          f"(\"any\": a hit on any of them counts; \"primary\": only the highest-ranked one the ranker knows)\n")
+    print("| condition | diagnosis | scored on | n | Top-1 | Top-3 | Top-10 | MRR |\n|---|---|---|---|---|---|---|---|")
+    for cond in conds:
+        for name, sel in (("rare", lambda x: x["rare_truth"]), ("common", lambda x: x["truth"] and not x["rare_truth"])):
+            for on, col in (("any", "rank"), ("primary", "rank_primary")):
+                ranks = [x[col] for x in rows if x["condition"] == cond and sel(x)]
+                if ranks:
+                    m = topk(ranks)
+                    note("mimic", **{f"{cond} / {name} / {on}": {"n": len(ranks), **m}})
+                    if cond == "labs + prior" and on == "any":       # old keys, read by earlier reports
+                        note("mimic", **{f"{name} diagnosis": {"n": len(ranks), **m}})
+                    print(f"| {cond} | {name} | {on} | {len(ranks)} | {fmt(m)} |")
+    note("mimic", diagnoses_per_admission=float(n_truth))
 
 
 def cmd_extract_eval(a):
