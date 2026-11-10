@@ -9,8 +9,9 @@
 #
 # How it runs (only existing code: diagnose_one, the ranker, the workup):
 #  1. before: the original case through the whole pipeline (Stage A, Stage 1, ranking, evidence, tests)
-#  2. merge: original + follow-up into one case. Notes are appended; images, labs, genes and HPO terms are added; every
-#     test result is also written into the note, so Stage 1 reads it like any other text. A negative result of a test
+#  2. merge: original + follow-up into one case. The original note is kept as it is (so Stage 1's reading of it is
+#     the same, from the reply cache); the follow-up's note, image_context and test results go into followup_text,
+#     which Stage 1 reads as a text of its own. Images, labs, genes and HPO terms are added. A negative result of a test
 #     marks absent the findings the test was suggested for (or, if it was not suggested, the findings it shows in the
 #     top 3 diseases); a positive result marks the finding present when there is exactly one. A gene result classified
 #     pathogenic or likely pathogenic adds the gene to the case (the ranker then counts it); a negative gene test makes
@@ -62,12 +63,10 @@ def merge(orig: dict, new: dict, orig_dir: Path, new_dir: Path) -> dict:
     m = {k: v for k, v in orig.items() if k != "images"}
     head = "Follow-up" + (f" ({new['date']})" if new.get("date") else "") + ":"
     results = [result_line(t) for t in new.get("test_results") or [] if isinstance(t, dict)]
-    added = "\n".join(x for x in (new.get("note_text") or "", "Test results:\n" + "\n".join(results) if results else "")
-                      if x)
-    if added:
-        m["note_text"] = ((orig.get("note_text") or "").rstrip() + f"\n\n{head}\n{added}").strip()
-    if new.get("image_context"):
-        m["image_context"] = ((orig.get("image_context") or "").rstrip() + f"\n\n{head}\n{new['image_context']}").strip()
+    added = "\n".join(x for x in (new.get("note_text") or "", new.get("image_context") or "",
+                                  "Test results:\n" + "\n".join(results) if results else "") if x)
+    if added:        # read by Stage 1 as its own text; the original note_text is left as it is
+        m["followup_text"] = ((orig.get("followup_text") or "").rstrip() + f"\n\n{head}\n{added}").strip()
     imgs, seen = [], set()
     for img in _abs_images(orig, orig_dir) + _abs_images(new, new_dir):
         if img["path"] not in seen:
