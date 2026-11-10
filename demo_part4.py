@@ -4,6 +4,8 @@
     python demo_part4.py examples/marfan_note.json [--drop HP:0002616 ...] [--results results/part4_results.json]
     --results: test results entered by the clinician, [{"test": ..., "result": "positive"/"negative", "details": ...}]
     model: LLM_ENDPOINT, LLM_MODEL, PROMPT_VERSION (default v3); LLM_OFFLINE=1 uses saved replies only
+    images: VISION_MODEL (+ VISION_ENDPOINT) names a local vision model that describes them (Stage A); without one
+    the images are kept with the case but not described
 """
 import argparse, json, os, re
 from pathlib import Path
@@ -22,7 +24,8 @@ ap.add_argument("--results", default=None, help="JSON file with test results ent
 ap.add_argument("--k", type=int, default=3)
 a = ap.parse_args()
 
-r = load_kb(SimpleNamespace(kb="data/kb", common="none", prior_weight=1.0, absent_weight=0.5, absent_min_freq=0.8, use_onset=False, use_sex=False))
+r = load_kb(SimpleNamespace(kb="data/kb", common="none", prior_weight=1.0, absent_weight=0.5, absent_min_freq=0.8,
+                            use_onset=False, use_sex=False))
 ext = Extractor(r.ont)
 try:
     from hoofbeats.workup import done_texts, load_workupper, ranker_probs, workup_json
@@ -37,12 +40,33 @@ llm = MedGemma(os.environ.get("LLM_MODEL", "Qwen/Qwen2.5-7B-Instruct"),
                os.environ.get("LLM_ENDPOINT", "http://127.0.0.1:8000/v1/chat/completions"),
                max_new_tokens=800, timeout=120, cache_dir="results/llm_cache",
                extra={"response_format": {"type": "json_object"}}, offline=os.environ.get("LLM_OFFLINE") == "1")
+# Stage A: a vision model describes uploaded images; the description is read like an imaging report
+describer = MedGemma(os.environ["VISION_MODEL"],
+                     os.environ.get("VISION_ENDPOINT", "http://127.0.0.1:8000/v1/chat/completions"), max_new_tokens=1500,
+                     timeout=300, vision=True, cache_dir="results/llm_cache",
+                     offline=os.environ.get("LLM_OFFLINE") == "1") if os.environ.get("VISION_MODEL") else None
+IMAGES = {"described_by": None, "note": ""}
 
 
 def load(path):
-    if Path(path).suffix == ".json" and "case_id" in json.loads(Path(path).read_text()):
-        return load_case(path, r.ont, ext, disease_names=r.db.names)      # note / case file -> findings (Stage 1)
-    return load_phenopackets(path)[0]                                   # phenopacket
+    raw = json.loads(Path(path).read_text()) if Path(path).suffix == ".json" else {}
+    if "case_id" not in raw:
+        return load_phenopackets(path)[0]                               # phenopacket
+    if raw.get("images") and describer is not None:                     # images described first, then Stage 1
+        try:
+            c = load_case(path, r.ont, ext, disease_names=r.db.names, describer=describer)
+            text = (c.meta.get("described") or {}).get("text")
+            IMAGES.update(described_by=describer.model if text else None,
+                          note="" if text else "The image model gave no description for these images.")
+            return c
+        except Exception as e:
+            IMAGES["note"] = f"The image model could not be used ({type(e).__name__}); the images were not described."
+    if raw.get("images"):                                               # no image model here: keep the images
+        IMAGES["note"] = IMAGES["note"] or "No image model is running here, so the images are saved but not described."
+        tmp = Path("results/_case_without_images.json")
+        tmp.write_text(json.dumps({k: v for k, v in raw.items() if k != "images"}))
+        return load_case(str(tmp), r.ont, ext, disease_names=r.db.names)
+    return load_case(path, r.ont, ext, disease_names=r.db.names)        # note / case file -> findings (Stage 1)
 
 
 def analyse(path, drop):
@@ -109,7 +133,9 @@ def explain_with_model(pack, d, p, runner):
 
 
 raw = json.loads(Path(case_path).read_text())
-texts = {k: v for k, v in raw.items() if k in ("note_text", "image_context") and isinstance(v, str) and v}
+texts = {k: v for k, v in raw.items() if k == "note_text" and isinstance(v, str) and v}
+if case.meta.get("image_context") or raw.get("image_context"):      # the imaging report (+ the images' description)
+    texts["image_context"] = case.meta.get("image_context") or raw["image_context"]
 prov = case.meta.get("provenance", {})
 # structured inputs (labs, vitals, terms entered by the clinician) as one more document, one line per value,
 # so that their evidence can be shown and highlighted like the note's
@@ -172,6 +198,9 @@ out = {"case": case.case_id, "case_path": a.case, "truth": case.truth, "dropped"
        "findings": [{"hpo_id": r.ont.resolve(f.hpo_id), "name": r.ont.name(r.ont.resolve(f.hpo_id)),
                      "status": f.status.value, "words": f.evidence or ""} for f in case.findings
                     if r.ont.resolve(f.hpo_id)],
+       "images": [{"path": x["path"], "modality": x.get("modality", ""), "name": Path(x["path"]).name}
+                  for x in raw.get("images") or []],
+       "images_described_by": IMAGES["described_by"], "images_note": IMAGES["note"],
        "separate": tests["separate"], "followup": followup, "can_enter_results": "case_id" in json.loads(Path(a.case).read_text()),
        "lists": {}}
 order = [d for d, _, _ in ranking.top(400)]
