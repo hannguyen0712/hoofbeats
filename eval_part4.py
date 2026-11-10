@@ -10,7 +10,7 @@ import grounding as g
 N = int(sys.argv[1]) if len(sys.argv) > 1 else 100
 random.seed(0)
 files = random.sample(sorted(Path("data/phenopacket-store/0.1.27").glob("*/*.json")), N)
-r = load_kb(SimpleNamespace(kb="data/kb", common="none", prior_weight=1.0))
+r = load_kb(SimpleNamespace(kb="data/kb", common="none", prior_weight=1.0, absent_weight=0.5, absent_min_freq=0.8, use_onset=False, use_sex=False))
 
 
 def name_of(it):

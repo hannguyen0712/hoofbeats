@@ -16,7 +16,7 @@ VERSION = os.environ.get("PROMPT_VERSION", "v1")
 make_prompt = {"v1": g.make_prompt, "v2": g.make_prompt_v2, "v3": g.make_prompt_v3}[VERSION]
 cases = [c for c in Path(sys.argv[1] if len(sys.argv) > 1 else "part4_cases.txt").read_text().split() if c]
 
-r = load_kb(SimpleNamespace(kb="data/kb", common="none", prior_weight=1.0))
+r = load_kb(SimpleNamespace(kb="data/kb", common="none", prior_weight=1.0, absent_weight=0.5, absent_min_freq=0.8, use_onset=False, use_sex=False))
 ext = Extractor(r.ont)
 llm = MedGemma(MODEL, ENDPOINT, max_new_tokens=800, timeout=300, cache_dir="results/llm_cache",
                extra={"response_format": {"type": "json_object"}}, offline=OFFLINE)

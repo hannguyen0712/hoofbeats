@@ -4,7 +4,7 @@ LABEL = "label (1 = supported, 0 = not)"
 
 
 def read(path):
-    with open(path, newline="") as f:
+    with open(path, newline="", encoding = "utf-8-sig") as f:
         return {int(r["id"]): r for r in csv.DictReader(f)}
 
 
