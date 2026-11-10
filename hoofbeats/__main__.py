@@ -19,7 +19,7 @@ import re
 from .data import (DiseaseMatcher, Extractor, download, learn_common, load_medpix, load_mimic,
                    load_phenopackets, orphadata_icd10)
 from .grounding import level_of
-from .model import (AnnotationDB, Case, Finding, LRRanker, Ontology, Status, explain,
+from .model import (AnnotationDB, Case, Finding, LRRanker, Ontology, Ranking, Status, explain,
                     most_frequent_test, suggest_tests, verify_claim)
 from .context import add_arguments as add_context_arguments, commands as context_commands
 from .workup import add_arguments as add_workup_arguments, commands as workup_commands
@@ -440,6 +440,26 @@ def diagnose_one(a, r: LRRanker, path, reader, s1: dict, out: Path, describer=No
     wrote(out / f"{c.case_id}.json")
     return c, ex, ranking
 
+def coverage(r: LRRanker, cases: list[Case]):
+    # how many cases the onset and sex terms can act on
+    from .model import X_LINKED, X_RECESSIVE, Y_LINKED, patient_onset_classes
+    n = len(cases)
+    has_age = [bool(patient_onset_classes(r.ont, c.meta)) for c in cases]
+    kb_onset = [bool(r.db.onset.get(c.truth[0])) for c in cases]
+    modes = [{t for t, _ in r.db.inherit.get(c.truth[0], [])} for c in cases]
+    sexed = [m and m <= {X_LINKED, X_RECESSIVE, Y_LINKED} for m in modes]
+    cov = {"cases": n, "sex_known": sum(bool(c.meta.get("sex")) for c in cases),
+           "female": sum(c.meta.get("sex") == "female" for c in cases),
+           "onset_or_age_known": sum(has_age), "truth_has_onset": sum(kb_onset),
+           "onset_usable": sum(x and y for x, y in zip(has_age, kb_onset)),
+           "truth_x_or_y_linked": sum(map(bool, sexed)),
+           "female_with_x_or_y_linked_truth": sum(bool(x) and c.meta.get("sex") == "female" for x, c in zip(sexed, cases))}
+    note("coverage", **cov)
+    print(f"[coverage] sex known {cov['sex_known']}/{n} ({cov['female']} female); onset or age known "
+          f"{cov['onset_or_age_known']}, truth has onset annotations {cov['truth_has_onset']}, both {cov['onset_usable']}; "
+          f"truth X-/Y-linked {cov['truth_x_or_y_linked']} ({cov['female_with_x_or_y_linked_truth']} female)\n")
+
+
 def cmd_benchmark(a):
     r = load_kb(a)
     cases = pick_cases(r, a.phenopackets, a.sample, seed=a.seed)
@@ -457,8 +477,30 @@ def cmd_benchmark(a):
     rows, scores = [], {}
     print(f"[data] {len(cases)} cases, {len({c.truth[0] for c in cases})} diseases, {sum(ev)} evaluable\n")
     note("data", cases=len(cases), diseases=len({c.truth[0] for c in cases}), evaluable=int(sum(ev)))
-    print("| condition | Top-1 | Top-3 | Top-10 | MRR | evaluable Top-1 |\n|---|---|---|---|---|---|")
-    for name, (prep, control, genes) in runs.items():
+    coverage(r, cases)
+    from .report import boot_ci
+    grp = [c.truth[0] for c, e in zip(cases, ev) if e]
+    hits = {}
+
+    def line(name, ranks):
+        # evaluable Top-1 with a 95% CI (resampling diseases), and the paired change vs the main condition
+        h = np.array([1.0 if x == 1 else 0.0 for x, e in zip(ranks, ev) if e])
+        hits[name] = h
+        lo, hi = boot_ci(h, groups=grp)
+        base = hits.get("present + absent")
+        d = "–"
+        if base is not None and name != "present + absent":
+            dl, dh = boot_ci(h - base, groups=grp)
+            d = f"{100 * (h - base).mean():+.1f} ({100 * dl:+.1f} to {100 * dh:+.1f})"
+        note("ci", **{name: {"top1": float(h.mean()), "lo": lo, "hi": hi,
+                             "delta_vs_main": None if d == "–" else float((h - base).mean())}})
+        print(f"| {name} | {fmt(topk(ranks))} | {h.mean():.3f} ({lo:.3f}–{hi:.3f}) | {d} |")
+
+    print("| condition | Top-1 | Top-3 | Top-10 | MRR | evaluable Top-1 (95% CI) | Δ pts vs present + absent (95% CI) |\n"
+          "|---|---|---|---|---|---|---|")
+    order = ["present + absent"] + [k for k in runs if k != "present + absent"]   # main condition first: the Δ baseline
+    for name in order:
+        prep, control, genes = runs[name]
         r.use_genes, ranks = genes, []
         r.prior_weight = 0.0 if "no prevalence" in name else a.prior_weight
         old = "old rule" in name
@@ -470,7 +512,7 @@ def cmd_benchmark(a):
             ranks.append(rk.rank_of(c.truth))
             scores.setdefault(name, []).append(rk.log_scores)
             rows.append({"condition": name, "case": c.case_id, "truth": c.truth[0], "rank": ranks[-1], "evaluable": ev[len(ranks) - 1]})
-        print(f"| {name} | {fmt(topk(ranks))} | {topk([x for x, e in zip(ranks, ev) if e])['top1']:.3f} |")
+        line(name, ranks)
         note("conditions", **{name: {**topk(ranks), "evaluable": topk([x for x, e in zip(ranks, ev) if e])}})
     r.use_genes, r.prior_weight = False, a.prior_weight
     r.absent_weight, r.absent_min_freq = a.absent_weight, a.absent_min_freq
@@ -482,7 +524,7 @@ def cmd_benchmark(a):
         name = f"learned weights ({ew.meta.get('dataset')})"
         rows += [{"condition": name, "case": c.case_id, "truth": c.truth[0], "rank": x, "evaluable": e}
                  for c, x, e in zip(cases, ranks, ev)]
-        print(f"| {name} | {fmt(topk(ranks))} | {topk([x for x, e in zip(ranks, ev) if e])['top1']:.3f} |")
+        line(name, ranks)
         note("conditions", **{name: {**topk(ranks), "evaluable": topk([x for x, e in zip(ranks, ev) if e])}})
         print("   (optimistic if these cases were used in training; `train` reports held-out numbers)")
 
@@ -503,29 +545,49 @@ def cmd_benchmark(a):
             cells.append(f"{m['top1']:.3f}")
         print(f"| {mf} | " + " | ".join(cells) + " |")
     note("absent_rule", **grid)
+    se = math.sqrt(0.25 / max(len(sub), 1))
+    print(f"(one standard error is about {100 * se:.1f} points here; cells closer than ~{200 * se:.0f} points are a tie)")
     r.absent_weight, r.absent_min_freq = a.absent_weight, a.absent_min_freq
 
-    # calibration: fit temperature on half the diseases, measure on the other half
+    # calibration of the probabilities the system shows (workup.ranker_probs: softmax over the top DIFFERENTIAL,
+    # scaled to how often the truth is in it), fitted on half the diseases and measured on the other half
+    from .workup import DIFFERENTIAL, calibrate as fit_probs, ranker_probs
     dis = sorted({c.truth[0] for c in cases})
     random.Random(a.seed).shuffle(dis)
     dev = set(dis[: len(dis) // 2])
-    S, G = scores["present + absent"], [int(np.argmax(g)) for g in gold]
-    T = r.calibrate([s for s, c in zip(S, cases) if c.truth[0] in dev], [g for g, c in zip(G, cases) if c.truth[0] in dev])
-    conf, hit = [], []
-    for s, g, c in zip(S, G, cases):
-        if c.truth[0] not in dev:
-            p = np.exp((s - s.max()) / T)
-            conf.append(p.max() / p.sum())
-            hit.append(float(s[g] >= s.max()))
-    conf, hit = np.array(conf), np.array(hit)
+    r.use_genes = False
+    T, inside = fit_probs(r, [c for c in cases if c.truth[0] in dev], leak)
+    S, conf, hit, flat = scores["present + absent"], [], [], []
+    T_full = r.calibrate([s for s, c in zip(S, cases) if c.truth[0] in dev],
+                         [int(np.argmax(g)) for g, c in zip(gold, cases) if c.truth[0] in dev])
+    for s, g, c in zip(S, gold, cases):
+        if c.truth[0] in dev:
+            continue
+        order = np.lexsort((np.arange(len(s)), -s))
+        p = ranker_probs(Ranking(r.diseases, s, None, order), (T, inside))
+        conf.append(float(p[order[0]]))
+        hit.append(float(s[g].max() > s[~g].max()))       # ties count against the truth, as in rank_of
+        z = np.exp((s - s.max()) / T_full)
+        flat.append(float(z.max() / z.sum()))
+    conf, hit, flat = np.array(conf), np.array(hit), np.array(flat)
+
+    def ece(cf):
+        bins = np.minimum((cf * 10).astype(int), 9)
+        return float(sum(abs(cf[bins == b].mean() - hit[bins == b].mean()) * (bins == b).mean() for b in set(bins)))
     bins = np.minimum((conf * 10).astype(int), 9)
-    ece = sum(abs(conf[bins == b].mean() - hit[bins == b].mean()) * (bins == b).mean() for b in set(bins))
     rel = [{"bin": int(b), "confidence": float(conf[bins == b].mean()), "accuracy": float(hit[bins == b].mean()),
             "n": int((bins == b).sum())} for b in sorted(set(bins))]
-    note("calibration", temperature=T, ece=float(ece), reliability=rel,
-         top1_confident_half=float(hit[np.argsort(-conf)[: len(conf) // 2]].mean()))
-    print(f"\nCalibration on held-out diseases: temperature {T:.2f}, ECE {ece:.3f}, "
-          f"Top-1 when answering the 50% most confident: {hit[np.argsort(-conf)[: len(conf) // 2]].mean():.3f}")
+    half = float(hit[np.argsort(-conf, kind="stable")[: len(conf) // 2]].mean())
+    note("calibration", method=f"top-{DIFFERENTIAL} softmax", temperature=T, inside=inside, ece=ece(conf),
+         reliability=rel, top1_confident_half=half, full_softmax_temperature=T_full, full_softmax_ece=ece(flat),
+         mean_confidence=float(conf.mean()), accuracy=float(hit.mean()), cases=len(hit))
+    print(f"\nCalibration on held-out diseases ({len(hit)} cases): top-{DIFFERENTIAL} softmax T {T:.2f}, "
+          f"truth in top-{DIFFERENTIAL} {inside:.1%}; mean confidence {conf.mean():.3f} vs Top-1 {hit.mean():.3f}, "
+          f"ECE {ece(conf):.3f} (full softmax over all diseases: T {T_full:.1f}, ECE {ece(flat):.3f})")
+    print("| predicted | cases | observed Top-1 |\n|---|---|---|")
+    for b in rel:
+        print(f"| {b['confidence']:.3f} | {b['n']} | {b['accuracy']:.3f} |")
+    print(f"Top-1 when answering only the 50% most confident: {half:.3f}")
     Path(a.out).mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).to_csv(wrote(Path(a.out) / "benchmark.csv"), index=False)
 
@@ -654,18 +716,27 @@ def simulate(r: LRRanker, c: Case, policy: str, rounds: int, seed: int):
 def cmd_sequential(a):
     r = load_kb(a)
     cases = [c for c in pick_cases(r, a.phenopackets, None, seed=a.seed)
-             if len(c.present) >= 2 and evaluable(r, c)][: a.sample]
+             if len(c.present) >= 2 and evaluable(r, c)][: a.sample or None]   # 0 = all
     print(f"[data] {len(cases)} evaluable cases, {a.rounds} questions each\n")
     print("| policy | Top-1 start | Top-1 end | Top-10 start | Top-10 end | answered |\n|---|---|---|---|---|---|")
-    rows = []
+    from .report import boot_ci
+    rows, gain, grp = [], {}, [c.truth[0] for c in cases]
     for pol in ("eig", "frequent", "random"):
         res = [simulate(r, c, pol, a.rounds, a.seed) for c in cases]
         s, e = topk([x[0][0] for x in res]), topk([x[0][-1] for x in res])
         rate = sum(x[1] for x in res) / (len(res) * a.rounds)
+        gain[pol] = np.array([(x[0][-1] == 1) - (x[0][0] == 1) for x in res], float)   # Top-1 change per case
         print(f"| {pol} | {s['top1']:.3f} | {e['top1']:.3f} | {s['top10']:.3f} | {e['top10']:.3f} | {rate:.0%} |")
         note("sequential", **{pol: {"start": s, "end": e, "answered": rate}})
         rows += [{"policy": pol, "case": c.case_id, "truth": c.truth[0], "round": i, "rank": rk, "answered": ans}
                  for c, (ranks, ans) in zip(cases, res) for i, rk in enumerate(ranks)]
+    # paired 95% CIs (resampling diseases): each policy's Top-1 gain, and EIG against the baselines
+    print("\n| comparison | Top-1 change, pts (95% CI) |\n|---|---|")
+    pairs = [(p, gain[p]) for p in gain] + [(f"eig - {p}", gain["eig"] - gain[p]) for p in ("frequent", "random")]
+    for name, d in pairs:
+        lo, hi = boot_ci(d, groups=grp)
+        print(f"| {name} | {100 * d.mean():+.1f} ({100 * lo:+.1f} to {100 * hi:+.1f}) |")
+        note("sequential_ci", **{name: {"delta": float(d.mean()), "lo": lo, "hi": hi}})
     Path(a.out).mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).to_csv(wrote(Path(a.out) / "sequential.csv"), index=False)
 
@@ -697,25 +768,41 @@ def cmd_mimic(a):
     held_out = set(a.profiles["test_subjects"]) if a.profiles else None   # never test on training patients
     cases = load_mimic(a.mimic, icd, names, r.db.disease_genes, a.notes, ext, labeled_only=not a.all,
                        extract_fn=fn, common=a.profiles, subjects=held_out)
+    # baselines: the prior alone (no findings) and the labs alone (no prior), to show what each part adds
+    conds = {"labs + prior": (lambda c: c, a.prior_weight), "prior only": (lambda c: replace(c, findings=[]), a.prior_weight),
+             "labs only (no prior)": (lambda c: c, 0.0)}
     rows = []
-    for c in cases:
-        rk = r.score(c)
-        rows.append({"case": c.case_id, "truth": ";".join(c.truth), "rank": rk.rank_of(c.truth),
-                     "rare_truth": any(t.startswith("ORPHA") for t in c.truth),
-                     "top3": "; ".join(f"{d} {r.db.names[d][:40]}" for d, _, _ in rk.top(3)),
-                     "n_present": len(c.present), "n_absent": len(c.absent), "policy": c.meta["policy"],
-                     "delabel_residual": ";".join(c.meta.get("delabel", {}).get("residual", []))})
+    for cond, (prep, pw) in conds.items():
+        r.prior_weight = pw
+        for c in cases:
+            rk = r.score(prep(c))
+            prim = c.meta.get("primary") or c.truth[:1]
+            rows.append({"condition": cond, "case": c.case_id, "truth": ";".join(c.truth), "rank": rk.rank_of(c.truth),
+                         "primary": ";".join(prim), "rank_primary": rk.rank_of(prim) if prim else None,
+                         "n_truth": len(c.truth), "rare_truth": any(t.startswith("ORPHA") for t in c.truth),
+                         "top3": "; ".join(f"{d} {r.db.names[d][:40]}" for d, _, _ in rk.top(3)),
+                         "n_present": len(c.present), "n_absent": len(c.absent), "policy": c.meta["policy"],
+                         "delabel_residual": ";".join(c.meta.get("delabel", {}).get("residual", []))})
+    r.prior_weight = a.prior_weight
     Path(a.out).mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).to_csv(wrote(Path(a.out) / "mimic.csv"), index=False)
+    main = [x for x in rows if x["condition"] == "labs + prior"]
+    n_truth = np.mean([x["n_truth"] for x in main]) if main else 0
     print(f"[mimic] {len(cases)} admissions" + (" from held-out patients" if held_out is not None else "")
-          + f", policy {cases[0].meta['policy'] if cases else '-'}")
-    for name, sel in (("rare diagnosis", lambda x: x["rare_truth"]),
-                      ("common diagnosis", lambda x: x["truth"] and not x["rare_truth"])):
-        ranks = [x["rank"] for x in rows if sel(x)]
-        if ranks:
-            note("mimic", **{name: {"n": len(ranks), **topk(ranks)}})
-            print(f"   {name}: n={len(ranks)}, Top-1 {topk(ranks)['top1']:.3f}, Top-3 {topk(ranks)['top3']:.3f}, "
-                  f"Top-10 {topk(ranks)['top10']:.3f}")
+          + f", policy {cases[0].meta['policy'] if cases else '-'}; {n_truth:.1f} diagnoses per admission "
+          f"(\"any\": a hit on any of them counts; \"primary\": only the highest-ranked one the ranker knows)\n")
+    print("| condition | diagnosis | scored on | n | Top-1 | Top-3 | Top-10 | MRR |\n|---|---|---|---|---|---|---|---|")
+    for cond in conds:
+        for name, sel in (("rare", lambda x: x["rare_truth"]), ("common", lambda x: x["truth"] and not x["rare_truth"])):
+            for on, col in (("any", "rank"), ("primary", "rank_primary")):
+                ranks = [x[col] for x in rows if x["condition"] == cond and sel(x)]
+                if ranks:
+                    m = topk(ranks)
+                    note("mimic", **{f"{cond} / {name} / {on}": {"n": len(ranks), **m}})
+                    if cond == "labs + prior" and on == "any":       # old keys, read by earlier reports
+                        note("mimic", **{f"{name} diagnosis": {"n": len(ranks), **m}})
+                    print(f"| {cond} | {name} | {on} | {len(ranks)} | {fmt(m)} |")
+    note("mimic", diagnoses_per_admission=float(n_truth))
 
 
 def cmd_extract_eval(a):

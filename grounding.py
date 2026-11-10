@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from hoofbeats.model import verify_claim
 import math
+import dataclasses
 
 @dataclass
 class Item:
@@ -117,6 +118,7 @@ def runner_up_items(r, case, d, runner, ex, start, max_items = 2):
     """Make one R item for each runner-up disease."""
     items = {}
     mine = {c.hpo_id: c.log_lr for c in r.contributions(case, d, ex)}
+    status = {c.hpo_id: c.status.value for c in r.contributions(case, d, ex)}
     theirs = {c.hpo_id: c.log_lr for c in r.contributions(case, runner, ex)}
 
     diffs = []
@@ -130,7 +132,12 @@ def runner_up_items(r, case, d, runner, ex, start, max_items = 2):
         if gap <0.5:
             break
         kid = f"K{n}"
-        text = f"'{r.ont.name(t)}' fits {r.db.names[d]} better than {r.db.names[runner]}: " f"likelihood ratio {math.exp(mine[t]):.2f} against {math.exp(theirs[t]):.2f}"
+        if status[t] == "absent":
+            text = (f"The absence of '{r.ont.name(t)}' counts less against {r.db.names[d]} than against "
+                    f"{r.db.names[runner]}: likelihood ratio {math.exp(mine[t]):.2f} against {math.exp(theirs[t]):.2f}")
+        else:
+            text = (f"'{r.ont.name(t)}' fits {r.db.names[d]} better than {r.db.names[runner]}: "
+                    f"likelihood ratio {math.exp(mine[t]):.2f} against {math.exp(theirs[t]):.2f}")
         items[kid] = Item(
             kid,
             "knowledge",
@@ -141,7 +148,12 @@ def runner_up_items(r, case, d, runner, ex, start, max_items = 2):
         n += 1
     return items
 
+def clean_claim(cl, ex):
+    refs = tuple(x for x in cl.refs if x not in ex)
+    return dataclasses.replace(cl, refs=refs) if refs else cl
+
 def build_pack(r, case, d, p, ex, runner, claims):
+    claims = [clean_claim(cl, ex) for cl in claims]
     pack = patient_items(r, case, claims)
 
     k = knowledge_items(r, case, d, claims, ex, start=1)
@@ -224,6 +236,9 @@ def cites(sentence):
 def strip_cites(sentence):
     return re.sub(r"\[[^\]]*\b[PK]\d+\b[^\]]*\]", "", sentence)
 
+def negated(body, name):
+    # a negation word up to 3 words before the finding's name: "does not have aortic root aneurysm"
+    return re.search(NEGATION.pattern + r"(?:\W+\w+){0,3}?\W+" + re.escape(name), body, re.I) is not None
 
 def names_of(r, item):
     if not item.hpo_id:
@@ -254,6 +269,8 @@ def check_sentence(s, pack, r, case, disease_names=()):
             return {"ok": False, "reason": f"V2: {it.id} is no longer in the record as {it.status}"}
         if it.status == "absent" and not NEGATION.search(body):
             return {"ok": False, "reason": f"V2: {it.id} is absent but the sentence does not say so"}
+        if it.status == "present" and any(negated(body, n) for n in names_of(r, it)):
+            return {"ok": False, "reason": f"V2: {it.id} is present but the sentence says it is not"}
     # V3: the sentence names the finding of each cited item that has one
     for it in items:
         names = names_of(r, it)
@@ -279,3 +296,60 @@ def check_trace(trace, pack, r, case, disease_names=()):
             else:
                 removed.append({"section": sec, "text": s, "reason": res["reason"]})
     return kept, removed
+
+
+
+PROMPT_V2 = """You explain one candidate diagnosis to a clinician, using ONLY the numbered evidence below.
+
+How to write each item:
+- Each item in a list is ONE complete English sentence that names the finding in words.
+- The sentence ends with the IDs of the evidence it uses, in square brackets, e.g. [P2, K2].
+- Never write an item that is only IDs. Never put the IDs at the start.
+- Copy IDs exactly as listed below: patient items start with P, knowledge items start with K.
+- One finding per sentence. Copy numbers exactly as they appear in the evidence.
+- Do not add facts, numbers, findings, genes, tests or diagnoses that are not in the evidence.
+
+Which evidence goes where:
+- "supports": knowledge items marked (supports), each with its patient item.
+- "against": knowledge items marked (against), each with its patient item.
+- "expected_but_missing": knowledge items marked (expected but not recorded).
+- "vs_runner_up": knowledge items marked (vs runner-up).
+Write one sentence per knowledge item, at most 8 per list; leave a list empty [] if nothing is marked for it.
+
+Example of the format (made-up evidence, not about this patient):
+{{"supports": ["The patient has short stature, which Example syndrome shows in ~60% of cases [P1, K1]."],
+  "against": [],
+  "expected_but_missing": ["Example syndrome shows hearing loss in ~70% of cases, but the record does not mention it [K5]."],
+  "vs_runner_up": ["Short stature fits Example syndrome better than Other syndrome, likelihood ratio 12.50 against 2.10 [P1, K6]."]}}
+
+Disease: {name} ({did}), model probability {prob}
+Runner-up: {runner}
+
+Evidence:
+{evidence}
+
+Return only the JSON object."""
+
+ROLE_LABEL = {"for": "supports", "against": "against", "missing": "expected but not recorded", "compare": "vs runner-up"}
+
+
+def make_prompt_v2(r, d, p, pack, runner):
+    lines = []
+    for i in pack.values():
+        tag = f" ({ROLE_LABEL[i.role]})" if i.kind == "knowledge" else ""
+        lines.append(f"[{i.id}]{tag} {i.text}")
+    runner_text = f"{r.db.names[runner]} ({runner})" if runner else "none"
+    return PROMPT_V2.format(name=r.db.names[d], did=d, prob=f"{p:.1%}", runner=runner_text, evidence="\n".join(lines))
+
+def make_prompt_v3(r, d, p, pack, runner):
+    p_for = {i.hpo_id: i.id for i in pack.values() if i.kind == "patient"}
+    lines = []
+    for i in pack.values():
+        if i.kind == "knowledge":
+            pid = p_for.get(i.hpo_id) if i.role != "missing" else None
+            tag = f" ({ROLE_LABEL[i.role]}; cite as [{pid}, {i.id}])" if pid else f" ({ROLE_LABEL[i.role]}; cite as [{i.id}])"
+        else:
+            tag = ""
+        lines.append(f"[{i.id}]{tag} {i.text}")
+    runner_text = f"{r.db.names[runner]} ({runner})" if runner else "none"
+    return PROMPT_V2.format(name=r.db.names[d], did=d, prob=f"{p:.1%}", runner=runner_text, evidence="\n".join(lines))

@@ -747,6 +747,19 @@ def _mimic_labs(hosp: Path, hadms: set[int]) -> dict[int, list[Finding]]:
     return lab_findings(pd.concat(chunks).merge(items[["itemid", "label", "fluid"]], on="itemid"))
 
 
+def category_name(cat: str, used: dict, titles: dict) -> str:
+    # the category's own title if MIMIC has one; else the codes actually seen, most frequent first
+    # (naming a 3-character category after one subtype, e.g. ICD9:427 as "Cardiac arrest", misleads)
+    v, code = int(cat[3:cat.index(":")]), cat.split(":", 1)[1]
+    if (code, v) in titles:
+        return titles[(code, v)]
+    seen = [titles.get(cv, cv[0]) for cv, _ in sorted(used.items(), key=lambda x: (-x[1], x[0]))]
+    if len(seen) == 1:
+        return seen[0]
+    more = f" +{len(seen) - 2} more" if len(seen) > 2 else ""
+    return f"{cat} group: " + "; ".join(seen[:2]) + more
+
+
 def learn_common(mimic_dir, icd_map=None, max_seq=3, min_adm=5, test_frac=0.2, seed=13) -> dict:
     # common-disease lab profiles from training patients only; keep credentialed output private
     root = Path(mimic_dir)
@@ -757,10 +770,11 @@ def learn_common(mimic_dir, icd_map=None, max_seq=3, min_adm=5, test_frac=0.2, s
     top = train[train.seq_num <= max_seq]
     rare_adm = {h for h, c, v in zip(top.hadm_id, top.icd_code, top.icd_version)
                 if v == 10 and match_icd(c, icd_map or {})}
-    cats = defaultdict(set)
+    cats, seen = defaultdict(set), defaultdict(lambda: defaultdict(set))
     for h, c, v in zip(top.hadm_id, top.icd_code, top.icd_version):
         if not (v == 10 and match_icd(c, icd_map or {})):
             cats[icd_category(c, v)].add(h)
+            seen[icd_category(c, v)][(str(c), int(v))].add(h)
     with_labs = set(labs)
     diseases = {}
     for cat, hs in cats.items():
@@ -772,10 +786,9 @@ def learn_common(mimic_dir, icd_map=None, max_seq=3, min_adm=5, test_frac=0.2, s
             for f in labs[h]:
                 counts[f.hpo_id][1] += 1
                 counts[f.hpo_id][0] += f.status == Status.PRESENT
-        version = int(cat[3:cat.index(":")])
-        names = sorted((len(c), t) for (c, v), t in titles.items()
-                       if v == version and icd_category(c, v) == cat)
-        diseases[cat] = {"name": names[0][1] if names else cat, "n_adm": len(hs), "counts": dict(counts)}
+        used = {cv: len(h_ & hs) for cv, h_ in seen[cat].items() if h_ & hs}
+        diseases[cat] = {"name": category_name(cat, used, titles), "n_adm": len(hs), "counts": dict(counts),
+                         "codes": {f"{c}": n for (c, _), n in sorted(used.items(), key=lambda x: -x[1])}}
     n = len(set(train.hadm_id) & with_labs)
     return {"source": "MIMIC-IV-demo" if "demo" in str(root).lower() else "MIMIC-IV",
             "policy": "open" if "demo" in str(root).lower() else "local_only",
@@ -794,13 +807,15 @@ def load_mimic(mimic_dir, icd_map=None, orpha_names=None, disease_genes=None, no
     if subjects is not None:
         dx = dx[dx.subject_id.isin(subjects)]
     known = set((common or {}).get("diseases", {}))
-    labels, codes = defaultdict(set), defaultdict(list)
-    for h, c, v in dx[dx.seq_num <= max_seq][["hadm_id", "icd_code", "icd_version"]].itertuples(index=False):
+    labels, codes, primary = defaultdict(set), defaultdict(list), {}
+    top = dx[dx.seq_num <= max_seq].sort_values(["hadm_id", "seq_num"])
+    for h, c, v in top[["hadm_id", "icd_code", "icd_version"]].itertuples(index=False):
         rare = match_icd(c, icd_map or {}) if v == 10 else set()
         cat = icd_category(c, v)
         if rare or cat in known:
             labels[h] |= rare or {cat}
             codes[h].append((c, v))
+            primary.setdefault(h, sorted(rare or {cat}))     # the highest-ranked diagnosis the ranker knows
     hadms = set(labels) if labeled_only and (icd_map or common) else set(dx.hadm_id)
     lab_f = _mimic_labs(hosp, hadms)
 
@@ -814,7 +829,8 @@ def load_mimic(mimic_dir, icd_map=None, orpha_names=None, disease_genes=None, no
     cases = []
     for h in sorted(hadms):
         findings = list(lab_f.get(h, []))
-        meta = {"hadm_id": h, "policy": policy, "label_icd": [c for c, _ in codes.get(h, [])]}
+        meta = {"hadm_id": h, "policy": policy, "label_icd": [c for c, _ in codes.get(h, [])],
+                "primary": primary.get(h, [])}
         if h in notes:
             names = [titles.get(cv, "") for cv in codes.get(h, [])]
             names += [n for o in labels[h] for n in (orpha_names or {}).get(o, [])]
