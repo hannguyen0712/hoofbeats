@@ -1,0 +1,31 @@
+run       20261109-165911_train
+started   2026-11-09 16:59:11
+command   train
+note      train, all, kb-size
+status    stopped (Ctrl-C)
+duration  0.1 min
+argv      python -m hoofbeats --common none --note 'train, all, kb-size' train --sample 0 --l2 0.001 0.01 0.1 1 --kb-size --out results/train --weights-out results/train/weights_kbsize.json
+
+sample        0
+seed          13
+hpo           hp/releases/2026-09-01
+annotations   2026-09-02
+prefixes      ['OMIM']
+common        None
+prior_weight  1.0
+absent_weight 0.5
+absent_min_freq0.8
+use_onset     False
+use_sex       False
+
+========================================================================
+console output
+========================================================================
+
+[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 8465 rare + 0 common diseases
+[train] phenopacket: 1969 cases, 495 disease/paper groups, 50 candidates per case, 5 folds
+
+========================================================================
+metrics (also in the .json file)
+========================================================================
+{}

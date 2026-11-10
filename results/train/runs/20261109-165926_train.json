@@ -1,0 +1,81 @@
+{
+ "metrics": {
+  "train": {
+   "dataset": "phenopacket",
+   "cases": 1969,
+   "candidates": 50,
+   "candidate_recall": 0.6475368207211782,
+   "default": {
+    "top1": 0.28694768918232605,
+    "top3": 0.38649060436769933,
+    "top10": 0.5027932960893855,
+    "mrr": 0.3592092085522948
+   },
+   "learned": {
+    "top1": 0.32757745048247844,
+    "top3": 0.4489588623666836,
+    "top10": 0.5444388014220416,
+    "mrr": 0.4065314645512177
+   },
+   "top1_change": 0.04062976130015236,
+   "top1_change_ci": [
+    0.02353305697588176,
+    0.0582323826753766
+   ]
+  },
+  "weights": {
+   "present_exact": 0.16724811052930103,
+   "present_partial": 0.027379494528326363,
+   "present_unexplained": 0.0,
+   "absent_hallmark": 0.10840056210411574,
+   "absent_other": 0.0,
+   "absent_excluded": 0.08362405526465051,
+   "log_annotations": -0.33449622105860205,
+   "log_references": 0.33449622105860205,
+   "gene": 0.0
+  }
+ },
+ "files": [
+  "results/train/weights_kbsize.json"
+ ],
+ "settings": {
+  "sample": 0,
+  "seed": 13,
+  "hpo": "hp/releases/2026-09-01",
+  "annotations": "2026-09-02",
+  "prefixes": [
+   "OMIM"
+  ],
+  "common": null,
+  "prior_weight": 1.0,
+  "absent_weight": 0.5,
+  "absent_min_freq": 0.8,
+  "use_onset": false,
+  "use_sex": false
+ },
+ "id": "20261109-165926_train",
+ "command": "train",
+ "argv": [
+  "--common",
+  "none",
+  "--note",
+  "train, all, kb-size",
+  "train",
+  "--sample",
+  "0",
+  "--l2",
+  "0.001",
+  "0.01",
+  "0.1",
+  "1",
+  "--kb-size",
+  "--out",
+  "results/train",
+  "--weights-out",
+  "results/train/weights_kbsize.json"
+ ],
+ "note": "train, all, kb-size",
+ "started": "2026-11-09 16:59:26",
+ "status": "ok",
+ "seconds": 51.9
+}

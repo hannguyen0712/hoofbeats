@@ -1,0 +1,81 @@
+run       20261019-154540_llm-bench_gemini-3.8-flash
+started   2026-10-19 15:45:40
+command   llm-bench
+note      3.8 flash, low effort
+status    stopped (Ctrl-C)
+duration  9.4 min
+argv      python -m hoofbeats --common none --note '3.8 flash, low effort' --llm --llm-endpoint https://generativelanguage.googleapis.com/v1beta/openai/chat/completions --llm-model gemini-3.8-flash --llm-key-env GEMINI_API_KEY --llm-max-tokens 8192 --llm-extra '{"reasoning_effort": "low"}' llm-bench --llm-cases 30 --out results/compare
+
+sample        300
+seed          13
+rounds        5
+llm_cases     30
+hpo           hp/releases/2026-09-01
+annotations   2026-09-02
+prefixes      ['OMIM']
+common        None
+prior_weight  1.0
+model         gemini-3.8-flash
+endpoint      https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+max_tokens    8192
+extra         {'reasoning_effort': 'low'}
+
+========================================================================
+console output
+========================================================================
+
+[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 8465 rare + 0 common diseases
+[data] 223 evaluable cases; sending the first 30 to the model
+[llm] gemini-3.8-flash via https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+[llm] remote service: only public datasets will be sent; credentialed data is refused
+
+[llm] 1/30
+[llm] HTTP 429 (rate limit), retrying in 5s (attempt 1/6)
+
+[llm] HTTP 429 (rate limit), retrying in 10s (attempt 2/6)
+
+[llm] HTTP 429 (rate limit), retrying in 20s (attempt 3/6)
+
+[llm] HTTP 429 (rate limit), retrying in 40s (attempt 4/6)
+
+[llm] HTTP 429 (rate limit), retrying in 60s (attempt 5/6)
+
+[llm] PMID_20358602_Patient_C8: gemini-3.8-flash: HTTP 429 b'[{\n  "error": {\n    "code": 429,\n    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota e'
+
+[llm] 2/30
+[llm] HTTP 429 (rate limit), retrying in 5s (attempt 1/6)
+
+[llm] HTTP 429 (rate limit), retrying in 10s (attempt 2/6)
+
+[llm] HTTP 429 (rate limit), retrying in 20s (attempt 3/6)
+
+[llm] HTTP 429 (rate limit), retrying in 40s (attempt 4/6)
+
+[llm] HTTP 429 (rate limit), retrying in 60s (attempt 5/6)
+
+[llm] PMID_18551513_8: gemini-3.8-flash: HTTP 429 b'[{\n  "error": {\n    "code": 429,\n    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota e'
+
+[llm] 3/30
+[llm] HTTP 429 (rate limit), retrying in 5s (attempt 1/6)
+
+[llm] HTTP 429 (rate limit), retrying in 10s (attempt 2/6)
+
+[llm] HTTP 429 (rate limit), retrying in 20s (attempt 3/6)
+
+[llm] HTTP 429 (rate limit), retrying in 40s (attempt 4/6)
+
+[llm] HTTP 429 (rate limit), retrying in 60s (attempt 5/6)
+
+[llm] PMID_38991538_Individual_22_120746: gemini-3.8-flash: HTTP 429 b'[{\n  "error": {\n    "code": 429,\n    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota e'
+
+[llm] 4/30
+[llm] HTTP 429 (rate limit), retrying in 5s (attempt 1/6)
+
+[llm] HTTP 429 (rate limit), retrying in 10s (attempt 2/6)
+
+[llm] HTTP 429 (rate limit), retrying in 20s (attempt 3/6)
+
+========================================================================
+metrics (also in the .json file)
+========================================================================
+{}

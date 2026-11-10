@@ -1,0 +1,42 @@
+run       20261110-001119_llm-bench_qwen3.5-9b
+started   2026-11-10 00:11:19
+command   llm-bench
+note      Qwen3.5 9b, high
+status    stopped (Ctrl-C)
+duration  3.6 min
+argv      python -m hoofbeats --common none --note 'Qwen3.5 9b, high' --llm --llm-endpoint http://localhost:11434/v1/chat/completions --llm-model qwen3.5:9b --llm-max-tokens 16384 --llm-extra '{"reasoning_effort": "high"}' llm-bench --llm-cases 30 --out results/compare
+
+sample        300
+seed          13
+rounds        5
+llm_cases     30
+hpo           hp/releases/2026-09-01
+annotations   2026-09-02
+prefixes      ['OMIM']
+common        None
+prior_weight  1.0
+absent_weight 0.5
+absent_min_freq0.8
+use_onset     False
+use_sex       False
+model         qwen3.5:9b
+endpoint      http://localhost:11434/v1/chat/completions
+max_tokens    16384
+extra         {'reasoning_effort': 'high'}
+offline       False
+
+========================================================================
+console output
+========================================================================
+
+[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 8465 rare + 0 common diseases
+[data] 223 evaluable cases; sending the first 30 to the model
+[llm] qwen3.5:9b via http://localhost:11434/v1/chat/completions; 3 cached replies in results/compare/llm_cache
+
+[llm] 1/30
+[llm] 2/30
+
+========================================================================
+metrics (also in the .json file)
+========================================================================
+{}

@@ -1,0 +1,53 @@
+run       20261109-181624_sequential
+started   2026-11-09 18:16:24
+command   sequential
+note      next tests, all
+status    failed: ZeroDivisionError: division by zero
+duration  0.1 min
+argv      python -m hoofbeats --common none --note 'next tests, all' sequential --sample 0 --out results/rare
+
+sample        0
+seed          13
+rounds        5
+hpo           hp/releases/2026-09-01
+annotations   2026-09-02
+prefixes      ['OMIM']
+common        None
+prior_weight  1.0
+absent_weight 0.5
+absent_min_freq0.8
+use_onset     False
+use_sex       False
+
+========================================================================
+console output
+========================================================================
+
+[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 8465 rare + 0 common diseases
+[data] 0 evaluable cases, 5 questions each
+
+| policy | Top-1 start | Top-1 end | Top-10 start | Top-10 end | answered |
+|---|---|---|---|---|---|
+
+========================================================================
+metrics (also in the .json file)
+========================================================================
+{}
+
+========================================================================
+error
+========================================================================
+Traceback (most recent call last):
+  File "/Users/h/Documents/class/f26/cse-576-natural-language-processing/hoofbeats/hoofbeats/__main__.py", line 1485, in _logged
+    {"diagnose": cmd_diagnose, "benchmark": cmd_benchmark, "sequential": cmd_sequential,
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ...<5 lines>...
+     "pmc-test-run": cmd_pmc_test_run, **context_commands(sys.modules[__name__]),
+     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     **workup_commands(sys.modules[__name__]), **train_commands(sys.modules[__name__]), **followup_commands(sys.modules[__name__])}[a.cmd](a)
+     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/Users/h/Documents/class/f26/cse-576-natural-language-processing/hoofbeats/hoofbeats/__main__.py", line 725, in cmd_sequential
+    rate = sum(x[1] for x in res) / (len(res) * a.rounds)
+           ~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+ZeroDivisionError: division by zero
+

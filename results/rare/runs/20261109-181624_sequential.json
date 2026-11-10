@@ -1,0 +1,37 @@
+{
+ "metrics": {},
+ "files": [],
+ "settings": {
+  "sample": 0,
+  "seed": 13,
+  "rounds": 5,
+  "hpo": "hp/releases/2026-09-01",
+  "annotations": "2026-09-02",
+  "prefixes": [
+   "OMIM"
+  ],
+  "common": null,
+  "prior_weight": 1.0,
+  "absent_weight": 0.5,
+  "absent_min_freq": 0.8,
+  "use_onset": false,
+  "use_sex": false
+ },
+ "id": "20261109-181624_sequential",
+ "command": "sequential",
+ "argv": [
+  "--common",
+  "none",
+  "--note",
+  "next tests, all",
+  "sequential",
+  "--sample",
+  "0",
+  "--out",
+  "results/rare"
+ ],
+ "note": "next tests, all",
+ "started": "2026-11-09 18:16:24",
+ "status": "failed: ZeroDivisionError: division by zero",
+ "seconds": 3.5
+}

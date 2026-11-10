@@ -1,0 +1,59 @@
+run       20261109-182258_medpix
+started   2026-11-09 18:22:58
+command   medpix
+note      medpix text
+status    ok
+duration  0.3 min
+argv      python -m hoofbeats --common none --note 'medpix text' medpix --medpix data/medpix-src/MedPix-2-0 --orphadata-xml data/kb/ORPHA_ICD10_mapping_en.xml --out results/medpix
+
+split         all
+max_images    4
+only_labeled  False
+limit         None
+hpo           hp/releases/2026-09-01
+annotations   2026-09-02
+prefixes      ['OMIM', 'ORPHA']
+common        None
+prior_weight  1.0
+absent_weight 0.5
+absent_min_freq0.8
+use_onset     False
+use_sex       False
+
+========================================================================
+console output
+========================================================================
+
+[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 12820 rare + 0 common diseases
+[medpix] 671 cases (all), 192 with a diagnosis the ranker knows; median findings from history/exam 1, from radiologist report 1
+
+| input | Top-1 | Top-3 | Top-10 | MRR |
+|---|---|---|---|---|
+| history + exam text | 0.021 | 0.052 | 0.099 | 0.047 |
+| text + radiologist image findings (upper bound) | 0.042 | 0.099 | 0.161 | 0.083 |
+
+Review and correct diagnosis labels in results/medpix/medpix_labels.csv (pass back with --labels).
+
+========================================================================
+metrics (also in the .json file)
+========================================================================
+{
+ "medpix": {
+  "model": "none",
+  "task": "medpix",
+  "cases": 671,
+  "labeled": 192,
+  "failed_calls": 0,
+  "rank_text_top1": 0.021,
+  "rank_text_top3": 0.052,
+  "rank_text_top10": 0.099,
+  "rank_text_mrr": 0.047,
+  "rank_radiologist_top1": 0.042,
+  "rank_radiologist_top3": 0.099,
+  "rank_radiologist_top10": 0.161,
+  "rank_radiologist_mrr": 0.083
+ }
+}
+
+files written:
+  results/medpix/medpix.csv

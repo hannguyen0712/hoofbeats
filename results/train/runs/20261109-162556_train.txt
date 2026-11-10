@@ -1,0 +1,453 @@
+run       20261109-162556_train
+started   2026-11-09 16:25:56
+command   train
+note      train 500
+status    ok
+duration  0.2 min
+argv      python -m hoofbeats --common none --note 'train 500' train --sample 500 --l2 0.001 0.01 0.1 1 --out results/train
+
+sample        500
+seed          13
+hpo           hp/releases/2026-09-01
+annotations   2026-09-02
+prefixes      ['OMIM']
+common        None
+prior_weight  1.0
+absent_weight 0.5
+absent_min_freq0.8
+use_onset     False
+use_sex       False
+
+========================================================================
+console output
+========================================================================
+
+[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 8465 rare + 0 common diseases
+[train] phenopacket: 357 cases, 190 disease/paper groups, 50 candidates per case, 5 folds
+
+[train] features 1/357
+[train] features 2/357
+[train] features 3/357
+[train] features 4/357
+[train] features 5/357
+[train] features 6/357
+[train] features 7/357
+[train] features 8/357
+[train] features 9/357
+[train] features 10/357
+[train] features 11/357
+[train] features 12/357
+[train] features 13/357
+[train] features 14/357
+[train] features 15/357
+[train] features 16/357
+[train] features 17/357
+[train] features 18/357
+[train] features 19/357
+[train] features 20/357
+[train] features 21/357
+[train] features 22/357
+[train] features 23/357
+[train] features 24/357
+[train] features 25/357
+[train] features 26/357
+[train] features 27/357
+[train] features 28/357
+[train] features 29/357
+[train] features 30/357
+[train] features 31/357
+[train] features 32/357
+[train] features 33/357
+[train] features 34/357
+[train] features 35/357
+[train] features 36/357
+[train] features 37/357
+[train] features 38/357
+[train] features 39/357
+[train] features 40/357
+[train] features 41/357
+[train] features 42/357
+[train] features 43/357
+[train] features 44/357
+[train] features 45/357
+[train] features 46/357
+[train] features 47/357
+[train] features 48/357
+[train] features 49/357
+[train] features 50/357
+[train] features 51/357
+[train] features 52/357
+[train] features 53/357
+[train] features 54/357
+[train] features 55/357
+[train] features 56/357
+[train] features 57/357
+[train] features 58/357
+[train] features 59/357
+[train] features 60/357
+[train] features 61/357
+[train] features 62/357
+[train] features 63/357
+[train] features 64/357
+[train] features 65/357
+[train] features 66/357
+[train] features 67/357
+[train] features 68/357
+[train] features 69/357
+[train] features 70/357
+[train] features 71/357
+[train] features 72/357
+[train] features 73/357
+[train] features 74/357
+[train] features 75/357
+[train] features 76/357
+[train] features 77/357
+[train] features 78/357
+[train] features 79/357
+[train] features 80/357
+[train] features 81/357
+[train] features 82/357
+[train] features 83/357
+[train] features 84/357
+[train] features 85/357
+[train] features 86/357
+[train] features 87/357
+[train] features 88/357
+[train] features 89/357
+[train] features 90/357
+[train] features 91/357
+[train] features 92/357
+[train] features 93/357
+[train] features 94/357
+[train] features 95/357
+[train] features 96/357
+[train] features 97/357
+[train] features 98/357
+[train] features 99/357
+[train] features 100/357
+[train] features 101/357
+[train] features 102/357
+[train] features 103/357
+[train] features 104/357
+[train] features 105/357
+[train] features 106/357
+[train] features 107/357
+[train] features 108/357
+[train] features 109/357
+[train] features 110/357
+[train] features 111/357
+[train] features 112/357
+[train] features 113/357
+[train] features 114/357
+[train] features 115/357
+[train] features 116/357
+[train] features 117/357
+[train] features 118/357
+[train] features 119/357
+[train] features 120/357
+[train] features 121/357
+[train] features 122/357
+[train] features 123/357
+[train] features 124/357
+[train] features 125/357
+[train] features 126/357
+[train] features 127/357
+[train] features 128/357
+[train] features 129/357
+[train] features 130/357
+[train] features 131/357
+[train] features 132/357
+[train] features 133/357
+[train] features 134/357
+[train] features 135/357
+[train] features 136/357
+[train] features 137/357
+[train] features 138/357
+[train] features 139/357
+[train] features 140/357
+[train] features 141/357
+[train] features 142/357
+[train] features 143/357
+[train] features 144/357
+[train] features 145/357
+[train] features 146/357
+[train] features 147/357
+[train] features 148/357
+[train] features 149/357
+[train] features 150/357
+[train] features 151/357
+[train] features 152/357
+[train] features 153/357
+[train] features 154/357
+[train] features 155/357
+[train] features 156/357
+[train] features 157/357
+[train] features 158/357
+[train] features 159/357
+[train] features 160/357
+[train] features 161/357
+[train] features 162/357
+[train] features 163/357
+[train] features 164/357
+[train] features 165/357
+[train] features 166/357
+[train] features 167/357
+[train] features 168/357
+[train] features 169/357
+[train] features 170/357
+[train] features 171/357
+[train] features 172/357
+[train] features 173/357
+[train] features 174/357
+[train] features 175/357
+[train] features 176/357
+[train] features 177/357
+[train] features 178/357
+[train] features 179/357
+[train] features 180/357
+[train] features 181/357
+[train] features 182/357
+[train] features 183/357
+[train] features 184/357
+[train] features 185/357
+[train] features 186/357
+[train] features 187/357
+[train] features 188/357
+[train] features 189/357
+[train] features 190/357
+[train] features 191/357
+[train] features 192/357
+[train] features 193/357
+[train] features 194/357
+[train] features 195/357
+[train] features 196/357
+[train] features 197/357
+[train] features 198/357
+[train] features 199/357
+[train] features 200/357
+[train] features 201/357
+[train] features 202/357
+[train] features 203/357
+[train] features 204/357
+[train] features 205/357
+[train] features 206/357
+[train] features 207/357
+[train] features 208/357
+[train] features 209/357
+[train] features 210/357
+[train] features 211/357
+[train] features 212/357
+[train] features 213/357
+[train] features 214/357
+[train] features 215/357
+[train] features 216/357
+[train] features 217/357
+[train] features 218/357
+[train] features 219/357
+[train] features 220/357
+[train] features 221/357
+[train] features 222/357
+[train] features 223/357
+[train] features 224/357
+[train] features 225/357
+[train] features 226/357
+[train] features 227/357
+[train] features 228/357
+[train] features 229/357
+[train] features 230/357
+[train] features 231/357
+[train] features 232/357
+[train] features 233/357
+[train] features 234/357
+[train] features 235/357
+[train] features 236/357
+[train] features 237/357
+[train] features 238/357
+[train] features 239/357
+[train] features 240/357
+[train] features 241/357
+[train] features 242/357
+[train] features 243/357
+[train] features 244/357
+[train] features 245/357
+[train] features 246/357
+[train] features 247/357
+[train] features 248/357
+[train] features 249/357
+[train] features 250/357
+[train] features 251/357
+[train] features 252/357
+[train] features 253/357
+[train] features 254/357
+[train] features 255/357
+[train] features 256/357
+[train] features 257/357
+[train] features 258/357
+[train] features 259/357
+[train] features 260/357
+[train] features 261/357
+[train] features 262/357
+[train] features 263/357
+[train] features 264/357
+[train] features 265/357
+[train] features 266/357
+[train] features 267/357
+[train] features 268/357
+[train] features 269/357
+[train] features 270/357
+[train] features 271/357
+[train] features 272/357
+[train] features 273/357
+[train] features 274/357
+[train] features 275/357
+[train] features 276/357
+[train] features 277/357
+[train] features 278/357
+[train] features 279/357
+[train] features 280/357
+[train] features 281/357
+[train] features 282/357
+[train] features 283/357
+[train] features 284/357
+[train] features 285/357
+[train] features 286/357
+[train] features 287/357
+[train] features 288/357
+[train] features 289/357
+[train] features 290/357
+[train] features 291/357
+[train] features 292/357
+[train] features 293/357
+[train] features 294/357
+[train] features 295/357
+[train] features 296/357
+[train] features 297/357
+[train] features 298/357
+[train] features 299/357
+[train] features 300/357
+[train] features 301/357
+[train] features 302/357
+[train] features 303/357
+[train] features 304/357
+[train] features 305/357
+[train] features 306/357
+[train] features 307/357
+[train] features 308/357
+[train] features 309/357
+[train] features 310/357
+[train] features 311/357
+[train] features 312/357
+[train] features 313/357
+[train] features 314/357
+[train] features 315/357
+[train] features 316/357
+[train] features 317/357
+[train] features 318/357
+[train] features 319/357
+[train] features 320/357
+[train] features 321/357
+[train] features 322/357
+[train] features 323/357
+[train] features 324/357
+[train] features 325/357
+[train] features 326/357
+[train] features 327/357
+[train] features 328/357
+[train] features 329/357
+[train] features 330/357
+[train] features 331/357
+[train] features 332/357
+[train] features 333/357
+[train] features 334/357
+[train] features 335/357
+[train] features 336/357
+[train] features 337/357
+[train] features 338/357
+[train] features 339/357
+[train] features 340/357
+[train] features 341/357
+[train] features 342/357
+[train] features 343/357
+[train] features 344/357
+[train] features 345/357
+[train] features 346/357
+[train] features 347/357
+[train] features 348/357
+[train] features 349/357
+[train] features 350/357
+[train] features 351/357
+[train] features 352/357
+[train] features 353/357
+[train] features 354/357
+[train] features 355/357
+[train] features 356/357
+[train] features 357/357
+[train] fold 1/5: 272 train, 85 test cases, l2 0.001
+[train] fold 2/5: 290 train, 67 test cases, l2 0.001
+[train] fold 3/5: 293 train, 64 test cases, l2 0.001
+[train] fold 4/5: 289 train, 68 test cases, l2 0.001
+[train] fold 5/5: 284 train, 73 test cases, l2 0.001
+
+Held-out diseases and papers (5-fold), truth in the top 50 for 228/357 cases (re-scoring cannot help the rest):
+| scoring | Top-1 | Top-3 | Top-10 | MRR |
+|---|---|---|---|---|
+| default weights | 0.269 | 0.370 | 0.476 | 0.342 |
+| learned weights | 0.261 | 0.378 | 0.510 | 0.344 |
+Top-1 change -0.8 points (95% CI -5.6 to +3.6)
+
+Final weights (all cases, l2 0.001); fold spread shows how stable each one is:
+| evidence | default | learned | fold min | fold max |
+|---|---|---|---|---|
+| present_exact | 1.00 | 0.13 | 0.12 | 0.14 |
+| present_partial | 1.00 | 0.00 | 0.00 | 0.00 |
+| present_unexplained | -3.00 | 0.00 | 0.00 | 0.00 |
+| absent_hallmark | 0.50 | 0.00 | 0.00 | 0.00 |
+| absent_other | 0.00 | 0.00 | 0.00 | 0.00 |
+| absent_excluded | 0.50 | 0.50 | 0.50 | 0.50 |
+| log_annotations | 0.00 | -2.00 | -2.00 | -1.92 |
+| log_references | 0.00 | 1.84 | 1.75 | 1.95 |
+| gene | 0.00 | 0.00 | 0.00 | 0.00 |
+[train] weights -> results/train/weights.json  (use with --weights results/train/weights.json)
+
+========================================================================
+metrics (also in the .json file)
+========================================================================
+{
+ "train": {
+  "dataset": "phenopacket",
+  "cases": 357,
+  "candidates": 50,
+  "candidate_recall": 0.6386554621848739,
+  "default": {
+   "top1": 0.2689075630252101,
+   "top3": 0.3697478991596639,
+   "top10": 0.47619047619047616,
+   "mrr": 0.3421898622332238
+  },
+  "learned": {
+   "top1": 0.2605042016806723,
+   "top3": 0.37815126050420167,
+   "top10": 0.5098039215686274,
+   "mrr": 0.3437499721750587
+  },
+  "top1_change": -0.008403361344537815,
+  "top1_change_ci": [
+   -0.056022408963585436,
+   0.036484593837534635
+  ]
+ },
+ "weights": {
+  "present_exact": 0.1347498019632556,
+  "present_partial": 0.0,
+  "present_unexplained": 0.0,
+  "absent_hallmark": 0.0,
+  "absent_other": 0.0,
+  "absent_excluded": 0.5,
+  "log_annotations": -2.0,
+  "log_references": 1.8359718324102567,
+  "gene": 0.0
+ }
+}
+
+files written:
+  results/train/weights.json

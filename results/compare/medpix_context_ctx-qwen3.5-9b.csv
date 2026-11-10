@@ -1,0 +1,1149 @@
+case,title,truth,condition,rank,findings,top3,context_named_diagnosis,context_parsed,context_cut_off,context_precision,context_recall,context,context_pred,context_agree,findings_checked,findings_kept
+MPX1033,Idiopathic Pulmonary Hemosiderosis,ORPHA:99931,text,85,14,Mendez-Johnson immunoneurologic syndrome | Netherton syndrome | Immunodeficiency 133 with ectodermal dysplasia with or without peripheral neuropathy,,,,,,,,,,
+MPX1033,Idiopathic Pulmonary Hemosiderosis,ORPHA:99931,context,108,18,"Immunodeficiency 124, severe combined | Mendez-Johnson immunoneurologic syndrome | Eosinophilic granulomatosis with polyangiitis",False,True,False,0.0,,"Images 1-2 (CT - noncontrast, axial plane, chest, pulmonary; CT - noncontrast, axial plane, chest, pulmonary):
+Technique: Noncontrast axial CT of the chest, image quality is adequate for evaluation of lung parenchyma and mediastinal structures.
+Anatomy: Chest including lungs, heart, mediastinum, pleura, diaphragm, ribs, and spine.
+Findings:
+- Pleural thickening (Right lateral chest wall) [definite]: Irregular soft tissue density along the right lateral pleural surface
+- Pleural thickening (Left lateral chest wall) [definite]: Irregular soft tissue density along the left lateral pleural surface
+Pertinent negatives: No pneumothorax; No pleural effusion; No focal pulmonary consolidation or mass; No mediastinal lymphadenopathy; No cardiomegaly; No bony destruction
+Summary: Bilateral irregular pleural thickening is present, more prominent on the right. No acute intrathoracic process such as consolidation, effusion, or pneumothorax is identified.",1.0,0.0,,
+MPX1033,Idiopathic Pulmonary Hemosiderosis,ORPHA:99931,verified,85,17,Mendez-Johnson immunoneurologic syndrome | Netherton syndrome | Immunodeficiency 133 with ectodermal dysplasia with or without peripheral neuropathy,False,True,False,,,"Images 1-2 (CT - noncontrast, axial plane, chest, pulmonary; CT - noncontrast, axial plane, chest, pulmonary):
+Technique: Noncontrast axial CT of the chest, image quality is adequate for evaluation of lung parenchyma and mediastinal structures.
+Anatomy: Chest including lungs, heart, mediastinum, pleura, diaphragm, ribs, and spine.
+Pertinent negatives: No pneumothorax; No pleural effusion; No focal pulmonary consolidation or mass; No mediastinal lymphadenopathy; No cardiomegaly; No bony destruction",0.0,0.0,2.0,0.0
+MPX1033,Idiopathic Pulmonary Hemosiderosis,ORPHA:99931,definite,108,18,"Immunodeficiency 124, severe combined | Mendez-Johnson immunoneurologic syndrome | Eosinophilic granulomatosis with polyangiitis",False,True,False,0.0,,"Images 1-2 (CT - noncontrast, axial plane, chest, pulmonary; CT - noncontrast, axial plane, chest, pulmonary):
+Technique: Noncontrast axial CT of the chest, image quality is adequate for evaluation of lung parenchyma and mediastinal structures.
+Anatomy: Chest including lungs, heart, mediastinum, pleura, diaphragm, ribs, and spine.
+Findings:
+- Pleural thickening (Right lateral chest wall) [definite]: Irregular soft tissue density along the right lateral pleural surface
+- Pleural thickening (Left lateral chest wall) [definite]: Irregular soft tissue density along the left lateral pleural surface
+Pertinent negatives: No pneumothorax; No pleural effusion; No focal pulmonary consolidation or mass; No mediastinal lymphadenopathy; No cardiomegaly; No bony destruction
+Summary: Bilateral irregular pleural thickening is present, more prominent on the right. No acute intrathoracic process such as consolidation, effusion, or pneumothorax is identified.",1.0,0.0,,
+MPX1033,Idiopathic Pulmonary Hemosiderosis,ORPHA:99931,reference,85,14,Mendez-Johnson immunoneurologic syndrome | Netherton syndrome | Immunodeficiency 133 with ectodermal dysplasia with or without peripheral neuropathy,,,,,,,,,,
+MPX1043,Disseminated Coccidioidomycosis,ORPHA:228123,text,536,14,"Classic Hodgkin lymphoma | Immunodeficiency 27A, mycobacteriosis, AR | Autoinflammatory disease, systemic, with vasculitis",,,,,,,,,,
+MPX1043,Disseminated Coccidioidomycosis,ORPHA:228123,context,681,17,Classic Hodgkin lymphoma | Immunodeficiency 126 | Alveolar echinococcosis,False,True,False,0.0,0.0,"Images 1-2 (CT - noncontrast, sagittal plane, spine; MR - T1W w/Gadolinium, sagittal plane, spine):
+Technique: CT noncontrast sagittal spine; MR T1-weighted with gadolinium sagittal spine. Image quality is limited by motion and low resolution, particularly in the lower thoracic/upper lumbar regions.
+Anatomy: Thoracic and upper lumbar spine, vertebral bodies, intervertebral discs, spinal canal, spinal cord, paraspinal soft tissues, posterior elements.
+Findings:
+- Kyphosis (Thoracic spine) [definite]: Exaggerated thoracic kyphotic curvature with anterior wedging of multiple vertebral bodies
+- Vertebral body collapse (Multiple thoracic vertebral bodies) [definite]: Anterior wedging and loss of height in several mid-thoracic vertebrae
+- Disc space narrowing (Multiple intervertebral discs (thoracic)) [probable]: Reduced disc height at multiple levels, particularly in the mid-thoracic region
+- Paraspinal soft tissue mass (Posterior to thoracic spine) [definite]: Heterogeneous soft tissue density/mass extending posteriorly from the paraspinal region, visible on both CT and MRI
+Pertinent negatives: No acute fracture lines identified; No obvious spinal cord compression or signal abnormality within the cord; No gross disc herniation with neural foraminal encroachment
+Summary: Multiple thoracic vertebral bodies demonstrate anterior wedging and collapse, resulting in exaggerated kyphosis. A heterogeneous paraspinal soft tissue mass is present posterior to the spine. Disc space narrowing is noted at multiple levels.",2.0,0.0,,
+MPX1043,Disseminated Coccidioidomycosis,ORPHA:228123,verified,681,17,Classic Hodgkin lymphoma | Immunodeficiency 126 | Alveolar echinococcosis,False,True,False,0.0,0.0,"Images 1-2 (CT - noncontrast, sagittal plane, spine; MR - T1W w/Gadolinium, sagittal plane, spine):
+Technique: CT noncontrast sagittal spine; MR T1-weighted with gadolinium sagittal spine. Image quality is limited by motion and low resolution, particularly in the lower thoracic/upper lumbar regions.
+Anatomy: Thoracic and upper lumbar spine, vertebral bodies, intervertebral discs, spinal canal, spinal cord, paraspinal soft tissues, posterior elements.
+Findings:
+- Kyphosis (Thoracic spine) [definite]: Exaggerated thoracic kyphotic curvature with anterior wedging of multiple vertebral bodies
+- Vertebral body collapse (Multiple thoracic vertebral bodies) [definite]: Anterior wedging and loss of height in several mid-thoracic vertebrae
+- Disc space narrowing (Multiple intervertebral discs (thoracic)) [probable]: Reduced disc height at multiple levels, particularly in the mid-thoracic region
+Pertinent negatives: No acute fracture lines identified; No obvious spinal cord compression or signal abnormality within the cord; No gross disc herniation with neural foraminal encroachment",2.0,0.0,4.0,3.0
+MPX1043,Disseminated Coccidioidomycosis,ORPHA:228123,definite,681,17,Classic Hodgkin lymphoma | Immunodeficiency 126 | Alveolar echinococcosis,False,True,False,0.0,0.0,"Images 1-2 (CT - noncontrast, sagittal plane, spine; MR - T1W w/Gadolinium, sagittal plane, spine):
+Technique: CT noncontrast sagittal spine; MR T1-weighted with gadolinium sagittal spine. Image quality is limited by motion and low resolution, particularly in the lower thoracic/upper lumbar regions.
+Anatomy: Thoracic and upper lumbar spine, vertebral bodies, intervertebral discs, spinal canal, spinal cord, paraspinal soft tissues, posterior elements.
+Findings:
+- Kyphosis (Thoracic spine) [definite]: Exaggerated thoracic kyphotic curvature with anterior wedging of multiple vertebral bodies
+- Vertebral body collapse (Multiple thoracic vertebral bodies) [definite]: Anterior wedging and loss of height in several mid-thoracic vertebrae
+- Paraspinal soft tissue mass (Posterior to thoracic spine) [definite]: Heterogeneous soft tissue density/mass extending posteriorly from the paraspinal region, visible on both CT and MRI
+Pertinent negatives: No acute fracture lines identified; No obvious spinal cord compression or signal abnormality within the cord; No gross disc herniation with neural foraminal encroachment",2.0,0.0,,
+MPX1043,Disseminated Coccidioidomycosis,ORPHA:228123,reference,637,16,"Gaucher disease type 1 | Classic Hodgkin lymphoma | Autoinflammatory disease, systemic, with vasculitis",,,,,,,,,,
+MPX1063,thoracic aortic dissection,ORPHA:229,text,46,2,"Takayasu arteritis | Coronary artery disease, autosomal dominant, 1 | Sporadic pheochromocytoma/secreting paraganglioma",,,,,,,,,,
+MPX1063,thoracic aortic dissection,ORPHA:229,context,93,7,"Hughes-Stovin syndrome | Takayasu arteritis | Pulmonary hypertension, primary, 7",False,True,False,0.0,0.0,"Images 1-2 (CT w/contrast (IV), axial plane, vascular; CT w/contrast (IV), axial plane, vascular):
+Technique: CT with intravenous contrast, axial plane, vascular phase. Image quality is adequate for evaluation of mediastinal structures and pulmonary vasculature.
+Anatomy: Thorax including lungs, mediastinum, heart, great vessels, chest wall, and upper abdomen.
+Findings:
+- Pulmonary embolism (Right main pulmonary artery) [definite]: Filling defect within the contrast-opacified lumen of the right main pulmonary artery.
+- Pulmonary embolism (Left main pulmonary artery) [definite]: Filling defect within the contrast-opacified lumen of the left main pulmonary artery.
+Pertinent negatives: No pleural effusion; No pneumothorax; No pericardial effusion; No significant mediastinal lymphadenopathy
+Summary: Axial CT images of the chest in the vascular phase demonstrate bilateral pulmonary emboli involving the right and left main pulmonary arteries. No other acute intrathoracic abnormalities are identified.",1.0,0.0,,
+MPX1063,thoracic aortic dissection,ORPHA:229,verified,45,6,"Takayasu arteritis | Coronary artery disease, autosomal dominant, 1 | Sporadic pheochromocytoma/secreting paraganglioma",False,True,False,,0.0,"Images 1-2 (CT w/contrast (IV), axial plane, vascular; CT w/contrast (IV), axial plane, vascular):
+Technique: CT with intravenous contrast, axial plane, vascular phase. Image quality is adequate for evaluation of mediastinal structures and pulmonary vasculature.
+Anatomy: Thorax including lungs, mediastinum, heart, great vessels, chest wall, and upper abdomen.
+Pertinent negatives: No pleural effusion; No pneumothorax; No pericardial effusion; No significant mediastinal lymphadenopathy",0.0,0.0,2.0,0.0
+MPX1063,thoracic aortic dissection,ORPHA:229,definite,93,7,"Hughes-Stovin syndrome | Takayasu arteritis | Pulmonary hypertension, primary, 7",False,True,False,0.0,0.0,"Images 1-2 (CT w/contrast (IV), axial plane, vascular; CT w/contrast (IV), axial plane, vascular):
+Technique: CT with intravenous contrast, axial plane, vascular phase. Image quality is adequate for evaluation of mediastinal structures and pulmonary vasculature.
+Anatomy: Thorax including lungs, mediastinum, heart, great vessels, chest wall, and upper abdomen.
+Findings:
+- Pulmonary embolism (Right main pulmonary artery) [definite]: Filling defect within the contrast-opacified lumen of the right main pulmonary artery.
+- Pulmonary embolism (Left main pulmonary artery) [definite]: Filling defect within the contrast-opacified lumen of the left main pulmonary artery.
+Pertinent negatives: No pleural effusion; No pneumothorax; No pericardial effusion; No significant mediastinal lymphadenopathy
+Summary: Axial CT images of the chest in the vascular phase demonstrate bilateral pulmonary emboli involving the right and left main pulmonary arteries. No other acute intrathoracic abnormalities are identified.",1.0,0.0,,
+MPX1063,thoracic aortic dissection,ORPHA:229,reference,60,3,"Cardiomyopathy, familial hypertrophic, 4 | Systemic lupus erythematosus 18 | Mixed connective tissue disease",,,,,,,,,,
+MPX1075,Typical Bronchial Carcinoid,ORPHA:100093,text,12820,0,"Aortic aneurysm, abdominal | Prune belly syndrome | Abducens palsy",,,,,,,,,,
+MPX1075,Typical Bronchial Carcinoid,ORPHA:100093,context,12795,4,Miyoshi myopathy | Junctional epidermolysis bullosa inversa | Late-onset junctional epidermolysis bullosa,False,True,False,,,"Image 1 (CT w/contrast (IV), axial plane, chest, pulmonary):
+Technique: Axial CT of the chest with IV contrast, soft tissue window.
+Anatomy: Lungs (bilateral), mediastinum, heart, great vessels, trachea, bronchi, chest wall, ribs, spine.
+Pertinent negatives: No pleural effusion; No pneumothorax; No pulmonary consolidation or mass; No mediastinal lymphadenopathy; No cardiomegaly
+Summary: The chest CT demonstrates clear lungs without focal consolidation, masses, or pleural effusion. The cardiomediastinal silhouette is within normal limits in size and contour. No acute osseous abnormalities are identified.",0.0,0.0,,
+MPX1075,Typical Bronchial Carcinoid,ORPHA:100093,verified,12795,4,Miyoshi myopathy | Junctional epidermolysis bullosa inversa | Late-onset junctional epidermolysis bullosa,False,True,False,,,"Image 1 (CT w/contrast (IV), axial plane, chest, pulmonary):
+Technique: Axial CT of the chest with IV contrast, soft tissue window.
+Anatomy: Lungs (bilateral), mediastinum, heart, great vessels, trachea, bronchi, chest wall, ribs, spine.
+Pertinent negatives: No pleural effusion; No pneumothorax; No pulmonary consolidation or mass; No mediastinal lymphadenopathy; No cardiomegaly
+Summary: The chest CT demonstrates clear lungs without focal consolidation, masses, or pleural effusion. The cardiomediastinal silhouette is within normal limits in size and contour. No acute osseous abnormalities are identified.",0.0,0.0,0.0,0.0
+MPX1075,Typical Bronchial Carcinoid,ORPHA:100093,definite,12795,4,Miyoshi myopathy | Junctional epidermolysis bullosa inversa | Late-onset junctional epidermolysis bullosa,False,True,False,,,"Image 1 (CT w/contrast (IV), axial plane, chest, pulmonary):
+Technique: Axial CT of the chest with IV contrast, soft tissue window.
+Anatomy: Lungs (bilateral), mediastinum, heart, great vessels, trachea, bronchi, chest wall, ribs, spine.
+Pertinent negatives: No pleural effusion; No pneumothorax; No pulmonary consolidation or mass; No mediastinal lymphadenopathy; No cardiomegaly
+Summary: The chest CT demonstrates clear lungs without focal consolidation, masses, or pleural effusion. The cardiomediastinal silhouette is within normal limits in size and contour. No acute osseous abnormalities are identified.",0.0,0.0,,
+MPX1075,Typical Bronchial Carcinoid,ORPHA:100093,reference,12820,0,"Aortic aneurysm, abdominal | Prune belly syndrome | Abducens palsy",,,,,,,,,,
+MPX1067,Takayasu&#34;s Arteritis,OMIM:207600;ORPHA:3287,text,32,1,Primary unilateral adrenal hyperplasia | Adrenocortical carcinoma with pure aldosterone hypersecretion | Ectopic aldosterone-producing tumor,,,,,,,,,,
+MPX1067,Takayasu&#34;s Arteritis,OMIM:207600;ORPHA:3287,context,32,5,Primary unilateral adrenal hyperplasia | Adrenocortical carcinoma with pure aldosterone hypersecretion | Ectopic aldosterone-producing tumor,False,True,False,,0.0,"Image 1 (CT w/contrast (IV), axial plane, vascular):
+Technique: CT with intravenous contrast, axial plane, vascular phase; image quality is limited by motion and low resolution, likely a single slice or cropped view
+Anatomy: Cervical spine, upper thorax, trachea, esophagus, major neck vessels (carotid arteries, jugular veins), lungs (apices), clavicles, ribs
+Findings:
+- Tracheal deviation to the right (Cervical trachea) [definite]: The trachea is deviated to the right side at the level of the upper thorax, likely due to mass effect from an enlarged left-sided structure (not fully visualized)
+- Left internal jugular vein enlargement (Left neck) [definite]: The left internal jugular vein appears dilated compared to the right side, with increased caliber and contrast opacification
+- Right carotid artery normal caliber (Right neck) [definite]: The right common carotid artery demonstrates normal caliber and course without evidence of stenosis or dilation
+Pertinent negatives: No pneumothorax; No pleural effusion; No obvious mediastinal mass; No cervical lymphadenopathy
+Summary: The image shows tracheal deviation to the right and enlargement of the left internal jugular vein, suggestive of a space-occupying lesion on the left side exerting mass effect. The right carotid artery appears normal in caliber. Further evaluation with additional imaging is recommended.",0.0,0.0,,
+MPX1067,Takayasu&#34;s Arteritis,OMIM:207600;ORPHA:3287,verified,32,5,Primary unilateral adrenal hyperplasia | Adrenocortical carcinoma with pure aldosterone hypersecretion | Ectopic aldosterone-producing tumor,False,True,False,,0.0,"Image 1 (CT w/contrast (IV), axial plane, vascular):
+Technique: CT with intravenous contrast, axial plane, vascular phase; image quality is limited by motion and low resolution, likely a single slice or cropped view
+Anatomy: Cervical spine, upper thorax, trachea, esophagus, major neck vessels (carotid arteries, jugular veins), lungs (apices), clavicles, ribs
+Pertinent negatives: No pneumothorax; No pleural effusion; No obvious mediastinal mass; No cervical lymphadenopathy",0.0,0.0,3.0,0.0
+MPX1067,Takayasu&#34;s Arteritis,OMIM:207600;ORPHA:3287,definite,32,5,Primary unilateral adrenal hyperplasia | Adrenocortical carcinoma with pure aldosterone hypersecretion | Ectopic aldosterone-producing tumor,False,True,False,,0.0,"Image 1 (CT w/contrast (IV), axial plane, vascular):
+Technique: CT with intravenous contrast, axial plane, vascular phase; image quality is limited by motion and low resolution, likely a single slice or cropped view
+Anatomy: Cervical spine, upper thorax, trachea, esophagus, major neck vessels (carotid arteries, jugular veins), lungs (apices), clavicles, ribs
+Findings:
+- Tracheal deviation to the right (Cervical trachea) [definite]: The trachea is deviated to the right side at the level of the upper thorax, likely due to mass effect from an enlarged left-sided structure (not fully visualized)
+- Left internal jugular vein enlargement (Left neck) [definite]: The left internal jugular vein appears dilated compared to the right side, with increased caliber and contrast opacification
+- Right carotid artery normal caliber (Right neck) [definite]: The right common carotid artery demonstrates normal caliber and course without evidence of stenosis or dilation
+Pertinent negatives: No pneumothorax; No pleural effusion; No obvious mediastinal mass; No cervical lymphadenopathy
+Summary: The image shows tracheal deviation to the right and enlargement of the left internal jugular vein, suggestive of a space-occupying lesion on the left side exerting mass effect. The right carotid artery appears normal in caliber. Further evaluation with additional imaging is recommended.",0.0,0.0,,
+MPX1067,Takayasu&#34;s Arteritis,OMIM:207600;ORPHA:3287,reference,5,2,Grange syndrome | Autosomal recessive cerebral arteriopathy with subcortical infarcts and leukoencephalopathy (CARASIL) | Takayasu arteritis,,,,,,,,,,
+MPX1109,Achalasia,ORPHA:930,text,1268,1,"Idiopathic pulmonary arterial hypertension | Pulmonary fibrosis and/or bone marrow failure, telomere-related, 1 | Telangiectasia, hereditary hemorrhagic, type 1",,,,,,,,,,
+MPX1109,Achalasia,ORPHA:930,context,2433,6,Congenital lobar emphysema | Pulmonary capillary hemangiomatosis | Thymoma-hypogammaglobulinemia syndrome,False,True,False,0.0,,"Image 1 (CT - noncontrast, coronal plane, gastrointestinal):
+Technique: Non-contrast CT, coronal plane, limited field of view (upper abdomen/thorax), image quality is suboptimal with low resolution and potential motion or beam hardening artifacts.
+Anatomy: Thoracic cavity, upper abdominal organs (liver, spleen, kidneys), bowel loops, mediastinum, lungs, chest wall, spine.
+Findings:
+- Pneumomediastinum (Mediastinum) [definite]: Linear and branching lucencies consistent with air tracking along the mediastinal structures.
+- Subcutaneous emphysema (Chest wall, bilateral) [definite]: Air density within the soft tissues of the chest wall.
+Pertinent negatives: No pleural effusion; No pneumothorax; No obvious bowel obstruction or free intraperitoneal air visible in this limited view; No focal hepatic, splenic, or renal masses identified
+Summary: The image demonstrates extensive pneumomediastinum and subcutaneous emphysema. The field of view is limited to the upper abdomen and thorax; lower abdominal organs are not fully visualized.",2.0,0.0,,
+MPX1109,Achalasia,ORPHA:930,verified,1296,5,Meconium aspiration syndrome | Pulmonary venoocclusive disease 2 | Cocaine intoxication,False,True,False,0.0,,"Image 1 (CT - noncontrast, coronal plane, gastrointestinal):
+Technique: Non-contrast CT, coronal plane, limited field of view (upper abdomen/thorax), image quality is suboptimal with low resolution and potential motion or beam hardening artifacts.
+Anatomy: Thoracic cavity, upper abdominal organs (liver, spleen, kidneys), bowel loops, mediastinum, lungs, chest wall, spine.
+Findings:
+- Pneumomediastinum (Mediastinum) [definite]: Linear and branching lucencies consistent with air tracking along the mediastinal structures.
+Pertinent negatives: No pleural effusion; No pneumothorax; No obvious bowel obstruction or free intraperitoneal air visible in this limited view; No focal hepatic, splenic, or renal masses identified",1.0,0.0,2.0,1.0
+MPX1109,Achalasia,ORPHA:930,definite,2433,6,Congenital lobar emphysema | Pulmonary capillary hemangiomatosis | Thymoma-hypogammaglobulinemia syndrome,False,True,False,0.0,,"Image 1 (CT - noncontrast, coronal plane, gastrointestinal):
+Technique: Non-contrast CT, coronal plane, limited field of view (upper abdomen/thorax), image quality is suboptimal with low resolution and potential motion or beam hardening artifacts.
+Anatomy: Thoracic cavity, upper abdominal organs (liver, spleen, kidneys), bowel loops, mediastinum, lungs, chest wall, spine.
+Findings:
+- Pneumomediastinum (Mediastinum) [definite]: Linear and branching lucencies consistent with air tracking along the mediastinal structures.
+- Subcutaneous emphysema (Chest wall, bilateral) [definite]: Air density within the soft tissues of the chest wall.
+Pertinent negatives: No pleural effusion; No pneumothorax; No obvious bowel obstruction or free intraperitoneal air visible in this limited view; No focal hepatic, splenic, or renal masses identified
+Summary: The image demonstrates extensive pneumomediastinum and subcutaneous emphysema. The field of view is limited to the upper abdomen and thorax; lower abdominal organs are not fully visualized.",2.0,0.0,,
+MPX1109,Achalasia,ORPHA:930,reference,1268,1,"Idiopathic pulmonary arterial hypertension | Pulmonary fibrosis and/or bone marrow failure, telomere-related, 1 | Telangiectasia, hereditary hemorrhagic, type 1",,,,,,,,,,
+MPX1115,"Stage IV Melanoma
+Migration of broken catheter",ORPHA:618,text,5210,2,"Takayasu arteritis | Immunoosseous dysplasia, Schimke type | Systemic lupus erythematosus",,,,,,,,,,
+MPX1115,"Stage IV Melanoma
+Migration of broken catheter",ORPHA:618,context,6155,8,"Granulomatosis with polyangiitis | Staphylococcal necrotizing pneumonia | Neuroblastoma, susceptibility to",False,True,False,0.0,0.0,"Image 1 (CT w/contrast (IV), axial plane, pathology):
+Technique: CT with intravenous contrast, axial plane, mediastinal window; image quality is adequate for evaluation of thoracic structures.
+Anatomy: Thorax including lungs, heart, great vessels, mediastinum, chest wall, and upper abdomen.
+Findings:
+- Pulmonary nodule (Left lower lobe) [definite]: Approximately 1.5 cm in diameter, well-circumscribed, solid density, no calcification or cavitation visible.
+- Pulmonary nodule (Right upper lobe) [definite]: Approximately 0.8 cm in diameter, well-circumscribed, solid density.
+Pertinent negatives: No pleural effusion; No pneumothorax; No mediastinal lymphadenopathy; No pericardial effusion; No pulmonary consolidation or ground-glass opacities
+Summary: Axial CT of the chest demonstrates two well-defined pulmonary nodules: one in the left lower lobe measuring approximately 1.5 cm and another in the right upper lobe measuring approximately 0.8 cm. No other acute intrathoracic abnormalities are identified.",1.0,0.0,,
+MPX1115,"Stage IV Melanoma
+Migration of broken catheter",ORPHA:618,verified,6155,8,"Granulomatosis with polyangiitis | Staphylococcal necrotizing pneumonia | Neuroblastoma, susceptibility to",False,True,False,0.0,0.0,"Image 1 (CT w/contrast (IV), axial plane, pathology):
+Technique: CT with intravenous contrast, axial plane, mediastinal window; image quality is adequate for evaluation of thoracic structures.
+Anatomy: Thorax including lungs, heart, great vessels, mediastinum, chest wall, and upper abdomen.
+Findings:
+- Pulmonary nodule (Left lower lobe) [definite]: Approximately 1.5 cm in diameter, well-circumscribed, solid density, no calcification or cavitation visible.
+- Pulmonary nodule (Right upper lobe) [definite]: Approximately 0.8 cm in diameter, well-circumscribed, solid density.
+Pertinent negatives: No pleural effusion; No pneumothorax; No mediastinal lymphadenopathy; No pericardial effusion; No pulmonary consolidation or ground-glass opacities
+Summary: Axial CT of the chest demonstrates two well-defined pulmonary nodules: one in the left lower lobe measuring approximately 1.5 cm and another in the right upper lobe measuring approximately 0.8 cm. No other acute intrathoracic abnormalities are identified.",1.0,0.0,2.0,2.0
+MPX1115,"Stage IV Melanoma
+Migration of broken catheter",ORPHA:618,definite,6155,8,"Granulomatosis with polyangiitis | Staphylococcal necrotizing pneumonia | Neuroblastoma, susceptibility to",False,True,False,0.0,0.0,"Image 1 (CT w/contrast (IV), axial plane, pathology):
+Technique: CT with intravenous contrast, axial plane, mediastinal window; image quality is adequate for evaluation of thoracic structures.
+Anatomy: Thorax including lungs, heart, great vessels, mediastinum, chest wall, and upper abdomen.
+Findings:
+- Pulmonary nodule (Left lower lobe) [definite]: Approximately 1.5 cm in diameter, well-circumscribed, solid density, no calcification or cavitation visible.
+- Pulmonary nodule (Right upper lobe) [definite]: Approximately 0.8 cm in diameter, well-circumscribed, solid density.
+Pertinent negatives: No pleural effusion; No pneumothorax; No mediastinal lymphadenopathy; No pericardial effusion; No pulmonary consolidation or ground-glass opacities
+Summary: Axial CT of the chest demonstrates two well-defined pulmonary nodules: one in the left lower lobe measuring approximately 1.5 cm and another in the right upper lobe measuring approximately 0.8 cm. No other acute intrathoracic abnormalities are identified.",1.0,0.0,,
+MPX1115,"Stage IV Melanoma
+Migration of broken catheter",ORPHA:618,reference,2873,3,Whipple disease | Systemic lupus erythematosus 18 | Immunodeficiency 126,,,,,,,,,,
+MPX1135,Pheochromocytoma,OMIM:171300,text,404,3,Diffuse cutaneous mastocytosis | Sporadic pheochromocytoma/secreting paraganglioma | Hereditary pheochromocytoma-paraganglioma,,,,,,,,,,
+MPX1135,Pheochromocytoma,OMIM:171300,context,4633,9,Polycythemia vera | Hepatoportal sclerosis | Immunodeficiency 126,False,True,False,0.0,,"Images 1-2 (CT w/contrast (IV), axial plane, endocrine; CT w/contrast (IV), axial plane, endocrine):
+Technique: Axial CT of the abdomen with intravenous contrast, endocrine protocol. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, spleen, pancreas, stomach, kidneys, adrenal glands, aorta, IVC, spine, paraspinal muscles, subcutaneous fat, bowel loops.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly beyond the expected dome of the diaphragm. The right lobe appears prominent in size.
+- Splenomegaly (Left upper quadrant) [definite]: The spleen is enlarged, extending inferiorly below the level of the left kidney. The craniocaudal dimension appears increased.
+- Pancreatic enlargement (Epigastrium) [definite]: The pancreas is enlarged and demonstrates heterogeneous enhancement with areas of hypodensity, particularly in the body and tail. The contour appears somewhat lobulated.
+- Splenic vein thrombosis (Left upper quadrant) [definite]: The splenic vein is not visualized as a distinct tubular structure coursing along the superior aspect of the pancreas. There is no contrast opacification within the expected course of the splenic vein.
+- Gastric varices (Stomach fundus/body) [definite]: Multiple serpiginous, enhancing structures are seen along the gastric wall, particularly in the fundus and body. These vessels appear dilated and tortuous.
+- Left-sided splenorenal shunt (Left upper quadrant) [definite]: A large, tortuous vessel is seen connecting the spleen to the left renal vein. This vessel appears dilated and enhances with contrast.
+- Right-sided splenorenal shunt (Left upper quadrant) [definite]: A large, tortuous vessel is seen connecting the spleen to the right renal vein. This vessel appears dilated and enhances with contrast.
+- Ascites (Peritoneal cavity) [definite]: Small amount of fluid is seen in the peritoneal cavity, particularly in the paracolic gutters and around the liver edge.
+Pertinent negatives: No focal hepatic mass; No splenic infarction; No adrenal masses; No renal masses; No lymphadenopathy; No pneumoperitoneum
+Summary: The images demonstrate hepatomegaly, splenomegaly, and pancreatic enlargement with heterogeneous enhancement. There is absence of the splenic vein and presence of multiple large, tortuous vessels connecting the spleen to both renal veins (splenorenal shunts). Gastric varices are also present. Small amount of ascites is noted.",4.0,0.0,,
+MPX1135,Pheochromocytoma,OMIM:171300,verified,2077,7,Polycythemia vera | Diffuse cutaneous mastocytosis | Sporadic pheochromocytoma/secreting paraganglioma,False,True,False,0.0,,"Images 1-2 (CT w/contrast (IV), axial plane, endocrine; CT w/contrast (IV), axial plane, endocrine):
+Technique: Axial CT of the abdomen with intravenous contrast, endocrine protocol. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, spleen, pancreas, stomach, kidneys, adrenal glands, aorta, IVC, spine, paraspinal muscles, subcutaneous fat, bowel loops.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly beyond the expected dome of the diaphragm. The right lobe appears prominent in size.
+- Splenomegaly (Left upper quadrant) [definite]: The spleen is enlarged, extending inferiorly below the level of the left kidney. The craniocaudal dimension appears increased.
+- Splenic vein thrombosis (Left upper quadrant) [definite]: The splenic vein is not visualized as a distinct tubular structure coursing along the superior aspect of the pancreas. There is no contrast opacification within the expected course of the splenic vein.
+- Left-sided splenorenal shunt (Left upper quadrant) [definite]: A large, tortuous vessel is seen connecting the spleen to the left renal vein. This vessel appears dilated and enhances with contrast.
+Pertinent negatives: No focal hepatic mass; No splenic infarction; No adrenal masses; No renal masses; No lymphadenopathy; No pneumoperitoneum",2.0,0.0,8.0,4.0
+MPX1135,Pheochromocytoma,OMIM:171300,definite,4633,9,Polycythemia vera | Hepatoportal sclerosis | Immunodeficiency 126,False,True,False,0.0,,"Images 1-2 (CT w/contrast (IV), axial plane, endocrine; CT w/contrast (IV), axial plane, endocrine):
+Technique: Axial CT of the abdomen with intravenous contrast, endocrine protocol. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, spleen, pancreas, stomach, kidneys, adrenal glands, aorta, IVC, spine, paraspinal muscles, subcutaneous fat, bowel loops.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly beyond the expected dome of the diaphragm. The right lobe appears prominent in size.
+- Splenomegaly (Left upper quadrant) [definite]: The spleen is enlarged, extending inferiorly below the level of the left kidney. The craniocaudal dimension appears increased.
+- Pancreatic enlargement (Epigastrium) [definite]: The pancreas is enlarged and demonstrates heterogeneous enhancement with areas of hypodensity, particularly in the body and tail. The contour appears somewhat lobulated.
+- Splenic vein thrombosis (Left upper quadrant) [definite]: The splenic vein is not visualized as a distinct tubular structure coursing along the superior aspect of the pancreas. There is no contrast opacification within the expected course of the splenic vein.
+- Gastric varices (Stomach fundus/body) [definite]: Multiple serpiginous, enhancing structures are seen along the gastric wall, particularly in the fundus and body. These vessels appear dilated and tortuous.
+- Left-sided splenorenal shunt (Left upper quadrant) [definite]: A large, tortuous vessel is seen connecting the spleen to the left renal vein. This vessel appears dilated and enhances with contrast.
+- Right-sided splenorenal shunt (Left upper quadrant) [definite]: A large, tortuous vessel is seen connecting the spleen to the right renal vein. This vessel appears dilated and enhances with contrast.
+- Ascites (Peritoneal cavity) [definite]: Small amount of fluid is seen in the peritoneal cavity, particularly in the paracolic gutters and around the liver edge.
+Pertinent negatives: No focal hepatic mass; No splenic infarction; No adrenal masses; No renal masses; No lymphadenopathy; No pneumoperitoneum
+Summary: The images demonstrate hepatomegaly, splenomegaly, and pancreatic enlargement with heterogeneous enhancement. There is absence of the splenic vein and presence of multiple large, tortuous vessels connecting the spleen to both renal veins (splenorenal shunts). Gastric varices are also present. Small amount of ascites is noted.",4.0,0.0,,
+MPX1135,Pheochromocytoma,OMIM:171300,reference,404,3,Diffuse cutaneous mastocytosis | Sporadic pheochromocytoma/secreting paraganglioma | Hereditary pheochromocytoma-paraganglioma,,,,,,,,,,
+MPX1123,Wilms’ Tumor (nephroblastoma).  Negative left renal involvement.  Negative mesenteric lymph node pathology.,ORPHA:654,text,12,6,Fabry disease | Immunoglobulin A vasculitis | Systemic lupus erythematosus 18,,,,,,,,,,
+MPX1123,Wilms’ Tumor (nephroblastoma).  Negative left renal involvement.  Negative mesenteric lymph node pathology.,ORPHA:654,context,4,11,"Immunodeficiency, common variable, 6 | AA amyloidosis | Autosomal dominant polycystic kidney disease",False,True,False,0.0,0.0,"Images 1-2 (CT - GI & IV Contrast, axial plane, genitourinary; CT - GI & IV Contrast, axial plane, genitourinary):
+Technique: Axial CT of the abdomen with oral and intravenous contrast. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, spleen, kidneys, pancreas, bowel loops, major vessels (aorta, IVC), spine, paraspinal muscles, subcutaneous fat.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly below the level of the right kidney. The right lobe appears bulky and rounded.
+- Hepatic mass (Right hepatic lobe) [definite]: A large, well-circumscribed, hypodense lesion is present in the right hepatic lobe. It measures approximately 10 cm in diameter (estimated based on comparison with adjacent vertebral body width). The lesion has a heterogeneous internal density and exerts mass effect, displacing the stomach medially.
+- Left renal enlargement (Left kidney) [definite]: The left kidney is enlarged compared to the right side. The renal parenchyma appears relatively homogeneous, though the overall size is increased.
+- Right renal compression (Right kidney) [definite]: The right kidney is compressed and displaced inferiorly by the large hepatic mass. The visible portion of the right kidney appears thinned.
+Pertinent negatives: No ascites; No pneumoperitoneum; No obvious lymphadenopathy in the visualized retroperitoneum; No splenomegaly
+Summary: There is a large, well-defined hypodense mass in the right hepatic lobe causing significant mass effect and displacement of adjacent structures. The liver is enlarged (hepatomegaly). The left kidney is enlarged, while the right kidney is compressed by the hepatic lesion.",2.0,0.0,,
+MPX1123,Wilms’ Tumor (nephroblastoma).  Negative left renal involvement.  Negative mesenteric lymph node pathology.,ORPHA:654,verified,1,10,Nephroblastoma | Sickle cell anemia | Fabry disease,False,True,False,0.0,0.0,"Images 1-2 (CT - GI & IV Contrast, axial plane, genitourinary; CT - GI & IV Contrast, axial plane, genitourinary):
+Technique: Axial CT of the abdomen with oral and intravenous contrast. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, spleen, kidneys, pancreas, bowel loops, major vessels (aorta, IVC), spine, paraspinal muscles, subcutaneous fat.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly below the level of the right kidney. The right lobe appears bulky and rounded.
+- Hepatic mass (Right hepatic lobe) [definite]: A large, well-circumscribed, hypodense lesion is present in the right hepatic lobe. It measures approximately 10 cm in diameter (estimated based on comparison with adjacent vertebral body width). The lesion has a heterogeneous internal density and exerts mass effect, displacing the stomach medially.
+- Right renal compression (Right kidney) [definite]: The right kidney is compressed and displaced inferiorly by the large hepatic mass. The visible portion of the right kidney appears thinned.
+Pertinent negatives: No ascites; No pneumoperitoneum; No obvious lymphadenopathy in the visualized retroperitoneum; No splenomegaly",1.0,0.0,4.0,3.0
+MPX1123,Wilms’ Tumor (nephroblastoma).  Negative left renal involvement.  Negative mesenteric lymph node pathology.,ORPHA:654,definite,4,11,"Immunodeficiency, common variable, 6 | AA amyloidosis | Autosomal dominant polycystic kidney disease",False,True,False,0.0,0.0,"Images 1-2 (CT - GI & IV Contrast, axial plane, genitourinary; CT - GI & IV Contrast, axial plane, genitourinary):
+Technique: Axial CT of the abdomen with oral and intravenous contrast. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, spleen, kidneys, pancreas, bowel loops, major vessels (aorta, IVC), spine, paraspinal muscles, subcutaneous fat.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly below the level of the right kidney. The right lobe appears bulky and rounded.
+- Hepatic mass (Right hepatic lobe) [definite]: A large, well-circumscribed, hypodense lesion is present in the right hepatic lobe. It measures approximately 10 cm in diameter (estimated based on comparison with adjacent vertebral body width). The lesion has a heterogeneous internal density and exerts mass effect, displacing the stomach medially.
+- Left renal enlargement (Left kidney) [definite]: The left kidney is enlarged compared to the right side. The renal parenchyma appears relatively homogeneous, though the overall size is increased.
+- Right renal compression (Right kidney) [definite]: The right kidney is compressed and displaced inferiorly by the large hepatic mass. The visible portion of the right kidney appears thinned.
+Pertinent negatives: No ascites; No pneumoperitoneum; No obvious lymphadenopathy in the visualized retroperitoneum; No splenomegaly
+Summary: There is a large, well-defined hypodense mass in the right hepatic lobe causing significant mass effect and displacement of adjacent structures. The liver is enlarged (hepatomegaly). The left kidney is enlarged, while the right kidney is compressed by the hepatic lesion.",2.0,0.0,,
+MPX1123,Wilms’ Tumor (nephroblastoma).  Negative left renal involvement.  Negative mesenteric lymph node pathology.,ORPHA:654,reference,3,10,Lymphangioleiomyomatosis | Rhabdoid tumor | Nephroblastoma,,,,,,,,,,
+MPX1152,Sarcoidosis.,ORPHA:797,text,805,2,IgG4-related retroperitoneal fibrosis | Castleman disease | Cystinuria,,,,,,,,,,
+MPX1152,Sarcoidosis.,ORPHA:797,context,284,10,Budd-Chiari syndrome | Immunodeficiency 126 | Pediatric hepatocellular carcinoma,False,True,False,0.0,0.0,"Image 1 (CT - noncontrast, axial plane, generalized):
+Technique: Noncontrast axial CT of the abdomen/pelvis; image quality is limited by motion and low resolution, with suboptimal windowing for soft tissue evaluation.
+Anatomy: Abdomen and pelvis including liver, spleen, kidneys, bowel loops, pancreas, aorta, IVC, spine, paraspinal muscles, and abdominal wall.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: Liver extends inferiorly beyond the level of the renal hila; size appears enlarged relative to normal for age/sex.
+- Splenomegaly (Left upper quadrant) [definite]: Spleen extends inferiorly beyond the level of the renal hila; size appears enlarged relative to normal for age/sex.
+- Abdominal aortic stent (Abdominal aorta) [definite]: Metallic density structure consistent with an endovascular stent graft is present within the lumen of the abdominal aorta.
+- Bowel wall thickening (Small bowel loops, central abdomen) [definite]: Multiple small bowel loops demonstrate circumferential wall thickening with associated mesenteric fat stranding.
+- Ascites (Peritoneal cavity) [definite]: Low-attenuation fluid is present in the peritoneal cavity, particularly in the paracolic gutters and around the liver edge.
+Pertinent negatives: No pneumoperitoneum; No free air; No obvious renal calculi; No grossly dilated ureters or hydronephrosis; No focal hepatic or splenic lesions identified on this single slice
+Summary: Noncontrast axial CT demonstrates hepatomegaly, splenomegaly, ascites, and bowel wall thickening with mesenteric fat stranding. An abdominal aortic stent is present. Findings are suggestive of chronic liver disease with portal hypertension and possible inflammatory or infectious enteropathy.",5.0,0.0,,
+MPX1152,Sarcoidosis.,ORPHA:797,verified,792,6,IgG4-related retroperitoneal fibrosis | Castleman disease | Renal nutcracker syndrome,False,True,False,,0.0,"Image 1 (CT - noncontrast, axial plane, generalized):
+Technique: Noncontrast axial CT of the abdomen/pelvis; image quality is limited by motion and low resolution, with suboptimal windowing for soft tissue evaluation.
+Anatomy: Abdomen and pelvis including liver, spleen, kidneys, bowel loops, pancreas, aorta, IVC, spine, paraspinal muscles, and abdominal wall.
+Findings:
+- Abdominal aortic stent (Abdominal aorta) [definite]: Metallic density structure consistent with an endovascular stent graft is present within the lumen of the abdominal aorta.
+Pertinent negatives: No pneumoperitoneum; No free air; No obvious renal calculi; No grossly dilated ureters or hydronephrosis; No focal hepatic or splenic lesions identified on this single slice",0.0,0.0,5.0,1.0
+MPX1152,Sarcoidosis.,ORPHA:797,definite,284,10,Budd-Chiari syndrome | Immunodeficiency 126 | Pediatric hepatocellular carcinoma,False,True,False,0.0,0.0,"Image 1 (CT - noncontrast, axial plane, generalized):
+Technique: Noncontrast axial CT of the abdomen/pelvis; image quality is limited by motion and low resolution, with suboptimal windowing for soft tissue evaluation.
+Anatomy: Abdomen and pelvis including liver, spleen, kidneys, bowel loops, pancreas, aorta, IVC, spine, paraspinal muscles, and abdominal wall.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: Liver extends inferiorly beyond the level of the renal hila; size appears enlarged relative to normal for age/sex.
+- Splenomegaly (Left upper quadrant) [definite]: Spleen extends inferiorly beyond the level of the renal hila; size appears enlarged relative to normal for age/sex.
+- Abdominal aortic stent (Abdominal aorta) [definite]: Metallic density structure consistent with an endovascular stent graft is present within the lumen of the abdominal aorta.
+- Bowel wall thickening (Small bowel loops, central abdomen) [definite]: Multiple small bowel loops demonstrate circumferential wall thickening with associated mesenteric fat stranding.
+- Ascites (Peritoneal cavity) [definite]: Low-attenuation fluid is present in the peritoneal cavity, particularly in the paracolic gutters and around the liver edge.
+Pertinent negatives: No pneumoperitoneum; No free air; No obvious renal calculi; No grossly dilated ureters or hydronephrosis; No focal hepatic or splenic lesions identified on this single slice
+Summary: Noncontrast axial CT demonstrates hepatomegaly, splenomegaly, ascites, and bowel wall thickening with mesenteric fat stranding. An abdominal aortic stent is present. Findings are suggestive of chronic liver disease with portal hypertension and possible inflammatory or infectious enteropathy.",5.0,0.0,,
+MPX1152,Sarcoidosis.,ORPHA:797,reference,49,4,Cystinuria | IgG4-related retroperitoneal fibrosis | Adenine phosphoribosyltransferase deficiency,,,,,,,,,,
+MPX1159,Burkitt's Lymphoma,OMIM:113970;ORPHA:543,text,2773,3,Isolated polycystic liver disease | Mitochondrial DNA depletion syndrome 1 (MNGIE type) | Mitochondrial neurogastrointestinal encephalomyopathy,,,,,,,,,,
+MPX1159,Burkitt's Lymphoma,OMIM:113970;ORPHA:543,context,3165,9,Isolated polycystic liver disease | Mitochondrial DNA depletion syndrome 1 (MNGIE type) | Polycythemia vera,False,True,False,0.0,0.0,"Image 1 (CT - GI & IV Contrast, coronal plane, generalized):
+Technique: Coronal CT of the abdomen and pelvis with intravenous contrast. Image quality is adequate for evaluation of abdominal organs, though some bowel loops are partially obscured by oral contrast.
+Anatomy: Liver, spleen, pancreas, kidneys, stomach, small bowel, colon, bladder, aorta, IVC, lungs (lower lobes), and bony pelvis.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly below the level of the right kidney. The contour appears smooth without focal lesions.
+- Mass effect on stomach and bowel (Epigastrium/Upper abdomen) [definite]: A large, heterogeneous soft tissue mass is present in the region of the pancreas or retroperitoneum, displacing the stomach anteriorly and compressing adjacent bowel loops.
+- Displacement of bowel loops (Mid-abdomen) [definite]: Multiple loops of small bowel are displaced inferiorly and laterally by the mass effect from the epigastric region.
+- No hydronephrosis (Kidneys) [definite]: Both kidneys appear normal in size and shape with no evidence of dilation of the collecting systems.
+Pertinent negatives: No ascites; No pleural effusion; No pneumothorax; No obvious lymphadenopathy; No bony destruction of the visualized pelvis
+Summary: There is a large, heterogeneous soft tissue mass in the epigastric region causing significant mass effect on the stomach and bowel loops. The liver is enlarged (hepatomegaly). No hydronephrosis or ascites is seen.",1.0,0.0,,
+MPX1159,Burkitt's Lymphoma,OMIM:113970;ORPHA:543,verified,3165,9,Isolated polycystic liver disease | Mitochondrial DNA depletion syndrome 1 (MNGIE type) | Polycythemia vera,False,True,False,0.0,0.0,"Image 1 (CT - GI & IV Contrast, coronal plane, generalized):
+Technique: Coronal CT of the abdomen and pelvis with intravenous contrast. Image quality is adequate for evaluation of abdominal organs, though some bowel loops are partially obscured by oral contrast.
+Anatomy: Liver, spleen, pancreas, kidneys, stomach, small bowel, colon, bladder, aorta, IVC, lungs (lower lobes), and bony pelvis.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly below the level of the right kidney. The contour appears smooth without focal lesions.
+- Mass effect on stomach and bowel (Epigastrium/Upper abdomen) [definite]: A large, heterogeneous soft tissue mass is present in the region of the pancreas or retroperitoneum, displacing the stomach anteriorly and compressing adjacent bowel loops.
+- Displacement of bowel loops (Mid-abdomen) [definite]: Multiple loops of small bowel are displaced inferiorly and laterally by the mass effect from the epigastric region.
+- No hydronephrosis (Kidneys) [definite]: Both kidneys appear normal in size and shape with no evidence of dilation of the collecting systems.
+Pertinent negatives: No ascites; No pleural effusion; No pneumothorax; No obvious lymphadenopathy; No bony destruction of the visualized pelvis
+Summary: There is a large, heterogeneous soft tissue mass in the epigastric region causing significant mass effect on the stomach and bowel loops. The liver is enlarged (hepatomegaly). No hydronephrosis or ascites is seen.",1.0,0.0,4.0,4.0
+MPX1159,Burkitt's Lymphoma,OMIM:113970;ORPHA:543,definite,3165,9,Isolated polycystic liver disease | Mitochondrial DNA depletion syndrome 1 (MNGIE type) | Polycythemia vera,False,True,False,0.0,0.0,"Image 1 (CT - GI & IV Contrast, coronal plane, generalized):
+Technique: Coronal CT of the abdomen and pelvis with intravenous contrast. Image quality is adequate for evaluation of abdominal organs, though some bowel loops are partially obscured by oral contrast.
+Anatomy: Liver, spleen, pancreas, kidneys, stomach, small bowel, colon, bladder, aorta, IVC, lungs (lower lobes), and bony pelvis.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly below the level of the right kidney. The contour appears smooth without focal lesions.
+- Mass effect on stomach and bowel (Epigastrium/Upper abdomen) [definite]: A large, heterogeneous soft tissue mass is present in the region of the pancreas or retroperitoneum, displacing the stomach anteriorly and compressing adjacent bowel loops.
+- Displacement of bowel loops (Mid-abdomen) [definite]: Multiple loops of small bowel are displaced inferiorly and laterally by the mass effect from the epigastric region.
+- No hydronephrosis (Kidneys) [definite]: Both kidneys appear normal in size and shape with no evidence of dilation of the collecting systems.
+Pertinent negatives: No ascites; No pleural effusion; No pneumothorax; No obvious lymphadenopathy; No bony destruction of the visualized pelvis
+Summary: There is a large, heterogeneous soft tissue mass in the epigastric region causing significant mass effect on the stomach and bowel loops. The liver is enlarged (hepatomegaly). No hydronephrosis or ascites is seen.",1.0,0.0,,
+MPX1159,Burkitt's Lymphoma,OMIM:113970;ORPHA:543,reference,3494,4,Isolated polycystic liver disease | Hyper-IgE recurrent infection syndrome | Ovarian hyperstimulation syndrome,,,,,,,,,,
+MPX1154,Cysticercosis,ORPHA:1560,text,1387,1,Perioral myoclonia with absences | Early infantile developmental and epileptic encephalopathy | RFT1-CDG,,,,,,,,,,
+MPX1154,Cysticercosis,ORPHA:1560,context,1372,5,"Lissencephaly 7 with cerebellar hypoplasia | Maternal uniparental disomy of chromosome X syndrome | Pseudoleprechaunism syndrome, Patterson type",False,True,False,1.0,1.0,"Images 1-2 (CT - noncontrast, axial plane, brain and neuro; CT - noncontrast, axial plane, brain and neuro):
+Technique: Noncontrast axial CT of the brain and neuro. Image quality is adequate for evaluation of intracranial structures.
+Anatomy: Brain parenchyma, ventricular system (lateral, third, fourth), midline structures, sulci, cisterns, extra-axial spaces, skull.
+Findings:
+- Ring-enhancing lesion (Right parietal lobe) [definite]: Approximately 2 cm in diameter with a hypodense center and hyperdense rim. Surrounding vasogenic edema present.
+- Mass effect (Right parietal lobe) [definite]: Mild effacement of adjacent sulci and slight rightward midline shift.
+Pertinent negatives: No hydrocephalus; No subdural or epidural hematoma; No intraventricular hemorrhage; No extra-axial fluid collection
+Summary: A ring-enhancing lesion is present in the right parietal lobe with surrounding edema and mild mass effect. No other acute intracranial abnormalities are identified.",1.0,1.0,,
+MPX1154,Cysticercosis,ORPHA:1560,verified,1376,4,Perioral myoclonia with absences | Early infantile developmental and epileptic encephalopathy | RFT1-CDG,False,True,False,,0.0,"Images 1-2 (CT - noncontrast, axial plane, brain and neuro; CT - noncontrast, axial plane, brain and neuro):
+Technique: Noncontrast axial CT of the brain and neuro. Image quality is adequate for evaluation of intracranial structures.
+Anatomy: Brain parenchyma, ventricular system (lateral, third, fourth), midline structures, sulci, cisterns, extra-axial spaces, skull.
+Pertinent negatives: No hydrocephalus; No subdural or epidural hematoma; No intraventricular hemorrhage; No extra-axial fluid collection",0.0,0.0,2.0,0.0
+MPX1154,Cysticercosis,ORPHA:1560,definite,1372,5,"Lissencephaly 7 with cerebellar hypoplasia | Maternal uniparental disomy of chromosome X syndrome | Pseudoleprechaunism syndrome, Patterson type",False,True,False,1.0,1.0,"Images 1-2 (CT - noncontrast, axial plane, brain and neuro; CT - noncontrast, axial plane, brain and neuro):
+Technique: Noncontrast axial CT of the brain and neuro. Image quality is adequate for evaluation of intracranial structures.
+Anatomy: Brain parenchyma, ventricular system (lateral, third, fourth), midline structures, sulci, cisterns, extra-axial spaces, skull.
+Findings:
+- Ring-enhancing lesion (Right parietal lobe) [definite]: Approximately 2 cm in diameter with a hypodense center and hyperdense rim. Surrounding vasogenic edema present.
+- Mass effect (Right parietal lobe) [definite]: Mild effacement of adjacent sulci and slight rightward midline shift.
+Pertinent negatives: No hydrocephalus; No subdural or epidural hematoma; No intraventricular hemorrhage; No extra-axial fluid collection
+Summary: A ring-enhancing lesion is present in the right parietal lobe with surrounding edema and mild mass effect. No other acute intracranial abnormalities are identified.",1.0,1.0,,
+MPX1154,Cysticercosis,ORPHA:1560,reference,1376,2,"Lissencephaly 7 with cerebellar hypoplasia | Maternal uniparental disomy of chromosome X syndrome | Pseudoleprechaunism syndrome, Patterson type",,,,,,,,,,
+MPX1169,PHEOCHROMOCYTOMA,OMIM:171300,text,574,2,"Central hypoventilation syndrome, congenital, 3 | Intellectual disability-seizures-macrocephaly-obesity syndrome | Fabry disease",,,,,,,,,,
+MPX1169,PHEOCHROMOCYTOMA,OMIM:171300,context,551,5,"Central hypoventilation syndrome, congenital, 3 | Intellectual disability-seizures-macrocephaly-obesity syndrome | Fabry disease",False,True,False,,0.0,"Image 1 (CT - GI Contrast, axial plane, generalized):
+Technique: CT of the abdomen, axial plane, with oral and intravenous contrast (likely portal venous phase). Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Abdomen including liver, spleen, pancreas, kidneys, bowel loops, spine, and paraspinal musculature.
+Findings:
+- Large soft tissue mass (Left retroperitoneum / Pancreatic tail region) [definite]: Heterogeneous density, approximately 8-10 cm in greatest dimension, causing displacement of adjacent bowel loops.
+- Mass effect (Left kidney) [definite]: Displacement and compression of the left kidney medially.
+Pertinent negatives: No hydronephrosis; No ascites; No pneumoperitoneum; No obvious lymphadenopathy in visualized mesenteric fat
+Summary: There is a large, heterogeneous soft tissue mass located in the left retroperitoneum/pancreatic tail region. The mass exerts significant mass effect, displacing and compressing the left kidney medially. No hydronephrosis or ascites is identified.",0.0,0.0,,
+MPX1169,PHEOCHROMOCYTOMA,OMIM:171300,verified,551,5,"Central hypoventilation syndrome, congenital, 3 | Intellectual disability-seizures-macrocephaly-obesity syndrome | Fabry disease",False,True,False,,0.0,"Image 1 (CT - GI Contrast, axial plane, generalized):
+Technique: CT of the abdomen, axial plane, with oral and intravenous contrast (likely portal venous phase). Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Abdomen including liver, spleen, pancreas, kidneys, bowel loops, spine, and paraspinal musculature.
+Findings:
+- Large soft tissue mass (Left retroperitoneum / Pancreatic tail region) [definite]: Heterogeneous density, approximately 8-10 cm in greatest dimension, causing displacement of adjacent bowel loops.
+- Mass effect (Left kidney) [definite]: Displacement and compression of the left kidney medially.
+Pertinent negatives: No hydronephrosis; No ascites; No pneumoperitoneum; No obvious lymphadenopathy in visualized mesenteric fat
+Summary: There is a large, heterogeneous soft tissue mass located in the left retroperitoneum/pancreatic tail region. The mass exerts significant mass effect, displacing and compressing the left kidney medially. No hydronephrosis or ascites is identified.",0.0,0.0,2.0,2.0
+MPX1169,PHEOCHROMOCYTOMA,OMIM:171300,definite,551,5,"Central hypoventilation syndrome, congenital, 3 | Intellectual disability-seizures-macrocephaly-obesity syndrome | Fabry disease",False,True,False,,0.0,"Image 1 (CT - GI Contrast, axial plane, generalized):
+Technique: CT of the abdomen, axial plane, with oral and intravenous contrast (likely portal venous phase). Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Abdomen including liver, spleen, pancreas, kidneys, bowel loops, spine, and paraspinal musculature.
+Findings:
+- Large soft tissue mass (Left retroperitoneum / Pancreatic tail region) [definite]: Heterogeneous density, approximately 8-10 cm in greatest dimension, causing displacement of adjacent bowel loops.
+- Mass effect (Left kidney) [definite]: Displacement and compression of the left kidney medially.
+Pertinent negatives: No hydronephrosis; No ascites; No pneumoperitoneum; No obvious lymphadenopathy in visualized mesenteric fat
+Summary: There is a large, heterogeneous soft tissue mass located in the left retroperitoneum/pancreatic tail region. The mass exerts significant mass effect, displacing and compressing the left kidney medially. No hydronephrosis or ascites is identified.",0.0,0.0,,
+MPX1169,PHEOCHROMOCYTOMA,OMIM:171300,reference,273,3,Adrenocortical carcinoma with pure aldosterone hypersecretion | Late-onset isolated ACTH deficiency | Intellectual disability-seizures-macrocephaly-obesity syndrome,,,,,,,,,,
+MPX1165,"Juvenile Nasopharyngeal Angiofibroma (JNA)
+Diagnosis confirmed at histology after first resection.",ORPHA:289596,text,12820,0,"Aortic aneurysm, abdominal | Prune belly syndrome | Abducens palsy",,,,,,,,,,
+MPX1165,"Juvenile Nasopharyngeal Angiofibroma (JNA)
+Diagnosis confirmed at histology after first resection.",ORPHA:289596,context,12820,1,Kawasaki disease | Kikuchi-Fujimoto disease | Histiocytosis-lymphadenopathy plus syndrome,False,True,False,0.0,0.0,"Images 1-2 (CT w/contrast (IV), axial plane, head and neck; CT w/contrast (IV), axial plane, head and neck):
+Technique: CT with IV contrast, axial plane, head and neck; image quality is adequate for evaluation of soft tissues and bony structures.
+Anatomy: Head and neck region including parotid glands, masticator spaces, mandible, maxilla, cervical spine, airway, pharynx, larynx, salivary glands, thyroid, lymph nodes by level, vessels, bones.
+Findings:
+- Mass (Right parotid gland region) [definite]: Large, well-circumscribed, heterogeneously enhancing mass measuring approximately 6 cm in greatest dimension; causes displacement of adjacent structures including the right mandible and masticator space.
+- Mass (Left parotid gland region) [definite]: Smaller, well-circumscribed, heterogeneously enhancing mass measuring approximately 2 cm in greatest dimension; no significant mass effect.
+- Enlarged lymph node (Right level II cervical chain) [probable]: Single enlarged, rounded lymph node measuring approximately 1.5 cm in short axis; demonstrates central hypodensity suggestive of necrosis.
+- Enlarged lymph node (Left level II cervical chain) [probable]: Single enlarged, rounded lymph node measuring approximately 1.2 cm in short axis; no central necrosis.
+Pertinent negatives: No evidence of airway or pharyngeal obstruction; No thyroid enlargement or focal lesion; No other enlarged lymph nodes identified outside levels II; No bony destruction of mandible or maxilla
+Summary: Bilateral parotid masses with the right-sided lesion being significantly larger and more heterogeneous. Associated bilateral level II cervical lymphadenopathy, with the right node showing features suggestive of necrosis. No evidence of airway compromise or bony invasion.",1.0,0.0,,
+MPX1165,"Juvenile Nasopharyngeal Angiofibroma (JNA)
+Diagnosis confirmed at histology after first resection.",ORPHA:289596,verified,12820,0,"Aortic aneurysm, abdominal | Prune belly syndrome | Abducens palsy",False,True,False,,0.0,"Images 1-2 (CT w/contrast (IV), axial plane, head and neck; CT w/contrast (IV), axial plane, head and neck):
+Technique: CT with IV contrast, axial plane, head and neck; image quality is adequate for evaluation of soft tissues and bony structures.
+Anatomy: Head and neck region including parotid glands, masticator spaces, mandible, maxilla, cervical spine, airway, pharynx, larynx, salivary glands, thyroid, lymph nodes by level, vessels, bones.
+Findings:
+- Mass (Right parotid gland region) [definite]: Large, well-circumscribed, heterogeneously enhancing mass measuring approximately 6 cm in greatest dimension; causes displacement of adjacent structures including the right mandible and masticator space.
+Pertinent negatives: No evidence of airway or pharyngeal obstruction; No thyroid enlargement or focal lesion; No other enlarged lymph nodes identified outside levels II; No bony destruction of mandible or maxilla",0.0,0.0,4.0,1.0
+MPX1165,"Juvenile Nasopharyngeal Angiofibroma (JNA)
+Diagnosis confirmed at histology after first resection.",ORPHA:289596,definite,12820,0,"Aortic aneurysm, abdominal | Prune belly syndrome | Abducens palsy",False,True,False,,0.0,"Images 1-2 (CT w/contrast (IV), axial plane, head and neck; CT w/contrast (IV), axial plane, head and neck):
+Technique: CT with IV contrast, axial plane, head and neck; image quality is adequate for evaluation of soft tissues and bony structures.
+Anatomy: Head and neck region including parotid glands, masticator spaces, mandible, maxilla, cervical spine, airway, pharynx, larynx, salivary glands, thyroid, lymph nodes by level, vessels, bones.
+Findings:
+- Mass (Right parotid gland region) [definite]: Large, well-circumscribed, heterogeneously enhancing mass measuring approximately 6 cm in greatest dimension; causes displacement of adjacent structures including the right mandible and masticator space.
+- Mass (Left parotid gland region) [definite]: Smaller, well-circumscribed, heterogeneously enhancing mass measuring approximately 2 cm in greatest dimension; no significant mass effect.
+Pertinent negatives: No evidence of airway or pharyngeal obstruction; No thyroid enlargement or focal lesion; No other enlarged lymph nodes identified outside levels II; No bony destruction of mandible or maxilla",0.0,0.0,,
+MPX1165,"Juvenile Nasopharyngeal Angiofibroma (JNA)
+Diagnosis confirmed at histology after first resection.",ORPHA:289596,reference,584,2,Lynch syndrome | Familial colorectal cancer Type X | Nasu-Hakola disease,,,,,,,,,,
+MPX1164,Bilateral Wilms Tumor,ORPHA:654,text,12820,0,"Aortic aneurysm, abdominal | Prune belly syndrome | Abducens palsy",,,,,,,,,,
+MPX1164,Bilateral Wilms Tumor,ORPHA:654,context,1,3,Nephroblastoma | Multicystic dysplastic kidney | Neuroblastoma,False,True,False,0.0,,"Images 1-2 (CT - GI & IV Contrast, axial plane, genitourinary; CT - GI & IV Contrast, coronal plane, genitourinary):
+Technique: CT of the abdomen and pelvis with oral and intravenous contrast, axial and coronal planes. Image quality is adequate for evaluation of abdominal organs; no significant motion or artifact noted.
+Anatomy: Liver, gallbladder, pancreas, spleen, kidneys, ureters, bowel loops, aorta, inferior vena cava, spine, ribs, and surrounding soft tissues are visualized.
+Findings:
+- Large right-sided abdominal mass (Right upper quadrant / Right flank) [definite]: Well-circumscribed, large (approximately 10 cm in diameter), homogenous soft tissue density mass displacing adjacent structures including the liver and kidney. No internal calcifications or cystic components identified.
+- Left-sided renal mass (Left upper quadrant / Left flank) [definite]: Well-defined, approximately 5 cm in diameter, solid-appearing mass arising from the left kidney. No evidence of invasion into surrounding structures.
+- Displacement of bowel loops (Central abdomen) [definite]: Bowel loops are displaced medially and inferiorly by the large right-sided mass.
+Pertinent negatives: No free intraperitoneal fluid or air; No obvious lymphadenopathy; No biliary ductal dilation; No splenic abnormalities; No pancreatic mass or inflammation; No vertebral body destruction
+Summary: There is a large right-sided abdominal mass and a smaller left renal mass, both well-circumscribed and solid-appearing. The right mass causes significant displacement of adjacent structures including the liver and bowel. No evidence of metastatic disease or acute inflammatory changes.",1.0,0.0,,
+MPX1164,Bilateral Wilms Tumor,ORPHA:654,verified,1,3,Nephroblastoma | Multicystic dysplastic kidney | Neuroblastoma,False,True,False,0.0,,"Images 1-2 (CT - GI & IV Contrast, axial plane, genitourinary; CT - GI & IV Contrast, coronal plane, genitourinary):
+Technique: CT of the abdomen and pelvis with oral and intravenous contrast, axial and coronal planes. Image quality is adequate for evaluation of abdominal organs; no significant motion or artifact noted.
+Anatomy: Liver, gallbladder, pancreas, spleen, kidneys, ureters, bowel loops, aorta, inferior vena cava, spine, ribs, and surrounding soft tissues are visualized.
+Findings:
+- Large right-sided abdominal mass (Right upper quadrant / Right flank) [definite]: Well-circumscribed, large (approximately 10 cm in diameter), homogenous soft tissue density mass displacing adjacent structures including the liver and kidney. No internal calcifications or cystic components identified.
+- Left-sided renal mass (Left upper quadrant / Left flank) [definite]: Well-defined, approximately 5 cm in diameter, solid-appearing mass arising from the left kidney. No evidence of invasion into surrounding structures.
+- Displacement of bowel loops (Central abdomen) [definite]: Bowel loops are displaced medially and inferiorly by the large right-sided mass.
+Pertinent negatives: No free intraperitoneal fluid or air; No obvious lymphadenopathy; No biliary ductal dilation; No splenic abnormalities; No pancreatic mass or inflammation; No vertebral body destruction
+Summary: There is a large right-sided abdominal mass and a smaller left renal mass, both well-circumscribed and solid-appearing. The right mass causes significant displacement of adjacent structures including the liver and bowel. No evidence of metastatic disease or acute inflammatory changes.",1.0,0.0,3.0,3.0
+MPX1164,Bilateral Wilms Tumor,ORPHA:654,definite,1,3,Nephroblastoma | Multicystic dysplastic kidney | Neuroblastoma,False,True,False,0.0,,"Images 1-2 (CT - GI & IV Contrast, axial plane, genitourinary; CT - GI & IV Contrast, coronal plane, genitourinary):
+Technique: CT of the abdomen and pelvis with oral and intravenous contrast, axial and coronal planes. Image quality is adequate for evaluation of abdominal organs; no significant motion or artifact noted.
+Anatomy: Liver, gallbladder, pancreas, spleen, kidneys, ureters, bowel loops, aorta, inferior vena cava, spine, ribs, and surrounding soft tissues are visualized.
+Findings:
+- Large right-sided abdominal mass (Right upper quadrant / Right flank) [definite]: Well-circumscribed, large (approximately 10 cm in diameter), homogenous soft tissue density mass displacing adjacent structures including the liver and kidney. No internal calcifications or cystic components identified.
+- Left-sided renal mass (Left upper quadrant / Left flank) [definite]: Well-defined, approximately 5 cm in diameter, solid-appearing mass arising from the left kidney. No evidence of invasion into surrounding structures.
+- Displacement of bowel loops (Central abdomen) [definite]: Bowel loops are displaced medially and inferiorly by the large right-sided mass.
+Pertinent negatives: No free intraperitoneal fluid or air; No obvious lymphadenopathy; No biliary ductal dilation; No splenic abnormalities; No pancreatic mass or inflammation; No vertebral body destruction
+Summary: There is a large right-sided abdominal mass and a smaller left renal mass, both well-circumscribed and solid-appearing. The right mass causes significant displacement of adjacent structures including the liver and bowel. No evidence of metastatic disease or acute inflammatory changes.",1.0,0.0,,
+MPX1164,Bilateral Wilms Tumor,ORPHA:654,reference,12820,0,"Aortic aneurysm, abdominal | Prune belly syndrome | Abducens palsy",,,,,,,,,,
+MPX1191,Hepatocellular carcinoma with extension to the right atrium,OMIM:114550,text,4292,5,"Hughes-Stovin syndrome | Pulmonary hypertension, primary, 7 | Mixed connective tissue disease",,,,,,,,,,
+MPX1191,Hepatocellular carcinoma with extension to the right atrium,OMIM:114550,context,3212,7,"Hughes-Stovin syndrome | Sarcoidosis, susceptibility to, 2 | Telangiectasia, hereditary hemorrhagic, type 1",False,True,True,0.0,0.0,"Images 1-2 (CT w/contrast (IV), axial plane, gastrointestinal; CT w/contrast (IV), axial plane, gastrointestinal):
+Technique: CT with intravenous contrast, axial plane, gastrointestinal series; image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, spleen, pancreas, kidneys, adrenal glands, aorta, IVC, bowel loops, peritoneal cavity, vertebral body, ribs.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: Enlarged liver extending below the costal margin with homogeneous parenchyma density.
+- Large hepatic mass (Right lobe of liver) [definite]: Heterogeneous, hypodense lesion measuring approximately 8 cm in diameter with irregular margins and internal heterogeneity.
+- Splenomegaly (Left upper quadrant) [definite]: Enlarged spleen extending below the left costal margin, measuring approximately 14 cm in craniocaudal dimension.
+- Hepatomegaly (Left lobe of liver) [definite]: Enlarged left lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Right lobe of liver) [definite]: Enlarged right lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Left lobe of liver) [definite]: Enlarged left lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Right lobe of liver) [definite]: Enlarged right lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Left lobe of liver) [definite]: Enlarged left lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Right lobe of liver) [definite]: Enlarged right lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Left lobe of liver) [definite]: Enlarged left lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Right lobe of liver) [definite]: Enlarged right lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Left lobe of liver) [definite]: Enlarged left lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Right lobe of liver) [definite]: Enlarged right lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Left lobe of liver) [definite]: Enlarged left lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Right lobe of liver) [definite]: Enlarged right lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Left lobe of liver) [definite]: Enlarged left lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Right lobe of liver) [definite]: Enla",2.0,0.0,,
+MPX1191,Hepatocellular carcinoma with extension to the right atrium,OMIM:114550,verified,3212,7,"Hughes-Stovin syndrome | Sarcoidosis, susceptibility to, 2 | Telangiectasia, hereditary hemorrhagic, type 1",False,True,True,0.0,0.0,"Images 1-2 (CT w/contrast (IV), axial plane, gastrointestinal; CT w/contrast (IV), axial plane, gastrointestinal):
+Technique: CT with intravenous contrast, axial plane, gastrointestinal series; image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, spleen, pancreas, kidneys, adrenal glands, aorta, IVC, bowel loops, peritoneal cavity, vertebral body, ribs.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: Enlarged liver extending below the costal margin with homogeneous parenchyma density.
+- Large hepatic mass (Right lobe of liver) [definite]: Heterogeneous, hypodense lesion measuring approximately 8 cm in diameter with irregular margins and internal heterogeneity.
+- Splenomegaly (Left upper quadrant) [definite]: Enlarged spleen extending below the left costal margin, measuring approximately 14 cm in craniocaudal dimension.",2.0,0.0,56.0,3.0
+MPX1191,Hepatocellular carcinoma with extension to the right atrium,OMIM:114550,definite,3212,7,"Hughes-Stovin syndrome | Sarcoidosis, susceptibility to, 2 | Telangiectasia, hereditary hemorrhagic, type 1",False,True,True,0.0,0.0,"Images 1-2 (CT w/contrast (IV), axial plane, gastrointestinal; CT w/contrast (IV), axial plane, gastrointestinal):
+Technique: CT with intravenous contrast, axial plane, gastrointestinal series; image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, spleen, pancreas, kidneys, adrenal glands, aorta, IVC, bowel loops, peritoneal cavity, vertebral body, ribs.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: Enlarged liver extending below the costal margin with homogeneous parenchyma density.
+- Large hepatic mass (Right lobe of liver) [definite]: Heterogeneous, hypodense lesion measuring approximately 8 cm in diameter with irregular margins and internal heterogeneity.
+- Splenomegaly (Left upper quadrant) [definite]: Enlarged spleen extending below the left costal margin, measuring approximately 14 cm in craniocaudal dimension.
+- Hepatomegaly (Left lobe of liver) [definite]: Enlarged left lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Right lobe of liver) [definite]: Enlarged right lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Left lobe of liver) [definite]: Enlarged left lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Right lobe of liver) [definite]: Enlarged right lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Left lobe of liver) [definite]: Enlarged left lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Right lobe of liver) [definite]: Enlarged right lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Left lobe of liver) [definite]: Enlarged left lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Right lobe of liver) [definite]: Enlarged right lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Left lobe of liver) [definite]: Enlarged left lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Right lobe of liver) [definite]: Enlarged right lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Left lobe of liver) [definite]: Enlarged left lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Right lobe of liver) [definite]: Enlarged right lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Left lobe of liver) [definite]: Enlarged left lobe of liver extending across midline, measuring approximately 12 cm in craniocaudal dimension.
+- Hepatomegaly (Right lobe of liver) [definite]: Enla",2.0,0.0,,
+MPX1191,Hepatocellular carcinoma with extension to the right atrium,OMIM:114550,reference,4292,5,"Hughes-Stovin syndrome | Pulmonary hypertension, primary, 7 | Mixed connective tissue disease",,,,,,,,,,
+MPX1174,Malignant Melanoma,ORPHA:618,text,7471,4,"Neurodevelopmental disorder with growth impairment, quadriparesis, and poor or absent speech | Neurodevelopmental disorder with achalasia, polyneuropathy, and alacrima | MELAS",,,,,,,,,,
+MPX1174,Malignant Melanoma,ORPHA:618,context,8353,6,MELAS | Multiple mitochondrial dysfunctions syndrome 9B | Mitochondrial DNA depletion syndrome 6 (hepatocerebral type),False,True,False,1.0,1.0,"Images 1-2 (CT - noncontrast, axial plane, brain and neuro; CT - noncontrast, axial plane, brain and neuro):
+Technique: Noncontrast axial CT of the brain and neuro; image quality is adequate for evaluation of intracranial structures.
+Anatomy: Brain, ventricles (lateral, third, fourth), midline structures, sulci, cisterns, extra-axial spaces, posterior fossa, orbits, sinuses, mastoid air cells.
+Findings:
+- Extra-axial mass (Right frontal region) [definite]: Well-circumscribed, hyperdense lesion with surrounding hypodensity consistent with edema; causes local mass effect and midline shift to the left.
+- Extra-axial mass (Left frontal region) [definite]: Smaller, well-circumscribed, hyperdense lesion with minimal surrounding hypodensity; no significant mass effect.
+- Midline shift (Central brain structures) [definite]: Shift to the left due to right-sided mass effect.
+- Ventricular asymmetry (Lateral ventricles) [definite]: Right lateral ventricle compressed; left lateral ventricle mildly dilated.
+Pertinent negatives: No hydrocephalus; No hemorrhage; No extra-axial fluid collection other than described masses; No skull fracture; No sinus opacification; No mastoid air cell disease
+Summary: Two hyperdense extra-axial masses are present in the frontal regions, right greater than left. The right-sided lesion causes significant mass effect with midline shift and compression of the right lateral ventricle. No evidence of hemorrhage or hydrocephalus.",1.0,1.0,,
+MPX1174,Malignant Melanoma,ORPHA:618,verified,8353,6,MELAS | Multiple mitochondrial dysfunctions syndrome 9B | Mitochondrial DNA depletion syndrome 6 (hepatocerebral type),False,True,False,1.0,1.0,"Images 1-2 (CT - noncontrast, axial plane, brain and neuro; CT - noncontrast, axial plane, brain and neuro):
+Technique: Noncontrast axial CT of the brain and neuro; image quality is adequate for evaluation of intracranial structures.
+Anatomy: Brain, ventricles (lateral, third, fourth), midline structures, sulci, cisterns, extra-axial spaces, posterior fossa, orbits, sinuses, mastoid air cells.
+Findings:
+- Extra-axial mass (Right frontal region) [definite]: Well-circumscribed, hyperdense lesion with surrounding hypodensity consistent with edema; causes local mass effect and midline shift to the left.
+- Extra-axial mass (Left frontal region) [definite]: Smaller, well-circumscribed, hyperdense lesion with minimal surrounding hypodensity; no significant mass effect.
+- Midline shift (Central brain structures) [definite]: Shift to the left due to right-sided mass effect.
+- Ventricular asymmetry (Lateral ventricles) [definite]: Right lateral ventricle compressed; left lateral ventricle mildly dilated.
+Pertinent negatives: No hydrocephalus; No hemorrhage; No extra-axial fluid collection other than described masses; No skull fracture; No sinus opacification; No mastoid air cell disease
+Summary: Two hyperdense extra-axial masses are present in the frontal regions, right greater than left. The right-sided lesion causes significant mass effect with midline shift and compression of the right lateral ventricle. No evidence of hemorrhage or hydrocephalus.",1.0,1.0,4.0,4.0
+MPX1174,Malignant Melanoma,ORPHA:618,definite,8353,6,MELAS | Multiple mitochondrial dysfunctions syndrome 9B | Mitochondrial DNA depletion syndrome 6 (hepatocerebral type),False,True,False,1.0,1.0,"Images 1-2 (CT - noncontrast, axial plane, brain and neuro; CT - noncontrast, axial plane, brain and neuro):
+Technique: Noncontrast axial CT of the brain and neuro; image quality is adequate for evaluation of intracranial structures.
+Anatomy: Brain, ventricles (lateral, third, fourth), midline structures, sulci, cisterns, extra-axial spaces, posterior fossa, orbits, sinuses, mastoid air cells.
+Findings:
+- Extra-axial mass (Right frontal region) [definite]: Well-circumscribed, hyperdense lesion with surrounding hypodensity consistent with edema; causes local mass effect and midline shift to the left.
+- Extra-axial mass (Left frontal region) [definite]: Smaller, well-circumscribed, hyperdense lesion with minimal surrounding hypodensity; no significant mass effect.
+- Midline shift (Central brain structures) [definite]: Shift to the left due to right-sided mass effect.
+- Ventricular asymmetry (Lateral ventricles) [definite]: Right lateral ventricle compressed; left lateral ventricle mildly dilated.
+Pertinent negatives: No hydrocephalus; No hemorrhage; No extra-axial fluid collection other than described masses; No skull fracture; No sinus opacification; No mastoid air cell disease
+Summary: Two hyperdense extra-axial masses are present in the frontal regions, right greater than left. The right-sided lesion causes significant mass effect with midline shift and compression of the right lateral ventricle. No evidence of hemorrhage or hydrocephalus.",1.0,1.0,,
+MPX1174,Malignant Melanoma,ORPHA:618,reference,8358,5,MELAS | Multiple mitochondrial dysfunctions syndrome 9B | Mitochondrial DNA depletion syndrome 6 (hepatocerebral type),,,,,,,,,,
+MPX1194,Stage IVB Non-Hodgkin’s lymphoma (Pre B-cell variety) diagnosed by biopsy,OMIM:605027,text,12810,2,"Mitochondrial DNA depletion syndrome 1 (MNGIE type) | Thyrotoxic periodic paralysis, susceptibility to, 2 | Congenital enterocyte heparan sulfate deficiency",,,,,,,,,,
+MPX1194,Stage IVB Non-Hodgkin’s lymphoma (Pre B-cell variety) diagnosed by biopsy,OMIM:605027,context,12806,5,"Mitochondrial DNA depletion syndrome 1 (MNGIE type) | Thyrotoxic periodic paralysis, susceptibility to, 2 | Congenital enterocyte heparan sulfate deficiency",False,True,False,,0.0,"Image 1 (CT w/contrast (IV), axial plane, pathology):
+Technique: CT with IV contrast, axial plane, soft tissue window.
+Anatomy: Thorax (upper chest), including lungs, mediastinum, great vessels, and bilateral pectoral muscles.
+Findings:
+- Large soft tissue mass (Left anterior chest wall / left pectoralis major muscle) [definite]: Heterogeneous density, occupying a significant portion of the left hemithorax and extending laterally.
+- Soft tissue mass (Right anterior chest wall / right pectoralis major muscle) [definite]: Heterogeneous density, smaller than the contralateral lesion.
+Pertinent negatives: No pleural effusion; No pneumothorax; No obvious lung parenchymal consolidation or collapse
+Summary: Axial CT of the chest demonstrates large, heterogeneous soft tissue masses involving the bilateral anterior chest wall musculature. The left-sided mass is significantly larger than the right-sided mass.",0.0,0.0,,
+MPX1194,Stage IVB Non-Hodgkin’s lymphoma (Pre B-cell variety) diagnosed by biopsy,OMIM:605027,verified,12806,5,"Mitochondrial DNA depletion syndrome 1 (MNGIE type) | Thyrotoxic periodic paralysis, susceptibility to, 2 | Congenital enterocyte heparan sulfate deficiency",False,True,False,,0.0,"Image 1 (CT w/contrast (IV), axial plane, pathology):
+Technique: CT with IV contrast, axial plane, soft tissue window.
+Anatomy: Thorax (upper chest), including lungs, mediastinum, great vessels, and bilateral pectoral muscles.
+Findings:
+- Large soft tissue mass (Left anterior chest wall / left pectoralis major muscle) [definite]: Heterogeneous density, occupying a significant portion of the left hemithorax and extending laterally.
+- Soft tissue mass (Right anterior chest wall / right pectoralis major muscle) [definite]: Heterogeneous density, smaller than the contralateral lesion.
+Pertinent negatives: No pleural effusion; No pneumothorax; No obvious lung parenchymal consolidation or collapse
+Summary: Axial CT of the chest demonstrates large, heterogeneous soft tissue masses involving the bilateral anterior chest wall musculature. The left-sided mass is significantly larger than the right-sided mass.",0.0,0.0,2.0,2.0
+MPX1194,Stage IVB Non-Hodgkin’s lymphoma (Pre B-cell variety) diagnosed by biopsy,OMIM:605027,definite,12806,5,"Mitochondrial DNA depletion syndrome 1 (MNGIE type) | Thyrotoxic periodic paralysis, susceptibility to, 2 | Congenital enterocyte heparan sulfate deficiency",False,True,False,,0.0,"Image 1 (CT w/contrast (IV), axial plane, pathology):
+Technique: CT with IV contrast, axial plane, soft tissue window.
+Anatomy: Thorax (upper chest), including lungs, mediastinum, great vessels, and bilateral pectoral muscles.
+Findings:
+- Large soft tissue mass (Left anterior chest wall / left pectoralis major muscle) [definite]: Heterogeneous density, occupying a significant portion of the left hemithorax and extending laterally.
+- Soft tissue mass (Right anterior chest wall / right pectoralis major muscle) [definite]: Heterogeneous density, smaller than the contralateral lesion.
+Pertinent negatives: No pleural effusion; No pneumothorax; No obvious lung parenchymal consolidation or collapse
+Summary: Axial CT of the chest demonstrates large, heterogeneous soft tissue masses involving the bilateral anterior chest wall musculature. The left-sided mass is significantly larger than the right-sided mass.",0.0,0.0,,
+MPX1194,Stage IVB Non-Hodgkin’s lymphoma (Pre B-cell variety) diagnosed by biopsy,OMIM:605027,reference,12820,3,"Anemia, dyserythropoietic congenital, type IV | GM1 gangliosidosis | Immunodeficiency 126",,,,,,,,,,
+MPX1195,"Diprosopus (conjoined) twins, Anencephaly",OMIM:206500;ORPHA:1681;ORPHA:563609,text,12818,0,"Aortic aneurysm, abdominal | Prune belly syndrome | Abducens palsy",,,,,,,,,,
+MPX1195,"Diprosopus (conjoined) twins, Anencephaly",OMIM:206500;ORPHA:1681;ORPHA:563609,context,3543,9,"Sotos syndrome | Simpson-Golabi-Behmel syndrome, type 1 | Osteochondrodysplasia, complex lethal, Symoens-Barnes-Gistelinck type",False,True,False,0.0,0.0,"Images 1-2 (CT - noncontrast, coronal plane, brain and neuro; MR - T2 weighted, coronal plane, brain and neuro):
+Technique: CT noncontrast coronal and MR T2 weighted coronal images of the head, neck, and upper thorax/abdomen. Image quality is limited by motion artifact and low resolution.
+Anatomy: Cranium, orbits, facial bones, mandible, cervical spine, thoracic cage, lungs, heart, liver, kidneys, bladder, and pelvic girdle.
+Findings:
+- Enlarged ventricles (Intracranial (bilateral)) [definite]: The lateral ventricles are dilated with thinning of the surrounding parenchyma. The third and fourth ventricles appear prominent.
+- Hydrocephalus (Intracranial) [definite]: Generalized enlargement of the ventricular system with effacement of sulci.
+- Orbital proptosis (Orbits (bilateral)) [definite]: The globes are enlarged and displaced anteriorly relative to the orbits.
+- Enlarged kidneys (Abdomen (bilateral)) [definite]: Both kidneys are enlarged with dilated collecting systems consistent with hydronephrosis.
+- Hydronephrosis (Kidneys (bilateral)) [definite]: Dilation of the renal pelvis and calyces is present bilaterally.
+Pertinent negatives: No focal intracranial mass; No midline shift; No pleural effusion; No ascites
+Summary: The images demonstrate generalized ventriculomegaly consistent with hydrocephalus, bilateral orbital proptosis, and bilateral hydronephrosis. The findings are definite based on the imaging appearance.",6.0,0.0,,
+MPX1195,"Diprosopus (conjoined) twins, Anencephaly",OMIM:206500;ORPHA:1681;ORPHA:563609,verified,1930,3,"Chondroectodermal dysplasia with night blindness | Sotos syndrome | Osteopetrosis, autosomal recessive 1",False,True,False,0.0,0.0,"Images 1-2 (CT - noncontrast, coronal plane, brain and neuro; MR - T2 weighted, coronal plane, brain and neuro):
+Technique: CT noncontrast coronal and MR T2 weighted coronal images of the head, neck, and upper thorax/abdomen. Image quality is limited by motion artifact and low resolution.
+Anatomy: Cranium, orbits, facial bones, mandible, cervical spine, thoracic cage, lungs, heart, liver, kidneys, bladder, and pelvic girdle.
+Pertinent negatives: No focal intracranial mass; No midline shift; No pleural effusion; No ascites",1.0,0.0,5.0,0.0
+MPX1195,"Diprosopus (conjoined) twins, Anencephaly",OMIM:206500;ORPHA:1681;ORPHA:563609,definite,3543,9,"Sotos syndrome | Simpson-Golabi-Behmel syndrome, type 1 | Osteochondrodysplasia, complex lethal, Symoens-Barnes-Gistelinck type",False,True,False,0.0,0.0,"Images 1-2 (CT - noncontrast, coronal plane, brain and neuro; MR - T2 weighted, coronal plane, brain and neuro):
+Technique: CT noncontrast coronal and MR T2 weighted coronal images of the head, neck, and upper thorax/abdomen. Image quality is limited by motion artifact and low resolution.
+Anatomy: Cranium, orbits, facial bones, mandible, cervical spine, thoracic cage, lungs, heart, liver, kidneys, bladder, and pelvic girdle.
+Findings:
+- Enlarged ventricles (Intracranial (bilateral)) [definite]: The lateral ventricles are dilated with thinning of the surrounding parenchyma. The third and fourth ventricles appear prominent.
+- Hydrocephalus (Intracranial) [definite]: Generalized enlargement of the ventricular system with effacement of sulci.
+- Orbital proptosis (Orbits (bilateral)) [definite]: The globes are enlarged and displaced anteriorly relative to the orbits.
+- Enlarged kidneys (Abdomen (bilateral)) [definite]: Both kidneys are enlarged with dilated collecting systems consistent with hydronephrosis.
+- Hydronephrosis (Kidneys (bilateral)) [definite]: Dilation of the renal pelvis and calyces is present bilaterally.
+Pertinent negatives: No focal intracranial mass; No midline shift; No pleural effusion; No ascites
+Summary: The images demonstrate generalized ventriculomegaly consistent with hydrocephalus, bilateral orbital proptosis, and bilateral hydronephrosis. The findings are definite based on the imaging appearance.",6.0,0.0,,
+MPX1195,"Diprosopus (conjoined) twins, Anencephaly",OMIM:206500;ORPHA:1681;ORPHA:563609,reference,1265,2,"Axial mesodermal dysplasia spectrum | Cholestasis, progressive familial intrahepatic, 13 | Craniofaciocardiohepatic syndrome",,,,,,,,,,
+MPX1229,Annular Pancreas,OMIM:167750;ORPHA:675,text,5433,3,Mitochondrial DNA depletion syndrome 1 (MNGIE type) | Polycythemia vera | Wilson disease,,,,,,,,,,
+MPX1229,Annular Pancreas,OMIM:167750;ORPHA:675,context,2642,10,"Tyrosinemia, type I | Neutropenia, severe congenital, 5, autosomal recessive | Glycogen storage disease due to glucose-6-phosphatase deficiency type Ib",False,True,False,0.0,,"Image 1 (CT - GI & IV Contrast, axial plane, gastrointestinal):
+Technique: CT of the abdomen in axial plane, with intravenous and oral contrast. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, gallbladder, pancreas, spleen, kidneys, bowel loops, spine, paraspinal muscles, subcutaneous fat, and retroperitoneal vessels are visualized.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly beyond the expected anatomical limits for a 6-year-old female.
+- Gallbladder distension (Right upper quadrant) [definite]: The gallbladder is dilated with thin walls and no visible intraluminal stones or sludge.
+- Pancreatic enlargement (Epigastrium) [probable]: The pancreas appears enlarged with a somewhat lobulated contour and increased density compared to normal.
+- Splenomegaly (Left upper quadrant) [definite]: The spleen is enlarged, extending inferiorly beyond the expected anatomical limits for a 6-year-old female.
+- Bilateral renal enlargement (Retroperitoneum) [definite]: Both kidneys are enlarged with preserved corticomedullary differentiation and no hydronephrosis or focal masses.
+- Bowel distension (Abdomen) [probable]: Multiple loops of bowel are dilated with air-fluid levels, suggestive of ileus or obstruction.
+Pertinent negatives: No free fluid in the abdomen; No pneumoperitoneum; No focal hepatic lesions; No splenic lesions; No renal calculi or hydronephrosis; No lymphadenopathy
+Summary: The CT demonstrates hepatomegaly, splenomegaly, bilateral renal enlargement, and pancreatic enlargement. There is also evidence of bowel distension with air-fluid levels. No focal masses, stones, or free fluid are identified.",4.0,0.0,,
+MPX1229,Annular Pancreas,OMIM:167750;ORPHA:675,verified,4514,9,"Beckwith-Wiedemann syndrome | Neutropenia, severe congenital, 5, autosomal recessive | Glycogen storage disease due to glucose-6-phosphatase deficiency type Ib",False,True,False,0.0,,"Image 1 (CT - GI & IV Contrast, axial plane, gastrointestinal):
+Technique: CT of the abdomen in axial plane, with intravenous and oral contrast. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, gallbladder, pancreas, spleen, kidneys, bowel loops, spine, paraspinal muscles, subcutaneous fat, and retroperitoneal vessels are visualized.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly beyond the expected anatomical limits for a 6-year-old female.
+- Gallbladder distension (Right upper quadrant) [definite]: The gallbladder is dilated with thin walls and no visible intraluminal stones or sludge.
+- Bilateral renal enlargement (Retroperitoneum) [definite]: Both kidneys are enlarged with preserved corticomedullary differentiation and no hydronephrosis or focal masses.
+Pertinent negatives: No free fluid in the abdomen; No pneumoperitoneum; No focal hepatic lesions; No splenic lesions; No renal calculi or hydronephrosis; No lymphadenopathy",2.0,0.0,6.0,3.0
+MPX1229,Annular Pancreas,OMIM:167750;ORPHA:675,definite,3953,9,"Neutropenia, severe congenital, 5, autosomal recessive | Wilson disease | Beckwith-Wiedemann syndrome",False,True,False,0.0,,"Image 1 (CT - GI & IV Contrast, axial plane, gastrointestinal):
+Technique: CT of the abdomen in axial plane, with intravenous and oral contrast. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, gallbladder, pancreas, spleen, kidneys, bowel loops, spine, paraspinal muscles, subcutaneous fat, and retroperitoneal vessels are visualized.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly beyond the expected anatomical limits for a 6-year-old female.
+- Gallbladder distension (Right upper quadrant) [definite]: The gallbladder is dilated with thin walls and no visible intraluminal stones or sludge.
+- Splenomegaly (Left upper quadrant) [definite]: The spleen is enlarged, extending inferiorly beyond the expected anatomical limits for a 6-year-old female.
+- Bilateral renal enlargement (Retroperitoneum) [definite]: Both kidneys are enlarged with preserved corticomedullary differentiation and no hydronephrosis or focal masses.
+Pertinent negatives: No free fluid in the abdomen; No pneumoperitoneum; No focal hepatic lesions; No splenic lesions; No renal calculi or hydronephrosis; No lymphadenopathy",3.0,0.0,,
+MPX1229,Annular Pancreas,OMIM:167750;ORPHA:675,reference,5433,3,Mitochondrial DNA depletion syndrome 1 (MNGIE type) | Polycythemia vera | Wilson disease,,,,,,,,,,
+MPX1227,Parosteal Osteogenic Sarcoma,ORPHA:668,text,12493,3,Congenital panfollicular nevus | Cutaneous neuroendocrine carcinoma | Idiopathic trachyonychia,,,,,,,,,,
+MPX1227,Parosteal Osteogenic Sarcoma,ORPHA:668,context,12493,3,Congenital panfollicular nevus | Cutaneous neuroendocrine carcinoma | Idiopathic trachyonychia,False,True,False,,0.0,"Images 1-2 (CT - noncontrast, axial plane, musculoskeletal; MR - T2 weighted, axial plane, musculoskeletal):
+Technique: CT: Noncontrast, axial plane, musculoskeletal window. MR: T2 weighted, axial plane, musculoskeletal sequence.
+Anatomy: Distal femur and proximal tibia (knee region), surrounding soft tissues, subcutaneous fat.
+Findings:
+- Soft tissue mass (Anterior distal femur) [definite]: Well-circumscribed, heterogeneous lesion with internal calcification (CT) and high signal intensity (T2), measuring approximately 3.5 cm in diameter.
+- Soft tissue mass (Anterior distal femur) [definite]: Well-circumscribed, heterogeneous lesion with internal calcification (CT) and high signal intensity (T2), measuring approximately 3.5 cm in diameter.
+Pertinent negatives: No cortical breach or fracture of the distal femur; No joint effusion; No osseous metastasis
+Summary: The images demonstrate a well-circumscribed, heterogeneous soft tissue mass located anterior to the distal femur. The lesion exhibits internal calcification on CT and high signal intensity on T2-weighted MRI.",0.0,0.0,,
+MPX1227,Parosteal Osteogenic Sarcoma,ORPHA:668,verified,12493,3,Congenital panfollicular nevus | Cutaneous neuroendocrine carcinoma | Idiopathic trachyonychia,False,True,False,,0.0,"Images 1-2 (CT - noncontrast, axial plane, musculoskeletal; MR - T2 weighted, axial plane, musculoskeletal):
+Technique: CT: Noncontrast, axial plane, musculoskeletal window. MR: T2 weighted, axial plane, musculoskeletal sequence.
+Anatomy: Distal femur and proximal tibia (knee region), surrounding soft tissues, subcutaneous fat.
+Findings:
+- Soft tissue mass (Anterior distal femur) [definite]: Well-circumscribed, heterogeneous lesion with internal calcification (CT) and high signal intensity (T2), measuring approximately 3.5 cm in diameter.
+- Soft tissue mass (Anterior distal femur) [definite]: Well-circumscribed, heterogeneous lesion with internal calcification (CT) and high signal intensity (T2), measuring approximately 3.5 cm in diameter.
+Pertinent negatives: No cortical breach or fracture of the distal femur; No joint effusion; No osseous metastasis
+Summary: The images demonstrate a well-circumscribed, heterogeneous soft tissue mass located anterior to the distal femur. The lesion exhibits internal calcification on CT and high signal intensity on T2-weighted MRI.",0.0,0.0,2.0,2.0
+MPX1227,Parosteal Osteogenic Sarcoma,ORPHA:668,definite,12493,3,Congenital panfollicular nevus | Cutaneous neuroendocrine carcinoma | Idiopathic trachyonychia,False,True,False,,0.0,"Images 1-2 (CT - noncontrast, axial plane, musculoskeletal; MR - T2 weighted, axial plane, musculoskeletal):
+Technique: CT: Noncontrast, axial plane, musculoskeletal window. MR: T2 weighted, axial plane, musculoskeletal sequence.
+Anatomy: Distal femur and proximal tibia (knee region), surrounding soft tissues, subcutaneous fat.
+Findings:
+- Soft tissue mass (Anterior distal femur) [definite]: Well-circumscribed, heterogeneous lesion with internal calcification (CT) and high signal intensity (T2), measuring approximately 3.5 cm in diameter.
+- Soft tissue mass (Anterior distal femur) [definite]: Well-circumscribed, heterogeneous lesion with internal calcification (CT) and high signal intensity (T2), measuring approximately 3.5 cm in diameter.
+Pertinent negatives: No cortical breach or fracture of the distal femur; No joint effusion; No osseous metastasis
+Summary: The images demonstrate a well-circumscribed, heterogeneous soft tissue mass located anterior to the distal femur. The lesion exhibits internal calcification on CT and high signal intensity on T2-weighted MRI.",0.0,0.0,,
+MPX1227,Parosteal Osteogenic Sarcoma,ORPHA:668,reference,2605,5,Pachydermoperiostosis | Raine syndrome | Caffey disease,,,,,,,,,,
+MPX1231,Osteochondritis Dissecans,ORPHA:2764,text,295,1,"Multicentric carpotarsal osteolysis syndrome | Epiphyseal dysplasia, multiple, 1 | Stickler syndrome, type II",,,,,,,,,,
+MPX1231,Osteochondritis Dissecans,ORPHA:2764,context,295,2,"Multicentric carpotarsal osteolysis syndrome | Epiphyseal dysplasia, multiple, 1 | Stickler syndrome, type II",False,True,False,,,"Image 1 (CT - noncontrast, axial plane, musculoskeletal):
+Technique: Noncontrast axial CT of the knee, musculoskeletal window. Image quality is adequate for bone assessment; no motion or positioning artifacts noted.
+Anatomy: Distal femur and proximal tibia/fibula (axial cross-section), surrounding soft tissues, subcutaneous fat, muscle groups.
+Pertinent negatives: No fracture; No dislocation; No periosteal reaction; No soft tissue mass or fluid collection
+Summary: Axial CT of the knee in a 15-year-old female demonstrates normal alignment and cortical integrity of the distal femur and proximal tibia/fibula. No fracture, dislocation, periosteal reaction, or soft tissue abnormality is identified.",0.0,0.0,,
+MPX1231,Osteochondritis Dissecans,ORPHA:2764,verified,295,2,"Multicentric carpotarsal osteolysis syndrome | Epiphyseal dysplasia, multiple, 1 | Stickler syndrome, type II",False,True,False,,,"Image 1 (CT - noncontrast, axial plane, musculoskeletal):
+Technique: Noncontrast axial CT of the knee, musculoskeletal window. Image quality is adequate for bone assessment; no motion or positioning artifacts noted.
+Anatomy: Distal femur and proximal tibia/fibula (axial cross-section), surrounding soft tissues, subcutaneous fat, muscle groups.
+Pertinent negatives: No fracture; No dislocation; No periosteal reaction; No soft tissue mass or fluid collection
+Summary: Axial CT of the knee in a 15-year-old female demonstrates normal alignment and cortical integrity of the distal femur and proximal tibia/fibula. No fracture, dislocation, periosteal reaction, or soft tissue abnormality is identified.",0.0,0.0,0.0,0.0
+MPX1231,Osteochondritis Dissecans,ORPHA:2764,definite,295,2,"Multicentric carpotarsal osteolysis syndrome | Epiphyseal dysplasia, multiple, 1 | Stickler syndrome, type II",False,True,False,,,"Image 1 (CT - noncontrast, axial plane, musculoskeletal):
+Technique: Noncontrast axial CT of the knee, musculoskeletal window. Image quality is adequate for bone assessment; no motion or positioning artifacts noted.
+Anatomy: Distal femur and proximal tibia/fibula (axial cross-section), surrounding soft tissues, subcutaneous fat, muscle groups.
+Pertinent negatives: No fracture; No dislocation; No periosteal reaction; No soft tissue mass or fluid collection
+Summary: Axial CT of the knee in a 15-year-old female demonstrates normal alignment and cortical integrity of the distal femur and proximal tibia/fibula. No fracture, dislocation, periosteal reaction, or soft tissue abnormality is identified.",0.0,0.0,,
+MPX1231,Osteochondritis Dissecans,ORPHA:2764,reference,295,1,"Multicentric carpotarsal osteolysis syndrome | Epiphyseal dysplasia, multiple, 1 | Stickler syndrome, type II",,,,,,,,,,
+MPX1259,Mesenteric carcinoid tumor,ORPHA:100093,text,1712,2,"Adenine phosphoribosyltransferase deficiency | Neurodevelopmental disorder with achalasia, polyneuropathy, and alacrima | Congenital primary megaureter",,,,,,,,,,
+MPX1259,Mesenteric carcinoid tumor,ORPHA:100093,context,1687,6,"Adenine phosphoribosyltransferase deficiency | Neurodevelopmental disorder with achalasia, polyneuropathy, and alacrima | Caudal regression syndrome",False,True,False,,,"Image 1 (CT - noncontrast, axial plane, gastrointestinal):
+Technique: Noncontrast axial CT of the abdomen/pelvis; image quality is adequate for evaluation of soft tissues and bone, with no motion artifact or significant beam hardening.
+Anatomy: Abdomen and pelvis including liver, gallbladder, pancreas, spleen, kidneys, ureters, bowel loops, bladder (not fully visualized), major vessels, lymph nodes, and pelvic bones (ilium, sacrum).
+Pertinent negatives: No hepatomegaly; No splenomegaly; No hydronephrosis; No free fluid or air in the abdomen; No enlarged lymph nodes; No osseous destruction of pelvic bones
+Summary: Noncontrast axial CT demonstrates normal-appearing abdominal and pelvic structures without evidence of organomegaly, hydronephrosis, free fluid, or bony abnormalities.",0.0,0.0,,
+MPX1259,Mesenteric carcinoid tumor,ORPHA:100093,verified,1687,6,"Adenine phosphoribosyltransferase deficiency | Neurodevelopmental disorder with achalasia, polyneuropathy, and alacrima | Caudal regression syndrome",False,True,False,,,"Image 1 (CT - noncontrast, axial plane, gastrointestinal):
+Technique: Noncontrast axial CT of the abdomen/pelvis; image quality is adequate for evaluation of soft tissues and bone, with no motion artifact or significant beam hardening.
+Anatomy: Abdomen and pelvis including liver, gallbladder, pancreas, spleen, kidneys, ureters, bowel loops, bladder (not fully visualized), major vessels, lymph nodes, and pelvic bones (ilium, sacrum).
+Pertinent negatives: No hepatomegaly; No splenomegaly; No hydronephrosis; No free fluid or air in the abdomen; No enlarged lymph nodes; No osseous destruction of pelvic bones
+Summary: Noncontrast axial CT demonstrates normal-appearing abdominal and pelvic structures without evidence of organomegaly, hydronephrosis, free fluid, or bony abnormalities.",0.0,0.0,0.0,0.0
+MPX1259,Mesenteric carcinoid tumor,ORPHA:100093,definite,1687,6,"Adenine phosphoribosyltransferase deficiency | Neurodevelopmental disorder with achalasia, polyneuropathy, and alacrima | Caudal regression syndrome",False,True,False,,,"Image 1 (CT - noncontrast, axial plane, gastrointestinal):
+Technique: Noncontrast axial CT of the abdomen/pelvis; image quality is adequate for evaluation of soft tissues and bone, with no motion artifact or significant beam hardening.
+Anatomy: Abdomen and pelvis including liver, gallbladder, pancreas, spleen, kidneys, ureters, bowel loops, bladder (not fully visualized), major vessels, lymph nodes, and pelvic bones (ilium, sacrum).
+Pertinent negatives: No hepatomegaly; No splenomegaly; No hydronephrosis; No free fluid or air in the abdomen; No enlarged lymph nodes; No osseous destruction of pelvic bones
+Summary: Noncontrast axial CT demonstrates normal-appearing abdominal and pelvic structures without evidence of organomegaly, hydronephrosis, free fluid, or bony abnormalities.",0.0,0.0,,
+MPX1259,Mesenteric carcinoid tumor,ORPHA:100093,reference,1712,2,"Adenine phosphoribosyltransferase deficiency | Neurodevelopmental disorder with achalasia, polyneuropathy, and alacrima | Congenital primary megaureter",,,,,,,,,,
+MPX1301,Metastatic breast cancer,OMIM:114480,text,12820,1,"Alkaptonuria | Myopathy, X-linked, with postural muscle atrophy | Familial pancreatic carcinoma",,,,,,,,,,
+MPX1301,Metastatic breast cancer,OMIM:114480,context,12818,7,IgG4-related retroperitoneal fibrosis | Alkaptonuria | Diabetic embryopathy,False,True,False,0.0,,"Image 1 (CT w/contrast (IV), other view (see caption) plane, spine):
+Technique: Axial CT image of the abdomen/pelvis with intravenous contrast. Image quality is adequate for evaluation of abdominal organs and spine.
+Anatomy: Abdomen, pelvis, lumbar spine (vertebral body, pedicles, lamina, spinous process), kidneys, psoas muscles, paraspinal soft tissues, bowel loops.
+Findings:
+- Right-sided hydronephrosis (Right kidney) [definite]: Dilation of the renal pelvis and calyces with thinning of the right renal parenchyma.
+- Left-sided hydronephrosis (Left kidney) [definite]: Dilation of the renal pelvis and calyces with thinning of the left renal parenchyma.
+- Vertebral body sclerosis (Lumbar vertebral body) [definite]: Increased density of the vertebral body compared to normal trabecular pattern.
+Pertinent negatives: No pleural effusion; No pneumothorax; No focal liver lesion; No splenic abnormality; No adrenal mass; No bowel obstruction; No free fluid in the abdomen
+Summary: Bilateral hydronephrosis with thinning of renal parenchyma. Vertebral body sclerosis.",2.0,0.0,,
+MPX1301,Metastatic breast cancer,OMIM:114480,verified,12817,6,"Brain abnormalities, neurodegeneration, and dysosteosclerosis | Osteomesopyknosis | Endosteal hyperostosis, Worth type",False,True,False,0.0,,"Image 1 (CT w/contrast (IV), other view (see caption) plane, spine):
+Technique: Axial CT image of the abdomen/pelvis with intravenous contrast. Image quality is adequate for evaluation of abdominal organs and spine.
+Anatomy: Abdomen, pelvis, lumbar spine (vertebral body, pedicles, lamina, spinous process), kidneys, psoas muscles, paraspinal soft tissues, bowel loops.
+Findings:
+- Vertebral body sclerosis (Lumbar vertebral body) [definite]: Increased density of the vertebral body compared to normal trabecular pattern.
+Pertinent negatives: No pleural effusion; No pneumothorax; No focal liver lesion; No splenic abnormality; No adrenal mass; No bowel obstruction; No free fluid in the abdomen",1.0,0.0,3.0,1.0
+MPX1301,Metastatic breast cancer,OMIM:114480,definite,12818,7,IgG4-related retroperitoneal fibrosis | Alkaptonuria | Diabetic embryopathy,False,True,False,0.0,,"Image 1 (CT w/contrast (IV), other view (see caption) plane, spine):
+Technique: Axial CT image of the abdomen/pelvis with intravenous contrast. Image quality is adequate for evaluation of abdominal organs and spine.
+Anatomy: Abdomen, pelvis, lumbar spine (vertebral body, pedicles, lamina, spinous process), kidneys, psoas muscles, paraspinal soft tissues, bowel loops.
+Findings:
+- Right-sided hydronephrosis (Right kidney) [definite]: Dilation of the renal pelvis and calyces with thinning of the right renal parenchyma.
+- Left-sided hydronephrosis (Left kidney) [definite]: Dilation of the renal pelvis and calyces with thinning of the left renal parenchyma.
+- Vertebral body sclerosis (Lumbar vertebral body) [definite]: Increased density of the vertebral body compared to normal trabecular pattern.
+Pertinent negatives: No pleural effusion; No pneumothorax; No focal liver lesion; No splenic abnormality; No adrenal mass; No bowel obstruction; No free fluid in the abdomen
+Summary: Bilateral hydronephrosis with thinning of renal parenchyma. Vertebral body sclerosis.",2.0,0.0,,
+MPX1301,Metastatic breast cancer,OMIM:114480,reference,12820,1,"Alkaptonuria | Myopathy, X-linked, with postural muscle atrophy | Familial pancreatic carcinoma",,,,,,,,,,
+MPX1309,Juvenile Dermatomyositis,ORPHA:93672,text,3197,3,"Nephropathy due to CFHR5 deficiency | Hematuria, benign familial, 2 | Dent disease",,,,,,,,,,
+MPX1309,Juvenile Dermatomyositis,ORPHA:93672,context,5132,10,"Immunodeficiency, common variable, 6 | Neurodevelopmental disorder with microcephaly, absent speech, and hypotonia | Neutropenia, severe congenital, 5, autosomal recessive",False,True,False,0.0,0.0,"Image 1 (CT w/contrast (IV), axial plane, musculoskeletal):
+Technique: CT with intravenous contrast, axial plane, musculoskeletal window; image quality is adequate for evaluation of abdominal organs and retroperitoneum.
+Anatomy: Liver, spleen, pancreas, stomach, kidneys, adrenal glands, aorta, IVC, spine, paraspinal muscles, bowel loops.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver extends inferiorly below the level of the renal hila, consistent with enlargement.
+- Left-sided nephromegaly (Left kidney) [definite]: The left kidney is enlarged compared to the right and measures approximately 10 cm in length.
+- Right-sided renal hypoplasia or agenesis (Right kidney) [definite]: The right kidney is not visualized at the expected level; no distinct renal parenchyma is seen.
+- Pancreatic enlargement (Epigastrium) [probable]: The pancreas appears enlarged with a somewhat lobulated contour.
+Pertinent negatives: No hydronephrosis; No perinephric stranding; No ascites; No pleural effusion; No pneumothorax; No fractures of the visualized spine
+Summary: The image demonstrates hepatomegaly, left nephromegaly, and absence of the right kidney. The pancreas appears enlarged. No acute complications such as hydronephrosis or ascites are identified.",3.0,0.0,,
+MPX1309,Juvenile Dermatomyositis,ORPHA:93672,verified,5132,10,"Immunodeficiency, common variable, 6 | Neurodevelopmental disorder with microcephaly, absent speech, and hypotonia | Neutropenia, severe congenital, 5, autosomal recessive",False,True,False,0.0,0.0,"Image 1 (CT w/contrast (IV), axial plane, musculoskeletal):
+Technique: CT with intravenous contrast, axial plane, musculoskeletal window; image quality is adequate for evaluation of abdominal organs and retroperitoneum.
+Anatomy: Liver, spleen, pancreas, stomach, kidneys, adrenal glands, aorta, IVC, spine, paraspinal muscles, bowel loops.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver extends inferiorly below the level of the renal hila, consistent with enlargement.
+- Left-sided nephromegaly (Left kidney) [definite]: The left kidney is enlarged compared to the right and measures approximately 10 cm in length.
+- Right-sided renal hypoplasia or agenesis (Right kidney) [definite]: The right kidney is not visualized at the expected level; no distinct renal parenchyma is seen.
+- Pancreatic enlargement (Epigastrium) [probable]: The pancreas appears enlarged with a somewhat lobulated contour.
+Pertinent negatives: No hydronephrosis; No perinephric stranding; No ascites; No pleural effusion; No pneumothorax; No fractures of the visualized spine
+Summary: The image demonstrates hepatomegaly, left nephromegaly, and absence of the right kidney. The pancreas appears enlarged. No acute complications such as hydronephrosis or ascites are identified.",3.0,0.0,4.0,4.0
+MPX1309,Juvenile Dermatomyositis,ORPHA:93672,definite,5132,10,"Immunodeficiency, common variable, 6 | Neurodevelopmental disorder with microcephaly, absent speech, and hypotonia | Neutropenia, severe congenital, 5, autosomal recessive",False,True,False,0.0,0.0,"Image 1 (CT w/contrast (IV), axial plane, musculoskeletal):
+Technique: CT with intravenous contrast, axial plane, musculoskeletal window; image quality is adequate for evaluation of abdominal organs and retroperitoneum.
+Anatomy: Liver, spleen, pancreas, stomach, kidneys, adrenal glands, aorta, IVC, spine, paraspinal muscles, bowel loops.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver extends inferiorly below the level of the renal hila, consistent with enlargement.
+- Left-sided nephromegaly (Left kidney) [definite]: The left kidney is enlarged compared to the right and measures approximately 10 cm in length.
+- Right-sided renal hypoplasia or agenesis (Right kidney) [definite]: The right kidney is not visualized at the expected level; no distinct renal parenchyma is seen.
+Pertinent negatives: No hydronephrosis; No perinephric stranding; No ascites; No pleural effusion; No pneumothorax; No fractures of the visualized spine",3.0,0.0,,
+MPX1309,Juvenile Dermatomyositis,ORPHA:93672,reference,1,5,"Juvenile dermatomyositis | Hyperparathyroidism, neonatal severe | Neurodevelopmental disorder with microcephaly, cataracts, and renal abnormalities",,,,,,,,,,
+MPX1279,"Wilms’ tumor, Stage I (Stage III at biopsy) with favorable histology",ORPHA:654,text,2,10,Neuroblastoma | Nephroblastoma | NUT midline carcinoma,,,,,,,,,,
+MPX1279,"Wilms’ tumor, Stage I (Stage III at biopsy) with favorable histology",ORPHA:654,context,1,15,"Nephroblastoma | Neuroblastoma | Neuroblastoma, susceptibility to",False,True,False,0.0,0.0,"Images 1-2 (CT - GI & IV Contrast, axial plane, genitourinary; CT - GI & IV Contrast, axial plane, genitourinary):
+Technique: CT of the abdomen in axial plane with oral and intravenous contrast; image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, gallbladder, pancreas, spleen, kidneys, bowel loops, major vessels (aorta, IVC), spine, ribs, and surrounding soft tissues are visualized.
+Findings:
+- Large hepatic mass (Right lobe of liver) [definite]: Heterogeneous, hypodense relative to normal liver parenchyma; measures approximately 8 cm in greatest dimension; causes mass effect with displacement of adjacent structures including the right kidney and bowel loops.
+- Right renal enlargement (Right kidney) [definite]: Enlarged compared to left kidney; measures approximately 6 cm in length; heterogeneous enhancement with possible cortical thinning or distortion.
+- Left renal normal size and appearance (Left kidney) [definite]: Normal size, shape, and contrast enhancement; no hydronephrosis or focal lesions identified.
+Pertinent negatives: No ascites; No pneumoperitoneum; No biliary ductal dilation; No splenomegaly; No pancreatic mass or inflammation; No lymphadenopathy
+Summary: A large, heterogeneous hepatic mass is present in the right lobe of the liver with significant mass effect. The right kidney is enlarged and shows abnormal enhancement, while the left kidney appears normal. No evidence of ascites, biliary obstruction, or other intra-abdominal pathology.",1.0,0.0,,
+MPX1279,"Wilms’ tumor, Stage I (Stage III at biopsy) with favorable histology",ORPHA:654,verified,2,14,Neuroblastoma | Nephroblastoma | NUT midline carcinoma,False,True,False,,0.0,"Images 1-2 (CT - GI & IV Contrast, axial plane, genitourinary; CT - GI & IV Contrast, axial plane, genitourinary):
+Technique: CT of the abdomen in axial plane with oral and intravenous contrast; image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, gallbladder, pancreas, spleen, kidneys, bowel loops, major vessels (aorta, IVC), spine, ribs, and surrounding soft tissues are visualized.
+Findings:
+- Large hepatic mass (Right lobe of liver) [definite]: Heterogeneous, hypodense relative to normal liver parenchyma; measures approximately 8 cm in greatest dimension; causes mass effect with displacement of adjacent structures including the right kidney and bowel loops.
+- Left renal normal size and appearance (Left kidney) [definite]: Normal size, shape, and contrast enhancement; no hydronephrosis or focal lesions identified.
+Pertinent negatives: No ascites; No pneumoperitoneum; No biliary ductal dilation; No splenomegaly; No pancreatic mass or inflammation; No lymphadenopathy",0.0,0.0,3.0,2.0
+MPX1279,"Wilms’ tumor, Stage I (Stage III at biopsy) with favorable histology",ORPHA:654,definite,1,15,"Nephroblastoma | Neuroblastoma | Neuroblastoma, susceptibility to",False,True,False,0.0,0.0,"Images 1-2 (CT - GI & IV Contrast, axial plane, genitourinary; CT - GI & IV Contrast, axial plane, genitourinary):
+Technique: CT of the abdomen in axial plane with oral and intravenous contrast; image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, gallbladder, pancreas, spleen, kidneys, bowel loops, major vessels (aorta, IVC), spine, ribs, and surrounding soft tissues are visualized.
+Findings:
+- Large hepatic mass (Right lobe of liver) [definite]: Heterogeneous, hypodense relative to normal liver parenchyma; measures approximately 8 cm in greatest dimension; causes mass effect with displacement of adjacent structures including the right kidney and bowel loops.
+- Right renal enlargement (Right kidney) [definite]: Enlarged compared to left kidney; measures approximately 6 cm in length; heterogeneous enhancement with possible cortical thinning or distortion.
+- Left renal normal size and appearance (Left kidney) [definite]: Normal size, shape, and contrast enhancement; no hydronephrosis or focal lesions identified.
+Pertinent negatives: No ascites; No pneumoperitoneum; No biliary ductal dilation; No splenomegaly; No pancreatic mass or inflammation; No lymphadenopathy
+Summary: A large, heterogeneous hepatic mass is present in the right lobe of the liver with significant mass effect. The right kidney is enlarged and shows abnormal enhancement, while the left kidney appears normal. No evidence of ascites, biliary obstruction, or other intra-abdominal pathology.",1.0,0.0,,
+MPX1279,"Wilms’ tumor, Stage I (Stage III at biopsy) with favorable histology",ORPHA:654,reference,2,11,Neuroblastoma | Nephroblastoma | NUT midline carcinoma,,,,,,,,,,
+MPX1321,Coarctation of the Aorta,OMIM:120000;ORPHA:1457,text,6719,14,"Cerebral arteriopathy, autosomal recessive, with subcortical infarcts and leukoencephalopathy 1 | Neuropathy, hereditary sensory and autonomic, type III | Complete atrioventricular septal defect",,,,,,,,,,
+MPX1321,Coarctation of the Aorta,OMIM:120000;ORPHA:1457,context,2196,21,"Complete atrioventricular septal defect | Cardiomyopathy, familial hypertrophic 27 | Pulmonary hypertension, primary, 7",False,True,False,0.0,,"Image 1 (CT w/contrast (IV), axial plane, cardiovascular):
+Technique: CT with intravenous contrast, axial plane, cardiovascular window; image quality is adequate for evaluation of mediastinal structures and great vessels.
+Anatomy: Thorax at the level of the upper mediastinum. Visible structures include the sternum anteriorly, the aortic arch and its branches (brachiocephalic trunk, left common carotid artery, left subclavian artery), the superior vena cava, trachea, lungs (apices), pleura, heart chambers (right atrium, right ventricle, left ventricle, left atrium), pulmonary arteries, and thoracic spine.
+Findings:
+- Cardiomegaly (Heart) [definite]: The cardiac silhouette is enlarged, occupying more than 50% of the transverse thoracic diameter on this axial slice.
+- Right ventricular enlargement (Heart (Right Ventricle)) [definite]: The right ventricle appears dilated and hypertrophied, with increased wall thickness compared to the left ventricle.
+- Left ventricular enlargement (Heart (Left Ventricle)) [definite]: The left ventricle is also enlarged, with increased wall thickness and chamber size.
+- Right atrial enlargement (Heart (Right Atrium)) [definite]: The right atrium appears dilated.
+- Left atrial enlargement (Heart (Left Atrium)) [definite]: The left atrium appears dilated.
+- Pulmonary artery enlargement (Mediastinum (Pulmonary Artery)) [definite]: The main pulmonary artery and its branches appear enlarged.
+Pertinent negatives: No pleural effusion; No pneumothorax; No mediastinal mass; No lymphadenopathy; No pulmonary consolidation or nodules; No tracheal deviation
+Summary: The image demonstrates cardiomegaly with enlargement of all four cardiac chambers, right ventricular hypertrophy, and pulmonary artery dilation. No pleural effusion, pneumothorax, or mediastinal mass is identified.",4.0,0.0,,
+MPX1321,Coarctation of the Aorta,OMIM:120000;ORPHA:1457,verified,6718,17,"Cerebral arteriopathy, autosomal recessive, with subcortical infarcts and leukoencephalopathy 1 | Neuropathy, hereditary sensory and autonomic, type III | Complete atrioventricular septal defect",False,True,False,,,"Image 1 (CT w/contrast (IV), axial plane, cardiovascular):
+Technique: CT with intravenous contrast, axial plane, cardiovascular window; image quality is adequate for evaluation of mediastinal structures and great vessels.
+Anatomy: Thorax at the level of the upper mediastinum. Visible structures include the sternum anteriorly, the aortic arch and its branches (brachiocephalic trunk, left common carotid artery, left subclavian artery), the superior vena cava, trachea, lungs (apices), pleura, heart chambers (right atrium, right ventricle, left ventricle, left atrium), pulmonary arteries, and thoracic spine.
+Pertinent negatives: No pleural effusion; No pneumothorax; No mediastinal mass; No lymphadenopathy; No pulmonary consolidation or nodules; No tracheal deviation",0.0,0.0,6.0,0.0
+MPX1321,Coarctation of the Aorta,OMIM:120000;ORPHA:1457,definite,2196,21,"Complete atrioventricular septal defect | Cardiomyopathy, familial hypertrophic 27 | Pulmonary hypertension, primary, 7",False,True,False,0.0,,"Image 1 (CT w/contrast (IV), axial plane, cardiovascular):
+Technique: CT with intravenous contrast, axial plane, cardiovascular window; image quality is adequate for evaluation of mediastinal structures and great vessels.
+Anatomy: Thorax at the level of the upper mediastinum. Visible structures include the sternum anteriorly, the aortic arch and its branches (brachiocephalic trunk, left common carotid artery, left subclavian artery), the superior vena cava, trachea, lungs (apices), pleura, heart chambers (right atrium, right ventricle, left ventricle, left atrium), pulmonary arteries, and thoracic spine.
+Findings:
+- Cardiomegaly (Heart) [definite]: The cardiac silhouette is enlarged, occupying more than 50% of the transverse thoracic diameter on this axial slice.
+- Right ventricular enlargement (Heart (Right Ventricle)) [definite]: The right ventricle appears dilated and hypertrophied, with increased wall thickness compared to the left ventricle.
+- Left ventricular enlargement (Heart (Left Ventricle)) [definite]: The left ventricle is also enlarged, with increased wall thickness and chamber size.
+- Right atrial enlargement (Heart (Right Atrium)) [definite]: The right atrium appears dilated.
+- Left atrial enlargement (Heart (Left Atrium)) [definite]: The left atrium appears dilated.
+- Pulmonary artery enlargement (Mediastinum (Pulmonary Artery)) [definite]: The main pulmonary artery and its branches appear enlarged.
+Pertinent negatives: No pleural effusion; No pneumothorax; No mediastinal mass; No lymphadenopathy; No pulmonary consolidation or nodules; No tracheal deviation
+Summary: The image demonstrates cardiomegaly with enlargement of all four cardiac chambers, right ventricular hypertrophy, and pulmonary artery dilation. No pleural effusion, pneumothorax, or mediastinal mass is identified.",4.0,0.0,,
+MPX1321,Coarctation of the Aorta,OMIM:120000;ORPHA:1457,reference,6719,14,"Cerebral arteriopathy, autosomal recessive, with subcortical infarcts and leukoencephalopathy 1 | Neuropathy, hereditary sensory and autonomic, type III | Complete atrioventricular septal defect",,,,,,,,,,
+MPX1318,Multiple Myeloma   and secondary amyloidosis and history of sarcoidosis,OMIM:254500;ORPHA:29073,text,261,6,Immunodeficiency 126 | Fabry disease | Multiple mitochondrial dysfunctions syndrome 9B,,,,,,,,,,
+MPX1318,Multiple Myeloma   and secondary amyloidosis and history of sarcoidosis,OMIM:254500;ORPHA:29073,context,261,6,Immunodeficiency 126 | Fabry disease | Multiple mitochondrial dysfunctions syndrome 9B,False,True,False,,0.0,"Image 1 (CT - noncontrast, axial plane, eye and orbit):
+Technique: Noncontrast axial CT of the orbits. Image quality is limited by low resolution and significant motion artifact, likely due to patient movement or a very short scan duration.
+Anatomy: Orbits, globes, extraocular muscles, optic nerves, orbital fat, bony walls (sphenoid sinus, ethmoid air cells).
+Findings:
+- Motion artifact obscuring anatomical detail (Bilateral orbits) [definite]: Severe blurring and streaking artifacts prevent reliable assessment of globe size, lens position, or optic nerve integrity.
+- Orbital soft tissue density abnormality (Right orbit (left side of image)) [probable]: Ill-defined area of increased density within the right globe/orbit, suggestive of hemorrhage or mass effect.
+- Orbital soft tissue density abnormality (Left orbit (right side of image)) [probable]: Ill-defined area of increased density within the left globe/orbit, suggestive of hemorrhage or mass effect.
+Pertinent negatives: No clear evidence of bony fracture due to motion artifact; No clear evidence of optic nerve enlargement due to motion artifact
+Summary: Noncontrast axial CT of the orbits is severely limited by significant motion artifact. There are ill-defined areas of increased density within both globes, suggestive of bilateral intraocular hemorrhage or mass effect. Reliable assessment of globe size, lens position, and optic nerve integrity is not possible.",0.0,0.0,,
+MPX1318,Multiple Myeloma   and secondary amyloidosis and history of sarcoidosis,OMIM:254500;ORPHA:29073,verified,261,6,Immunodeficiency 126 | Fabry disease | Multiple mitochondrial dysfunctions syndrome 9B,False,True,False,,0.0,"Image 1 (CT - noncontrast, axial plane, eye and orbit):
+Technique: Noncontrast axial CT of the orbits. Image quality is limited by low resolution and significant motion artifact, likely due to patient movement or a very short scan duration.
+Anatomy: Orbits, globes, extraocular muscles, optic nerves, orbital fat, bony walls (sphenoid sinus, ethmoid air cells).
+Findings:
+- Motion artifact obscuring anatomical detail (Bilateral orbits) [definite]: Severe blurring and streaking artifacts prevent reliable assessment of globe size, lens position, or optic nerve integrity.
+Pertinent negatives: No clear evidence of bony fracture due to motion artifact; No clear evidence of optic nerve enlargement due to motion artifact",0.0,0.0,3.0,1.0
+MPX1318,Multiple Myeloma   and secondary amyloidosis and history of sarcoidosis,OMIM:254500;ORPHA:29073,definite,261,6,Immunodeficiency 126 | Fabry disease | Multiple mitochondrial dysfunctions syndrome 9B,False,True,False,,0.0,"Image 1 (CT - noncontrast, axial plane, eye and orbit):
+Technique: Noncontrast axial CT of the orbits. Image quality is limited by low resolution and significant motion artifact, likely due to patient movement or a very short scan duration.
+Anatomy: Orbits, globes, extraocular muscles, optic nerves, orbital fat, bony walls (sphenoid sinus, ethmoid air cells).
+Findings:
+- Motion artifact obscuring anatomical detail (Bilateral orbits) [definite]: Severe blurring and streaking artifacts prevent reliable assessment of globe size, lens position, or optic nerve integrity.
+Pertinent negatives: No clear evidence of bony fracture due to motion artifact; No clear evidence of optic nerve enlargement due to motion artifact",0.0,0.0,,
+MPX1318,Multiple Myeloma   and secondary amyloidosis and history of sarcoidosis,OMIM:254500;ORPHA:29073,reference,261,6,Immunodeficiency 126 | Fabry disease | Multiple mitochondrial dysfunctions syndrome 9B,,,,,,,,,,
+MPX1366,"Fibromuscular Dysplasia, Renal Infarct",ORPHA:93108,text,6,2,Cystinuria | IgG4-related retroperitoneal fibrosis | Autosomal dominant polycystic kidney disease,,,,,,,,,,
+MPX1366,"Fibromuscular Dysplasia, Renal Infarct",ORPHA:93108,context,24,7,Autosomal dominant polycystic kidney disease | Primary myelofibrosis | Polycythemia vera,False,True,False,0.0,0.0,"Images 1-2 (CT - noncontrast, axial plane, vascular; CT w/contrast (IV), axial plane, vascular):
+Technique: Axial CT images of the abdomen, noncontrast and contrast-enhanced (IV), vascular phase. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, spleen, kidneys, pancreas, stomach, bowel loops, aorta, IVC, spine, paraspinal muscles, subcutaneous fat, and peritoneal cavity.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly beyond the expected level of the renal hilum. The right lobe appears prominent in size.
+- Splenomegaly (Left upper quadrant) [definite]: The spleen is enlarged, extending inferiorly below the level of the left kidney. The craniocaudal dimension appears increased.
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly beyond the expected level of the renal hilum. The right lobe appears prominent in size.
+- Splenomegaly (Left upper quadrant) [definite]: The spleen is enlarged, extending inferiorly below the level of the left kidney. The craniocaudal dimension appears increased.
+Pertinent negatives: No focal hepatic mass; No splenic mass; No hydronephrosis; No ascites; No lymphadenopathy; No pneumoperitoneum
+Summary: The images demonstrate hepatomegaly and splenomegaly in a 0-year-old male. The liver is enlarged with prominent right lobe, and the spleen extends inferiorly below the left renal hilum. No focal masses, hydronephrosis, or ascites are identified.",2.0,0.0,,
+MPX1366,"Fibromuscular Dysplasia, Renal Infarct",ORPHA:93108,verified,24,7,Autosomal dominant polycystic kidney disease | Primary myelofibrosis | Polycythemia vera,False,True,False,0.0,0.0,"Images 1-2 (CT - noncontrast, axial plane, vascular; CT w/contrast (IV), axial plane, vascular):
+Technique: Axial CT images of the abdomen, noncontrast and contrast-enhanced (IV), vascular phase. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, spleen, kidneys, pancreas, stomach, bowel loops, aorta, IVC, spine, paraspinal muscles, subcutaneous fat, and peritoneal cavity.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly beyond the expected level of the renal hilum. The right lobe appears prominent in size.
+- Splenomegaly (Left upper quadrant) [definite]: The spleen is enlarged, extending inferiorly below the level of the left kidney. The craniocaudal dimension appears increased.
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly beyond the expected level of the renal hilum. The right lobe appears prominent in size.
+- Splenomegaly (Left upper quadrant) [definite]: The spleen is enlarged, extending inferiorly below the level of the left kidney. The craniocaudal dimension appears increased.
+Pertinent negatives: No focal hepatic mass; No splenic mass; No hydronephrosis; No ascites; No lymphadenopathy; No pneumoperitoneum
+Summary: The images demonstrate hepatomegaly and splenomegaly in a 0-year-old male. The liver is enlarged with prominent right lobe, and the spleen extends inferiorly below the left renal hilum. No focal masses, hydronephrosis, or ascites are identified.",2.0,0.0,4.0,4.0
+MPX1366,"Fibromuscular Dysplasia, Renal Infarct",ORPHA:93108,definite,24,7,Autosomal dominant polycystic kidney disease | Primary myelofibrosis | Polycythemia vera,False,True,False,0.0,0.0,"Images 1-2 (CT - noncontrast, axial plane, vascular; CT w/contrast (IV), axial plane, vascular):
+Technique: Axial CT images of the abdomen, noncontrast and contrast-enhanced (IV), vascular phase. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, spleen, kidneys, pancreas, stomach, bowel loops, aorta, IVC, spine, paraspinal muscles, subcutaneous fat, and peritoneal cavity.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly beyond the expected level of the renal hilum. The right lobe appears prominent in size.
+- Splenomegaly (Left upper quadrant) [definite]: The spleen is enlarged, extending inferiorly below the level of the left kidney. The craniocaudal dimension appears increased.
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly beyond the expected level of the renal hilum. The right lobe appears prominent in size.
+- Splenomegaly (Left upper quadrant) [definite]: The spleen is enlarged, extending inferiorly below the level of the left kidney. The craniocaudal dimension appears increased.
+Pertinent negatives: No focal hepatic mass; No splenic mass; No hydronephrosis; No ascites; No lymphadenopathy; No pneumoperitoneum
+Summary: The images demonstrate hepatomegaly and splenomegaly in a 0-year-old male. The liver is enlarged with prominent right lobe, and the spleen extends inferiorly below the left renal hilum. No focal masses, hydronephrosis, or ascites are identified.",2.0,0.0,,
+MPX1366,"Fibromuscular Dysplasia, Renal Infarct",ORPHA:93108,reference,9,7,IgG4-related retroperitoneal fibrosis | Autosomal dominant polycystic kidney disease | Granulomatosis with polyangiitis,,,,,,,,,,
+MPX1381,Cholangiocarcinoma - radiographic appearance and biopsy,ORPHA:70567,text,656,6,"Hemolytic anemia, G6PD deficient (favism) | Mitochondrial DNA depletion syndrome 1 (MNGIE type) | Hereditary angioedema type 1",,,,,,,,,,
+MPX1381,Cholangiocarcinoma - radiographic appearance and biopsy,ORPHA:70567,context,285,12,"Familial chylomicronemia syndrome | Polycythemia vera | Hemolytic anemia, G6PD deficient (favism)",False,True,False,0.0,0.0,"Images 1-2 (CT w/contrast (IV), axial plane, abdomen; CT w/contrast (IV), axial plane, abdomen):
+Technique: Axial CT of the abdomen with intravenous contrast, single slice provided; image quality is adequate for evaluation of major abdominal organs.
+Anatomy: Liver, spleen, stomach, pancreas (body/tail), kidneys, aorta, IVC, spine, paraspinal muscles, bowel loops, pleural spaces.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly beyond the costal margin and occupying a large portion of the right hemi-abdomen.
+- Hepatic mass (Right lobe of liver) [definite]: A large, heterogeneous, hypodense lesion is present in the right lobe of the liver. It appears to have irregular margins and causes some mass effect on adjacent structures.
+- Gastric distension (Left upper quadrant) [definite]: The stomach is markedly dilated with fluid content, occupying a significant portion of the left hemi-abdomen.
+- Splenomegaly (Left upper quadrant) [definite]: The spleen is enlarged, extending inferiorly beyond the normal costal margin.
+Pertinent negatives: No ascites; No pneumoperitoneum; No obvious lymphadenopathy; No hydronephrosis; No pleural effusion
+Summary: The images demonstrate hepatomegaly with a large, heterogeneous hypodense mass in the right lobe of the liver. There is also marked gastric distension and splenomegaly. No ascites or pneumoperitoneum is seen.",2.0,0.0,,
+MPX1381,Cholangiocarcinoma - radiographic appearance and biopsy,ORPHA:70567,verified,285,12,"Familial chylomicronemia syndrome | Polycythemia vera | Hemolytic anemia, G6PD deficient (favism)",False,True,False,0.0,0.0,"Images 1-2 (CT w/contrast (IV), axial plane, abdomen; CT w/contrast (IV), axial plane, abdomen):
+Technique: Axial CT of the abdomen with intravenous contrast, single slice provided; image quality is adequate for evaluation of major abdominal organs.
+Anatomy: Liver, spleen, stomach, pancreas (body/tail), kidneys, aorta, IVC, spine, paraspinal muscles, bowel loops, pleural spaces.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly beyond the costal margin and occupying a large portion of the right hemi-abdomen.
+- Hepatic mass (Right lobe of liver) [definite]: A large, heterogeneous, hypodense lesion is present in the right lobe of the liver. It appears to have irregular margins and causes some mass effect on adjacent structures.
+- Gastric distension (Left upper quadrant) [definite]: The stomach is markedly dilated with fluid content, occupying a significant portion of the left hemi-abdomen.
+- Splenomegaly (Left upper quadrant) [definite]: The spleen is enlarged, extending inferiorly beyond the normal costal margin.
+Pertinent negatives: No ascites; No pneumoperitoneum; No obvious lymphadenopathy; No hydronephrosis; No pleural effusion
+Summary: The images demonstrate hepatomegaly with a large, heterogeneous hypodense mass in the right lobe of the liver. There is also marked gastric distension and splenomegaly. No ascites or pneumoperitoneum is seen.",2.0,0.0,4.0,4.0
+MPX1381,Cholangiocarcinoma - radiographic appearance and biopsy,ORPHA:70567,definite,285,12,"Familial chylomicronemia syndrome | Polycythemia vera | Hemolytic anemia, G6PD deficient (favism)",False,True,False,0.0,0.0,"Images 1-2 (CT w/contrast (IV), axial plane, abdomen; CT w/contrast (IV), axial plane, abdomen):
+Technique: Axial CT of the abdomen with intravenous contrast, single slice provided; image quality is adequate for evaluation of major abdominal organs.
+Anatomy: Liver, spleen, stomach, pancreas (body/tail), kidneys, aorta, IVC, spine, paraspinal muscles, bowel loops, pleural spaces.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly beyond the costal margin and occupying a large portion of the right hemi-abdomen.
+- Hepatic mass (Right lobe of liver) [definite]: A large, heterogeneous, hypodense lesion is present in the right lobe of the liver. It appears to have irregular margins and causes some mass effect on adjacent structures.
+- Gastric distension (Left upper quadrant) [definite]: The stomach is markedly dilated with fluid content, occupying a significant portion of the left hemi-abdomen.
+- Splenomegaly (Left upper quadrant) [definite]: The spleen is enlarged, extending inferiorly beyond the normal costal margin.
+Pertinent negatives: No ascites; No pneumoperitoneum; No obvious lymphadenopathy; No hydronephrosis; No pleural effusion
+Summary: The images demonstrate hepatomegaly with a large, heterogeneous hypodense mass in the right lobe of the liver. There is also marked gastric distension and splenomegaly. No ascites or pneumoperitoneum is seen.",2.0,0.0,,
+MPX1381,Cholangiocarcinoma - radiographic appearance and biopsy,ORPHA:70567,reference,361,7,Pediatric hepatocellular carcinoma | Isolated mesenteric vein thrombosis | Budd-Chiari syndrome,,,,,,,,,,
+MPX1371,Pancreatic Carcinoma,ORPHA:1333,text,179,1,"Arthrogryposis, renal dysfunction, and cholestasis 1 | Crigler-Najjar syndrome, type I | Cholestasis, progressive familial intrahepatic 1",,,,,,,,,,
+MPX1371,Pancreatic Carcinoma,ORPHA:1333,context,267,7,Glycogen storage disease due to glucose-6-phosphatase deficiency type Ib | Glycogen storage disease Ia | Renal-hepatic-pancreatic dysplasia,False,True,False,0.0,,"Images 1-2 (CT - GI Contrast, axial plane, gastrointestinal; CT - GI & IV Contrast, axial plane, gastrointestinal):
+Technique: Axial CT of the abdomen with oral and intravenous contrast. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, gallbladder, pancreas, spleen, kidneys, bowel loops, major vessels (aorta, IVC), spine, paraspinal muscles, subcutaneous tissues.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly below the level of the right kidney. The contour is smooth.
+- Focal hepatic lesion (Liver, posterior segment (Segment VI/VII)) [definite]: A well-circumscribed, hypodense nodule measuring approximately 1.5 cm is noted in the posterior aspect of the right lobe.
+- Gallbladder distension (Right upper quadrant) [definite]: The gallbladder is distended with a thin wall and contains low-density fluid consistent with bile. No obvious stones or sludge are visualized.
+- Pancreatic enlargement (Epigastrium) [definite]: The pancreas appears enlarged and edematous with indistinct margins, particularly in the body and tail.
+- Peripancreatic stranding (Epigastrium/retroperitoneum) [definite]: Increased attenuation of the peripancreatic fat is present, consistent with inflammatory changes.
+- Left renal enlargement (Left upper quadrant) [definite]: The left kidney is enlarged compared to the right. The parenchyma appears relatively homogeneous.
+Pertinent negatives: No pneumoperitoneum; No free fluid in the abdomen; No obvious biliary ductal dilation; No splenomegaly; No hydronephrosis
+Summary: The images demonstrate hepatomegaly with a focal hypodense lesion in the posterior right lobe of the liver. There is marked enlargement and edema of the pancreas with associated peripancreatic stranding, findings consistent with acute pancreatitis. Additionally, there is asymmetric renal enlargement with the left kidney being larger than the right.",4.0,0.0,,
+MPX1371,Pancreatic Carcinoma,ORPHA:1333,verified,267,7,Glycogen storage disease due to glucose-6-phosphatase deficiency type Ib | Glycogen storage disease Ia | Renal-hepatic-pancreatic dysplasia,False,True,False,0.0,,"Images 1-2 (CT - GI Contrast, axial plane, gastrointestinal; CT - GI & IV Contrast, axial plane, gastrointestinal):
+Technique: Axial CT of the abdomen with oral and intravenous contrast. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, gallbladder, pancreas, spleen, kidneys, bowel loops, major vessels (aorta, IVC), spine, paraspinal muscles, subcutaneous tissues.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly below the level of the right kidney. The contour is smooth.
+- Focal hepatic lesion (Liver, posterior segment (Segment VI/VII)) [definite]: A well-circumscribed, hypodense nodule measuring approximately 1.5 cm is noted in the posterior aspect of the right lobe.
+- Gallbladder distension (Right upper quadrant) [definite]: The gallbladder is distended with a thin wall and contains low-density fluid consistent with bile. No obvious stones or sludge are visualized.
+- Pancreatic enlargement (Epigastrium) [definite]: The pancreas appears enlarged and edematous with indistinct margins, particularly in the body and tail.
+- Peripancreatic stranding (Epigastrium/retroperitoneum) [definite]: Increased attenuation of the peripancreatic fat is present, consistent with inflammatory changes.
+- Left renal enlargement (Left upper quadrant) [definite]: The left kidney is enlarged compared to the right. The parenchyma appears relatively homogeneous.
+Pertinent negatives: No pneumoperitoneum; No free fluid in the abdomen; No obvious biliary ductal dilation; No splenomegaly; No hydronephrosis
+Summary: The images demonstrate hepatomegaly with a focal hypodense lesion in the posterior right lobe of the liver. There is marked enlargement and edema of the pancreas with associated peripancreatic stranding, findings consistent with acute pancreatitis. Additionally, there is asymmetric renal enlargement with the left kidney being larger than the right.",4.0,0.0,6.0,6.0
+MPX1371,Pancreatic Carcinoma,ORPHA:1333,definite,267,7,Glycogen storage disease due to glucose-6-phosphatase deficiency type Ib | Glycogen storage disease Ia | Renal-hepatic-pancreatic dysplasia,False,True,False,0.0,,"Images 1-2 (CT - GI Contrast, axial plane, gastrointestinal; CT - GI & IV Contrast, axial plane, gastrointestinal):
+Technique: Axial CT of the abdomen with oral and intravenous contrast. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, gallbladder, pancreas, spleen, kidneys, bowel loops, major vessels (aorta, IVC), spine, paraspinal muscles, subcutaneous tissues.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly below the level of the right kidney. The contour is smooth.
+- Focal hepatic lesion (Liver, posterior segment (Segment VI/VII)) [definite]: A well-circumscribed, hypodense nodule measuring approximately 1.5 cm is noted in the posterior aspect of the right lobe.
+- Gallbladder distension (Right upper quadrant) [definite]: The gallbladder is distended with a thin wall and contains low-density fluid consistent with bile. No obvious stones or sludge are visualized.
+- Pancreatic enlargement (Epigastrium) [definite]: The pancreas appears enlarged and edematous with indistinct margins, particularly in the body and tail.
+- Peripancreatic stranding (Epigastrium/retroperitoneum) [definite]: Increased attenuation of the peripancreatic fat is present, consistent with inflammatory changes.
+- Left renal enlargement (Left upper quadrant) [definite]: The left kidney is enlarged compared to the right. The parenchyma appears relatively homogeneous.
+Pertinent negatives: No pneumoperitoneum; No free fluid in the abdomen; No obvious biliary ductal dilation; No splenomegaly; No hydronephrosis
+Summary: The images demonstrate hepatomegaly with a focal hypodense lesion in the posterior right lobe of the liver. There is marked enlargement and edema of the pancreas with associated peripancreatic stranding, findings consistent with acute pancreatitis. Additionally, there is asymmetric renal enlargement with the left kidney being larger than the right.",4.0,0.0,,
+MPX1371,Pancreatic Carcinoma,ORPHA:1333,reference,179,1,"Arthrogryposis, renal dysfunction, and cholestasis 1 | Crigler-Najjar syndrome, type I | Cholestasis, progressive familial intrahepatic 1",,,,,,,,,,
+MPX1355,Nodular Sclerosing Hodgkin’s Lymphoma,OMIM:236000,text,12820,3,Classic Hodgkin lymphoma | Kikuchi-Fujimoto disease | Postinfectious vasculitis,,,,,,,,,,
+MPX1355,Nodular Sclerosing Hodgkin’s Lymphoma,OMIM:236000,context,12820,7,Follicular lymphoma | Classic Hodgkin lymphoma | Adult-onset Still disease,False,True,False,0.5,1.0,"Image 1 (CT w/contrast (IV), axial plane, chest, pulmonary):
+Technique: Axial CT of the chest with IV contrast, soft tissue window.
+Anatomy: Thorax including lungs, mediastinum, heart, great vessels, chest wall, and osseous structures.
+Findings:
+- Mediastinal mass (Anterior mediastinum) [definite]: Large, heterogeneous soft tissue density mass measuring approximately 6 cm in craniocaudal dimension and 4 cm in transverse dimension. The mass demonstrates internal heterogeneity with areas of lower attenuation suggestive of necrosis or cystic change.
+- Vascular compression (Right paratracheal region / Superior vena cava) [definite]: The mass exerts mass effect on the superior vena cava, causing significant narrowing and partial obstruction of the vessel.
+- Tracheal deviation (Trachea) [definite]: The trachea is deviated to the left by the mass effect.
+Pertinent negatives: No pleural effusion; No pneumothorax; No obvious pulmonary parenchymal consolidation or nodules in visualized lung fields; No gross bony destruction of the thoracic cage
+Summary: There is a large, heterogeneous anterior mediastinal mass causing significant compression of the superior vena cava and deviation of the trachea to the left. No pleural effusion or pulmonary parenchymal abnormalities are identified.",2.0,1.0,,
+MPX1355,Nodular Sclerosing Hodgkin’s Lymphoma,OMIM:236000,verified,12820,7,Follicular lymphoma | Classic Hodgkin lymphoma | Adult-onset Still disease,False,True,False,0.5,1.0,"Image 1 (CT w/contrast (IV), axial plane, chest, pulmonary):
+Technique: Axial CT of the chest with IV contrast, soft tissue window.
+Anatomy: Thorax including lungs, mediastinum, heart, great vessels, chest wall, and osseous structures.
+Findings:
+- Mediastinal mass (Anterior mediastinum) [definite]: Large, heterogeneous soft tissue density mass measuring approximately 6 cm in craniocaudal dimension and 4 cm in transverse dimension. The mass demonstrates internal heterogeneity with areas of lower attenuation suggestive of necrosis or cystic change.
+- Vascular compression (Right paratracheal region / Superior vena cava) [definite]: The mass exerts mass effect on the superior vena cava, causing significant narrowing and partial obstruction of the vessel.
+- Tracheal deviation (Trachea) [definite]: The trachea is deviated to the left by the mass effect.
+Pertinent negatives: No pleural effusion; No pneumothorax; No obvious pulmonary parenchymal consolidation or nodules in visualized lung fields; No gross bony destruction of the thoracic cage
+Summary: There is a large, heterogeneous anterior mediastinal mass causing significant compression of the superior vena cava and deviation of the trachea to the left. No pleural effusion or pulmonary parenchymal abnormalities are identified.",2.0,1.0,3.0,3.0
+MPX1355,Nodular Sclerosing Hodgkin’s Lymphoma,OMIM:236000,definite,12820,7,Follicular lymphoma | Classic Hodgkin lymphoma | Adult-onset Still disease,False,True,False,0.5,1.0,"Image 1 (CT w/contrast (IV), axial plane, chest, pulmonary):
+Technique: Axial CT of the chest with IV contrast, soft tissue window.
+Anatomy: Thorax including lungs, mediastinum, heart, great vessels, chest wall, and osseous structures.
+Findings:
+- Mediastinal mass (Anterior mediastinum) [definite]: Large, heterogeneous soft tissue density mass measuring approximately 6 cm in craniocaudal dimension and 4 cm in transverse dimension. The mass demonstrates internal heterogeneity with areas of lower attenuation suggestive of necrosis or cystic change.
+- Vascular compression (Right paratracheal region / Superior vena cava) [definite]: The mass exerts mass effect on the superior vena cava, causing significant narrowing and partial obstruction of the vessel.
+- Tracheal deviation (Trachea) [definite]: The trachea is deviated to the left by the mass effect.
+Pertinent negatives: No pleural effusion; No pneumothorax; No obvious pulmonary parenchymal consolidation or nodules in visualized lung fields; No gross bony destruction of the thoracic cage
+Summary: There is a large, heterogeneous anterior mediastinal mass causing significant compression of the superior vena cava and deviation of the trachea to the left. No pleural effusion or pulmonary parenchymal abnormalities are identified.",2.0,1.0,,
+MPX1355,Nodular Sclerosing Hodgkin’s Lymphoma,OMIM:236000,reference,12820,4,Follicular lymphoma | Classic Hodgkin lymphoma | Idiopathic chronic eosinophilic pneumonia,,,,,,,,,,
+MPX1429,Glioblastoma multiforme,ORPHA:360,text,809,3,Behçet disease | CINCA syndrome | Nipah virus disease,,,,,,,,,,
+MPX1429,Glioblastoma multiforme,ORPHA:360,context,849,6,CINCA syndrome | Behçet disease | Nipah virus disease,False,True,False,0.0,0.0,"Images 1-2 (CT - noncontrast, axial plane, brain and neuro; MR - T1W - noncontrast, axial plane, brain and neuro):
+Technique: Noncontrast axial CT and T1-weighted MRI of the brain. Image quality is adequate for evaluation.
+Anatomy: Brain parenchyma, ventricular system (lateral, third, fourth), midline structures, extra-axial spaces, skull.
+Findings:
+- Right parietal lobe hypodensity (Right parietal lobe) [definite]: Large area of low attenuation on CT and corresponding T1 hypointensity with mass effect, effacement of adjacent sulci, and compression of the right lateral ventricle.
+- Left lateral ventricle enlargement (Left lateral ventricle) [definite]: Dilated left lateral ventricle with prominent frontal and occipital horns, consistent with ex-vacuum dilatation.
+- Midline shift (Central) [definite]: Right-to-left midline shift of approximately 1 cm at the level of the ventricles.
+Pertinent negatives: No intracranial hemorrhage; No extra-axial fluid collection; No hydrocephalus (ventricular enlargement is secondary to mass effect); Normal third and fourth ventricles
+Summary: There is a large right parietal lobe hypodensity with associated mass effect, midline shift, and compensatory ex-vacuum dilatation of the left lateral ventricle.",1.0,0.0,,
+MPX1429,Glioblastoma multiforme,ORPHA:360,verified,849,6,CINCA syndrome | Behçet disease | Nipah virus disease,False,True,False,0.0,0.0,"Images 1-2 (CT - noncontrast, axial plane, brain and neuro; MR - T1W - noncontrast, axial plane, brain and neuro):
+Technique: Noncontrast axial CT and T1-weighted MRI of the brain. Image quality is adequate for evaluation.
+Anatomy: Brain parenchyma, ventricular system (lateral, third, fourth), midline structures, extra-axial spaces, skull.
+Findings:
+- Right parietal lobe hypodensity (Right parietal lobe) [definite]: Large area of low attenuation on CT and corresponding T1 hypointensity with mass effect, effacement of adjacent sulci, and compression of the right lateral ventricle.
+- Left lateral ventricle enlargement (Left lateral ventricle) [definite]: Dilated left lateral ventricle with prominent frontal and occipital horns, consistent with ex-vacuum dilatation.
+- Midline shift (Central) [definite]: Right-to-left midline shift of approximately 1 cm at the level of the ventricles.
+Pertinent negatives: No intracranial hemorrhage; No extra-axial fluid collection; No hydrocephalus (ventricular enlargement is secondary to mass effect); Normal third and fourth ventricles
+Summary: There is a large right parietal lobe hypodensity with associated mass effect, midline shift, and compensatory ex-vacuum dilatation of the left lateral ventricle.",1.0,0.0,3.0,3.0
+MPX1429,Glioblastoma multiforme,ORPHA:360,definite,849,6,CINCA syndrome | Behçet disease | Nipah virus disease,False,True,False,0.0,0.0,"Images 1-2 (CT - noncontrast, axial plane, brain and neuro; MR - T1W - noncontrast, axial plane, brain and neuro):
+Technique: Noncontrast axial CT and T1-weighted MRI of the brain. Image quality is adequate for evaluation.
+Anatomy: Brain parenchyma, ventricular system (lateral, third, fourth), midline structures, extra-axial spaces, skull.
+Findings:
+- Right parietal lobe hypodensity (Right parietal lobe) [definite]: Large area of low attenuation on CT and corresponding T1 hypointensity with mass effect, effacement of adjacent sulci, and compression of the right lateral ventricle.
+- Left lateral ventricle enlargement (Left lateral ventricle) [definite]: Dilated left lateral ventricle with prominent frontal and occipital horns, consistent with ex-vacuum dilatation.
+- Midline shift (Central) [definite]: Right-to-left midline shift of approximately 1 cm at the level of the ventricles.
+Pertinent negatives: No intracranial hemorrhage; No extra-axial fluid collection; No hydrocephalus (ventricular enlargement is secondary to mass effect); Normal third and fourth ventricles
+Summary: There is a large right parietal lobe hypodensity with associated mass effect, midline shift, and compensatory ex-vacuum dilatation of the left lateral ventricle.",1.0,0.0,,
+MPX1429,Glioblastoma multiforme,ORPHA:360,reference,416,4,CINCA syndrome | Lujo hemorrhagic fever | Hughes-Stovin syndrome,,,,,,,,,,
+MPX1419,Moderately Differentiated Adenocarcinoma (Hereditary Nonpolyposis Colon Cancer),ORPHA:1416,text,401,1,"Hemolytic anemia, G6PD deficient (favism) | Mitochondrial DNA depletion syndrome 1 (MNGIE type) | Hereditary angioedema type 1",,,,,,,,,,
+MPX1419,Moderately Differentiated Adenocarcinoma (Hereditary Nonpolyposis Colon Cancer),ORPHA:1416,context,1847,6,Hyperimmunoglobulinemia D with periodic fever | Whipple disease | Adenocarcinoma of the anal canal,False,True,False,0.0,,"Images 1-2 (CT - GI & IV Contrast, axial plane, gastrointestinal; CT - GI & IV Contrast, axial plane, gastrointestinal):
+Technique: Axial CT of the abdomen and pelvis with oral and intravenous contrast. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Abdomen and pelvis including liver, gallbladder, pancreas, spleen, kidneys, bowel loops, major vessels (aorta, IVC), retroperitoneum, bladder, and pelvic bones.
+Findings:
+- Heterogeneous soft tissue mass (Right kidney) [definite]: Large, irregular, enhancing mass replacing the right renal parenchyma with internal heterogeneity and possible necrosis or hemorrhage. Mass effect on adjacent structures noted.
+- Enlarged lymph nodes (Retroperitoneum, periaortic region) [definite]: Multiple enlarged, rounded soft tissue densities along the aorta and IVC, some with central hypodensity suggesting necrosis.
+- Left kidney enlargement (Left kidney) [definite]: Enlarged left kidney with preserved corticomedullary differentiation; no focal mass or hydronephrosis identified.
+Pertinent negatives: No hepatic masses or biliary dilation; No splenic abnormalities; No pancreatic mass or ductal dilation; No ascites or free fluid; No bowel obstruction or wall thickening; No bladder distension or intraluminal abnormality
+Summary: Large heterogeneous right renal mass with associated retroperitoneal lymphadenopathy. Left kidney is enlarged but unremarkable otherwise. No evidence of distant metastasis or ascites on these images.",1.0,0.0,,
+MPX1419,Moderately Differentiated Adenocarcinoma (Hereditary Nonpolyposis Colon Cancer),ORPHA:1416,verified,1847,6,Hyperimmunoglobulinemia D with periodic fever | Whipple disease | Adenocarcinoma of the anal canal,False,True,False,0.0,,"Images 1-2 (CT - GI & IV Contrast, axial plane, gastrointestinal; CT - GI & IV Contrast, axial plane, gastrointestinal):
+Technique: Axial CT of the abdomen and pelvis with oral and intravenous contrast. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Abdomen and pelvis including liver, gallbladder, pancreas, spleen, kidneys, bowel loops, major vessels (aorta, IVC), retroperitoneum, bladder, and pelvic bones.
+Findings:
+- Heterogeneous soft tissue mass (Right kidney) [definite]: Large, irregular, enhancing mass replacing the right renal parenchyma with internal heterogeneity and possible necrosis or hemorrhage. Mass effect on adjacent structures noted.
+- Enlarged lymph nodes (Retroperitoneum, periaortic region) [definite]: Multiple enlarged, rounded soft tissue densities along the aorta and IVC, some with central hypodensity suggesting necrosis.
+- Left kidney enlargement (Left kidney) [definite]: Enlarged left kidney with preserved corticomedullary differentiation; no focal mass or hydronephrosis identified.
+Pertinent negatives: No hepatic masses or biliary dilation; No splenic abnormalities; No pancreatic mass or ductal dilation; No ascites or free fluid; No bowel obstruction or wall thickening; No bladder distension or intraluminal abnormality
+Summary: Large heterogeneous right renal mass with associated retroperitoneal lymphadenopathy. Left kidney is enlarged but unremarkable otherwise. No evidence of distant metastasis or ascites on these images.",1.0,0.0,3.0,3.0
+MPX1419,Moderately Differentiated Adenocarcinoma (Hereditary Nonpolyposis Colon Cancer),ORPHA:1416,definite,1847,6,Hyperimmunoglobulinemia D with periodic fever | Whipple disease | Adenocarcinoma of the anal canal,False,True,False,0.0,,"Images 1-2 (CT - GI & IV Contrast, axial plane, gastrointestinal; CT - GI & IV Contrast, axial plane, gastrointestinal):
+Technique: Axial CT of the abdomen and pelvis with oral and intravenous contrast. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Abdomen and pelvis including liver, gallbladder, pancreas, spleen, kidneys, bowel loops, major vessels (aorta, IVC), retroperitoneum, bladder, and pelvic bones.
+Findings:
+- Heterogeneous soft tissue mass (Right kidney) [definite]: Large, irregular, enhancing mass replacing the right renal parenchyma with internal heterogeneity and possible necrosis or hemorrhage. Mass effect on adjacent structures noted.
+- Enlarged lymph nodes (Retroperitoneum, periaortic region) [definite]: Multiple enlarged, rounded soft tissue densities along the aorta and IVC, some with central hypodensity suggesting necrosis.
+- Left kidney enlargement (Left kidney) [definite]: Enlarged left kidney with preserved corticomedullary differentiation; no focal mass or hydronephrosis identified.
+Pertinent negatives: No hepatic masses or biliary dilation; No splenic abnormalities; No pancreatic mass or ductal dilation; No ascites or free fluid; No bowel obstruction or wall thickening; No bladder distension or intraluminal abnormality
+Summary: Large heterogeneous right renal mass with associated retroperitoneal lymphadenopathy. Left kidney is enlarged but unremarkable otherwise. No evidence of distant metastasis or ascites on these images.",1.0,0.0,,
+MPX1419,Moderately Differentiated Adenocarcinoma (Hereditary Nonpolyposis Colon Cancer),ORPHA:1416,reference,401,1,"Hemolytic anemia, G6PD deficient (favism) | Mitochondrial DNA depletion syndrome 1 (MNGIE type) | Hereditary angioedema type 1",,,,,,,,,,
+MPX1454,Von Meyenburg Complex - Multiple biliary hamartomas,ORPHA:201,text,12820,1,"Idiopathic pulmonary arterial hypertension | Pulmonary fibrosis and/or bone marrow failure, telomere-related, 1 | Telangiectasia, hereditary hemorrhagic, type 1",,,,,,,,,,
+MPX1454,Von Meyenburg Complex - Multiple biliary hamartomas,ORPHA:201,context,2933,5,"Cholestasis, progressive familial intrahepatic, 13 | Multiple congenital anomalies-hypotonia-seizures syndrome 2 | Immunodeficiency 126",False,True,False,0.0,,"Images 1-2 (CT w/contrast (IV), axial plane, gastrointestinal; MR - T2 weighted, axial plane, gastrointestinal):
+Technique: Axial CT with IV contrast and axial T2-weighted MRI of the abdomen. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, spleen, pancreas, stomach, kidneys, adrenal glands, aorta, IVC, bowel loops, spine, ribs.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly below the level of the right kidney. The parenchyma demonstrates diffuse hypodensity on CT and heterogeneous signal intensity on MRI.
+- Splenomegaly (Left upper quadrant) [definite]: The spleen is enlarged, extending inferiorly below the level of the left kidney. The parenchyma demonstrates hypodensity on CT and heterogeneous signal intensity on MRI.
+- Pancreatic enlargement (Epigastrium) [definite]: The pancreas is enlarged with a lobulated contour. The parenchyma demonstrates hypodensity on CT and heterogeneous signal intensity on MRI.
+- Ascites (Peritoneal cavity) [definite]: Fluid is present in the perihepatic space, surrounding the liver.
+Pertinent negatives: No focal hepatic mass or lesion identified.; No splenic laceration or focal lesion identified.; No pancreatic necrosis or fluid collection identified.; No hydronephrosis identified.; No pneumoperitoneum identified.
+Summary: The images demonstrate diffuse hepatomegaly, splenomegaly, and pancreatic enlargement. The parenchyma of these organs appears heterogeneous on both CT and MRI. There is also evidence of ascites in the perihepatic space.",3.0,0.0,,
+MPX1454,Von Meyenburg Complex - Multiple biliary hamartomas,ORPHA:201,verified,3468,4,Mucopolysaccharidosis-Plus syndrome | Gaucher disease type 2 | Pulmonary fibrosis-hepatic hyperplasia-bone marrow hypoplasia syndrome,False,True,False,0.0,,"Images 1-2 (CT w/contrast (IV), axial plane, gastrointestinal; MR - T2 weighted, axial plane, gastrointestinal):
+Technique: Axial CT with IV contrast and axial T2-weighted MRI of the abdomen. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, spleen, pancreas, stomach, kidneys, adrenal glands, aorta, IVC, bowel loops, spine, ribs.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly below the level of the right kidney. The parenchyma demonstrates diffuse hypodensity on CT and heterogeneous signal intensity on MRI.
+- Splenomegaly (Left upper quadrant) [definite]: The spleen is enlarged, extending inferiorly below the level of the left kidney. The parenchyma demonstrates hypodensity on CT and heterogeneous signal intensity on MRI.
+Pertinent negatives: No focal hepatic mass or lesion identified.; No splenic laceration or focal lesion identified.; No pancreatic necrosis or fluid collection identified.; No hydronephrosis identified.; No pneumoperitoneum identified.",2.0,0.0,4.0,2.0
+MPX1454,Von Meyenburg Complex - Multiple biliary hamartomas,ORPHA:201,definite,2933,5,"Cholestasis, progressive familial intrahepatic, 13 | Multiple congenital anomalies-hypotonia-seizures syndrome 2 | Immunodeficiency 126",False,True,False,0.0,,"Images 1-2 (CT w/contrast (IV), axial plane, gastrointestinal; MR - T2 weighted, axial plane, gastrointestinal):
+Technique: Axial CT with IV contrast and axial T2-weighted MRI of the abdomen. Image quality is adequate for evaluation of abdominal organs.
+Anatomy: Liver, spleen, pancreas, stomach, kidneys, adrenal glands, aorta, IVC, bowel loops, spine, ribs.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver is enlarged, extending inferiorly below the level of the right kidney. The parenchyma demonstrates diffuse hypodensity on CT and heterogeneous signal intensity on MRI.
+- Splenomegaly (Left upper quadrant) [definite]: The spleen is enlarged, extending inferiorly below the level of the left kidney. The parenchyma demonstrates hypodensity on CT and heterogeneous signal intensity on MRI.
+- Pancreatic enlargement (Epigastrium) [definite]: The pancreas is enlarged with a lobulated contour. The parenchyma demonstrates hypodensity on CT and heterogeneous signal intensity on MRI.
+- Ascites (Peritoneal cavity) [definite]: Fluid is present in the perihepatic space, surrounding the liver.
+Pertinent negatives: No focal hepatic mass or lesion identified.; No splenic laceration or focal lesion identified.; No pancreatic necrosis or fluid collection identified.; No hydronephrosis identified.; No pneumoperitoneum identified.
+Summary: The images demonstrate diffuse hepatomegaly, splenomegaly, and pancreatic enlargement. The parenchyma of these organs appears heterogeneous on both CT and MRI. There is also evidence of ascites in the perihepatic space.",3.0,0.0,,
+MPX1454,Von Meyenburg Complex - Multiple biliary hamartomas,ORPHA:201,reference,12820,1,"Idiopathic pulmonary arterial hypertension | Pulmonary fibrosis and/or bone marrow failure, telomere-related, 1 | Telangiectasia, hereditary hemorrhagic, type 1",,,,,,,,,,
+MPX1433,Dacryocystocele with dacryocystitis and periorbital cellulitis,ORPHA:141083,text,292,2,"Focal facial dermal dysplasia 3, Setleis type | Sialuria | Intellectual disability-seizures-macrocephaly-obesity syndrome",,,,,,,,,,
+MPX1433,Dacryocystocele with dacryocystitis and periorbital cellulitis,ORPHA:141083,context,750,3,Pallister-Killian syndrome | Branchioskeletogenital syndrome | Aminopterin/methotrexate embryofetopathy,False,True,False,0.0,,"Images 1-2 (CT - noncontrast, coronal plane, eye and orbit; CT - noncontrast, coronal plane, eye and orbit):
+Technique: Noncontrast computed tomography (CT) of the orbits in coronal plane. Image quality is adequate for evaluation of bony structures and soft tissues.
+Anatomy: Orbits, globes, extraocular muscles, optic nerves, orbital fat, ethmoid sinuses, nasal cavity, maxillary sinuses, frontal bone, zygomatic bones.
+Findings:
+- Right globe enlargement (Right orbit) [definite]: The right globe is enlarged compared to the left side, with a vertical dimension of approximately 25 mm (normal for age ~18-20 mm). The lens appears displaced anteriorly.
+- Left globe enlargement (Left orbit) [definite]: The left globe is enlarged compared to the right side, with a vertical dimension of approximately 25 mm. The lens appears displaced anteriorly.
+- Bilateral optic nerve enlargement (Right and Left orbits) [definite]: The optic nerves are enlarged bilaterally, with a diameter of approximately 3-4 mm (normal <2 mm).
+- Bilateral proptosis (Right and Left orbits) [definite]: The globes are displaced anteriorly, resulting in bilateral proptosis.
+Pertinent negatives: No intraocular calcification; No orbital mass or lesion; No bony destruction of the orbits; No ethmoid sinus opacification; No maxillary sinus opacification
+Summary: Bilateral enlargement of the globes and optic nerves with anterior displacement of the lenses. No intraocular calcification or orbital mass is seen.",1.0,0.0,,
+MPX1433,Dacryocystocele with dacryocystitis and periorbital cellulitis,ORPHA:141083,verified,750,3,Pallister-Killian syndrome | Branchioskeletogenital syndrome | Aminopterin/methotrexate embryofetopathy,False,True,False,0.0,,"Images 1-2 (CT - noncontrast, coronal plane, eye and orbit; CT - noncontrast, coronal plane, eye and orbit):
+Technique: Noncontrast computed tomography (CT) of the orbits in coronal plane. Image quality is adequate for evaluation of bony structures and soft tissues.
+Anatomy: Orbits, globes, extraocular muscles, optic nerves, orbital fat, ethmoid sinuses, nasal cavity, maxillary sinuses, frontal bone, zygomatic bones.
+Findings:
+- Right globe enlargement (Right orbit) [definite]: The right globe is enlarged compared to the left side, with a vertical dimension of approximately 25 mm (normal for age ~18-20 mm). The lens appears displaced anteriorly.
+- Bilateral optic nerve enlargement (Right and Left orbits) [definite]: The optic nerves are enlarged bilaterally, with a diameter of approximately 3-4 mm (normal <2 mm).
+- Bilateral proptosis (Right and Left orbits) [definite]: The globes are displaced anteriorly, resulting in bilateral proptosis.
+Pertinent negatives: No intraocular calcification; No orbital mass or lesion; No bony destruction of the orbits; No ethmoid sinus opacification; No maxillary sinus opacification",1.0,0.0,4.0,3.0
+MPX1433,Dacryocystocele with dacryocystitis and periorbital cellulitis,ORPHA:141083,definite,750,3,Pallister-Killian syndrome | Branchioskeletogenital syndrome | Aminopterin/methotrexate embryofetopathy,False,True,False,0.0,,"Images 1-2 (CT - noncontrast, coronal plane, eye and orbit; CT - noncontrast, coronal plane, eye and orbit):
+Technique: Noncontrast computed tomography (CT) of the orbits in coronal plane. Image quality is adequate for evaluation of bony structures and soft tissues.
+Anatomy: Orbits, globes, extraocular muscles, optic nerves, orbital fat, ethmoid sinuses, nasal cavity, maxillary sinuses, frontal bone, zygomatic bones.
+Findings:
+- Right globe enlargement (Right orbit) [definite]: The right globe is enlarged compared to the left side, with a vertical dimension of approximately 25 mm (normal for age ~18-20 mm). The lens appears displaced anteriorly.
+- Left globe enlargement (Left orbit) [definite]: The left globe is enlarged compared to the right side, with a vertical dimension of approximately 25 mm. The lens appears displaced anteriorly.
+- Bilateral optic nerve enlargement (Right and Left orbits) [definite]: The optic nerves are enlarged bilaterally, with a diameter of approximately 3-4 mm (normal <2 mm).
+- Bilateral proptosis (Right and Left orbits) [definite]: The globes are displaced anteriorly, resulting in bilateral proptosis.
+Pertinent negatives: No intraocular calcification; No orbital mass or lesion; No bony destruction of the orbits; No ethmoid sinus opacification; No maxillary sinus opacification
+Summary: Bilateral enlargement of the globes and optic nerves with anterior displacement of the lenses. No intraocular calcification or orbital mass is seen.",1.0,0.0,,
+MPX1433,Dacryocystocele with dacryocystitis and periorbital cellulitis,ORPHA:141083,reference,292,2,"Focal facial dermal dysplasia 3, Setleis type | Sialuria | Intellectual disability-seizures-macrocephaly-obesity syndrome",,,,,,,,,,
+MPX1463,Optic Neuritis (imaging and clinical findings combined to verify diagnosis),ORPHA:499096,text,5,1,Phacoanaphylactic uveitis | Epithelial recurrent erosion dystrophy | Isolated optic neuritis,,,,,,,,,,
+MPX1463,Optic Neuritis (imaging and clinical findings combined to verify diagnosis),ORPHA:499096,context,5,3,Phacoanaphylactic uveitis | Epithelial recurrent erosion dystrophy | Amoebic keratitis,False,True,False,0.0,,"Images 1-2 (CT - noncontrast, axial plane, eye and orbit; MR - T2 weighted, coronal plane, eye and orbit):
+Technique: CT noncontrast axial and MR T2 weighted coronal images of the orbits. Image quality is adequate for evaluation of orbital structures.
+Anatomy: Orbits, globes, extraocular muscles, optic nerves, lacrimal glands, ethmoid sinuses, maxillary sinuses, nasal cavity, frontal sinuses, sphenoid sinus, and surrounding bony structures.
+Findings:
+- Bilateral proptosis (Orbits (bilateral)) [definite]: Both globes are displaced anteriorly relative to the orbital rims.
+- Enlarged extraocular muscles (Orbits (bilateral, inferior recti most prominent)) [definite]: Bilateral enlargement of the inferior rectus muscles with fusiform shape and increased bulk.
+- No intraorbital mass (Orbits (bilateral)) [definite]: No discrete space-occupying lesion identified within the orbits.
+- Normal optic nerves (Orbits (bilateral)) [definite]: Optic nerves appear normal in caliber and course without compression or enhancement.
+- No lacrimal gland enlargement (Superolateral orbits (bilateral)) [definite]: Lacrimal glands are not enlarged.
+Pertinent negatives: No intraorbital mass; No optic nerve enlargement; No lacrimal gland enlargement; No proptosis asymmetry; No orbital fat stranding
+Summary: Bilateral proptosis with symmetric enlargement of the inferior rectus muscles, consistent with thyroid eye disease. No intraorbital mass or optic nerve involvement is seen.",2.0,0.0,,
+MPX1463,Optic Neuritis (imaging and clinical findings combined to verify diagnosis),ORPHA:499096,verified,5,3,Phacoanaphylactic uveitis | Epithelial recurrent erosion dystrophy | Amoebic keratitis,False,True,False,0.0,,"Images 1-2 (CT - noncontrast, axial plane, eye and orbit; MR - T2 weighted, coronal plane, eye and orbit):
+Technique: CT noncontrast axial and MR T2 weighted coronal images of the orbits. Image quality is adequate for evaluation of orbital structures.
+Anatomy: Orbits, globes, extraocular muscles, optic nerves, lacrimal glands, ethmoid sinuses, maxillary sinuses, nasal cavity, frontal sinuses, sphenoid sinus, and surrounding bony structures.
+Findings:
+- Bilateral proptosis (Orbits (bilateral)) [definite]: Both globes are displaced anteriorly relative to the orbital rims.
+- Enlarged extraocular muscles (Orbits (bilateral, inferior recti most prominent)) [definite]: Bilateral enlargement of the inferior rectus muscles with fusiform shape and increased bulk.
+- No intraorbital mass (Orbits (bilateral)) [definite]: No discrete space-occupying lesion identified within the orbits.
+- Normal optic nerves (Orbits (bilateral)) [definite]: Optic nerves appear normal in caliber and course without compression or enhancement.
+- No lacrimal gland enlargement (Superolateral orbits (bilateral)) [definite]: Lacrimal glands are not enlarged.
+Pertinent negatives: No intraorbital mass; No optic nerve enlargement; No lacrimal gland enlargement; No proptosis asymmetry; No orbital fat stranding
+Summary: Bilateral proptosis with symmetric enlargement of the inferior rectus muscles, consistent with thyroid eye disease. No intraorbital mass or optic nerve involvement is seen.",2.0,0.0,5.0,5.0
+MPX1463,Optic Neuritis (imaging and clinical findings combined to verify diagnosis),ORPHA:499096,definite,5,3,Phacoanaphylactic uveitis | Epithelial recurrent erosion dystrophy | Amoebic keratitis,False,True,False,0.0,,"Images 1-2 (CT - noncontrast, axial plane, eye and orbit; MR - T2 weighted, coronal plane, eye and orbit):
+Technique: CT noncontrast axial and MR T2 weighted coronal images of the orbits. Image quality is adequate for evaluation of orbital structures.
+Anatomy: Orbits, globes, extraocular muscles, optic nerves, lacrimal glands, ethmoid sinuses, maxillary sinuses, nasal cavity, frontal sinuses, sphenoid sinus, and surrounding bony structures.
+Findings:
+- Bilateral proptosis (Orbits (bilateral)) [definite]: Both globes are displaced anteriorly relative to the orbital rims.
+- Enlarged extraocular muscles (Orbits (bilateral, inferior recti most prominent)) [definite]: Bilateral enlargement of the inferior rectus muscles with fusiform shape and increased bulk.
+- No intraorbital mass (Orbits (bilateral)) [definite]: No discrete space-occupying lesion identified within the orbits.
+- Normal optic nerves (Orbits (bilateral)) [definite]: Optic nerves appear normal in caliber and course without compression or enhancement.
+- No lacrimal gland enlargement (Superolateral orbits (bilateral)) [definite]: Lacrimal glands are not enlarged.
+Pertinent negatives: No intraorbital mass; No optic nerve enlargement; No lacrimal gland enlargement; No proptosis asymmetry; No orbital fat stranding
+Summary: Bilateral proptosis with symmetric enlargement of the inferior rectus muscles, consistent with thyroid eye disease. No intraorbital mass or optic nerve involvement is seen.",2.0,0.0,,
+MPX1463,Optic Neuritis (imaging and clinical findings combined to verify diagnosis),ORPHA:499096,reference,5,1,Phacoanaphylactic uveitis | Epithelial recurrent erosion dystrophy | Isolated optic neuritis,,,,,,,,,,
+MPX1442,Wegener Granulomatosis,ORPHA:900,text,1,6,Granulomatosis with polyangiitis | Wiskott-Aldrich syndrome | Immunodeficiency 131,,,,,,,,,,
+MPX1442,Wegener Granulomatosis,ORPHA:900,context,1,9,Granulomatosis with polyangiitis | Wiskott-Aldrich syndrome | Immunodeficiency 131,False,True,False,,,"Image 1 (CT w/contrast (IV), axial plane, generalized):
+Technique: CT with IV contrast, axial plane, soft tissue window; image quality is adequate for evaluation of neck structures at this level.
+Anatomy: Cervical spine (vertebral body and posterior elements), pharynx/laryngeal inlet, thyroid gland, carotid arteries, jugular veins, trachea, surrounding musculature, subcutaneous fat.
+Findings:
+- Enlarged thyroid lobe (Anterior neck, bilateral) [definite]: Bilateral enlargement of the thyroid gland with homogeneous enhancement; no focal nodules or cysts identified within the visualized portions.
+- Tracheal narrowing (Central airway) [probable]: The trachea is present but appears narrowed in caliber compared to expected size for age; no obvious extrinsic compression or intraluminal mass.
+- No cervical lymphadenopathy (Cervical region) [definite]: No enlarged lymph nodes identified in the visualized cervical chains.
+Pertinent negatives: No evidence of thyroid nodule or cyst; No visible mass effect on adjacent structures; No abnormal vascular calcification or thrombus; No cervical spine fracture or dislocation
+Summary: Axial CT with contrast demonstrates bilateral enlargement of the thyroid gland without focal lesions. The trachea is narrowed but patent, with no evidence of extrinsic compression. No cervical lymphadenopathy or other acute abnormalities are identified.",0.0,0.0,,
+MPX1442,Wegener Granulomatosis,ORPHA:900,verified,1,9,Granulomatosis with polyangiitis | Wiskott-Aldrich syndrome | Immunodeficiency 131,False,True,False,,,"Image 1 (CT w/contrast (IV), axial plane, generalized):
+Technique: CT with IV contrast, axial plane, soft tissue window; image quality is adequate for evaluation of neck structures at this level.
+Anatomy: Cervical spine (vertebral body and posterior elements), pharynx/laryngeal inlet, thyroid gland, carotid arteries, jugular veins, trachea, surrounding musculature, subcutaneous fat.
+Findings:
+- Enlarged thyroid lobe (Anterior neck, bilateral) [definite]: Bilateral enlargement of the thyroid gland with homogeneous enhancement; no focal nodules or cysts identified within the visualized portions.
+- Tracheal narrowing (Central airway) [probable]: The trachea is present but appears narrowed in caliber compared to expected size for age; no obvious extrinsic compression or intraluminal mass.
+- No cervical lymphadenopathy (Cervical region) [definite]: No enlarged lymph nodes identified in the visualized cervical chains.
+Pertinent negatives: No evidence of thyroid nodule or cyst; No visible mass effect on adjacent structures; No abnormal vascular calcification or thrombus; No cervical spine fracture or dislocation
+Summary: Axial CT with contrast demonstrates bilateral enlargement of the thyroid gland without focal lesions. The trachea is narrowed but patent, with no evidence of extrinsic compression. No cervical lymphadenopathy or other acute abnormalities are identified.",0.0,0.0,3.0,3.0
+MPX1442,Wegener Granulomatosis,ORPHA:900,definite,1,9,Granulomatosis with polyangiitis | Wiskott-Aldrich syndrome | Immunodeficiency 131,False,True,False,,,"Image 1 (CT w/contrast (IV), axial plane, generalized):
+Technique: CT with IV contrast, axial plane, soft tissue window; image quality is adequate for evaluation of neck structures at this level.
+Anatomy: Cervical spine (vertebral body and posterior elements), pharynx/laryngeal inlet, thyroid gland, carotid arteries, jugular veins, trachea, surrounding musculature, subcutaneous fat.
+Findings:
+- Enlarged thyroid lobe (Anterior neck, bilateral) [definite]: Bilateral enlargement of the thyroid gland with homogeneous enhancement; no focal nodules or cysts identified within the visualized portions.
+- No cervical lymphadenopathy (Cervical region) [definite]: No enlarged lymph nodes identified in the visualized cervical chains.
+Pertinent negatives: No evidence of thyroid nodule or cyst; No visible mass effect on adjacent structures; No abnormal vascular calcification or thrombus; No cervical spine fracture or dislocation",0.0,0.0,,
+MPX1442,Wegener Granulomatosis,ORPHA:900,reference,1,6,Granulomatosis with polyangiitis | Wiskott-Aldrich syndrome | Immunodeficiency 131,,,,,,,,,,
+MPX1473,Usual Interstitial Pneumonia,ORPHA:79126,text,2,6,Cardiogenic shock | Acute interstitial pneumonia | Multiple mitochondrial dysfunctions syndrome 9B,,,,,,,,,,
+MPX1473,Usual Interstitial Pneumonia,ORPHA:79126,context,1,14,Acute interstitial pneumonia | High altitude pulmonary edema | Pulmonary capillary hemangiomatosis,False,True,False,0.2,1.0,"Images 1-2 (CT w/contrast (IV), axial plane, chest, pulmonary; CT w/contrast (IV), axial plane, chest, pulmonary):
+Technique: Axial CT of the chest with intravenous contrast, soft tissue window.
+Anatomy: Chest, including lungs, heart, mediastinum, pleura, and bony thorax.
+Findings:
+- Bilateral reticular opacities (Lungs (bilateral)) [definite]: Diffuse interstitial thickening with a reticular pattern involving both lung fields.
+- Subpleural honeycombing (Lungs (bilateral, predominantly basal)) [definite]: Clustered cystic air spaces with thick walls located at the periphery of the lung bases.
+- Traction bronchiectasis (Lungs (bilateral)) [definite]: Dilated and irregular airways associated with the interstitial fibrosis.
+- Ground glass opacities (Lungs (bilateral)) [definite]: Areas of increased attenuation without obscuration of underlying vessels, superimposed on the reticular pattern.
+- Cardiomegaly (Heart) [definite]: The cardiac silhouette is enlarged, occupying more than 50% of the thoracic width.
+Pertinent negatives: No pleural effusion; No pneumothorax; No large pulmonary nodules or masses
+Summary: The images demonstrate extensive bilateral interstitial lung disease characterized by reticular opacities, subpleural honeycombing, and traction bronchiectasis. There is also evidence of cardiomegaly.",5.0,1.0,,
+MPX1473,Usual Interstitial Pneumonia,ORPHA:79126,verified,1,14,Acute interstitial pneumonia | High altitude pulmonary edema | Pulmonary capillary hemangiomatosis,False,True,False,0.2,1.0,"Images 1-2 (CT w/contrast (IV), axial plane, chest, pulmonary; CT w/contrast (IV), axial plane, chest, pulmonary):
+Technique: Axial CT of the chest with intravenous contrast, soft tissue window.
+Anatomy: Chest, including lungs, heart, mediastinum, pleura, and bony thorax.
+Findings:
+- Bilateral reticular opacities (Lungs (bilateral)) [definite]: Diffuse interstitial thickening with a reticular pattern involving both lung fields.
+- Subpleural honeycombing (Lungs (bilateral, predominantly basal)) [definite]: Clustered cystic air spaces with thick walls located at the periphery of the lung bases.
+- Traction bronchiectasis (Lungs (bilateral)) [definite]: Dilated and irregular airways associated with the interstitial fibrosis.
+- Ground glass opacities (Lungs (bilateral)) [definite]: Areas of increased attenuation without obscuration of underlying vessels, superimposed on the reticular pattern.
+- Cardiomegaly (Heart) [definite]: The cardiac silhouette is enlarged, occupying more than 50% of the thoracic width.
+Pertinent negatives: No pleural effusion; No pneumothorax; No large pulmonary nodules or masses
+Summary: The images demonstrate extensive bilateral interstitial lung disease characterized by reticular opacities, subpleural honeycombing, and traction bronchiectasis. There is also evidence of cardiomegaly.",5.0,1.0,5.0,5.0
+MPX1473,Usual Interstitial Pneumonia,ORPHA:79126,definite,1,14,Acute interstitial pneumonia | High altitude pulmonary edema | Pulmonary capillary hemangiomatosis,False,True,False,0.2,1.0,"Images 1-2 (CT w/contrast (IV), axial plane, chest, pulmonary; CT w/contrast (IV), axial plane, chest, pulmonary):
+Technique: Axial CT of the chest with intravenous contrast, soft tissue window.
+Anatomy: Chest, including lungs, heart, mediastinum, pleura, and bony thorax.
+Findings:
+- Bilateral reticular opacities (Lungs (bilateral)) [definite]: Diffuse interstitial thickening with a reticular pattern involving both lung fields.
+- Subpleural honeycombing (Lungs (bilateral, predominantly basal)) [definite]: Clustered cystic air spaces with thick walls located at the periphery of the lung bases.
+- Traction bronchiectasis (Lungs (bilateral)) [definite]: Dilated and irregular airways associated with the interstitial fibrosis.
+- Ground glass opacities (Lungs (bilateral)) [definite]: Areas of increased attenuation without obscuration of underlying vessels, superimposed on the reticular pattern.
+- Cardiomegaly (Heart) [definite]: The cardiac silhouette is enlarged, occupying more than 50% of the thoracic width.
+Pertinent negatives: No pleural effusion; No pneumothorax; No large pulmonary nodules or masses
+Summary: The images demonstrate extensive bilateral interstitial lung disease characterized by reticular opacities, subpleural honeycombing, and traction bronchiectasis. There is also evidence of cardiomegaly.",5.0,1.0,,
+MPX1473,Usual Interstitial Pneumonia,ORPHA:79126,reference,1,9,Acute interstitial pneumonia | Pulmonary capillary hemangiomatosis | Staphylococcal necrotizing pneumonia,,,,,,,,,,
+MPX1495,Non-Hodgkins Lymphoma (Large B-cell) of the proximal small bowel,OMIM:605027,text,12820,3,Mitochondrial neurogastrointestinal encephalomyopathy | Ovarian hyperstimulation syndrome | Zollinger-Ellison syndrome,,,,,,,,,,
+MPX1495,Non-Hodgkins Lymphoma (Large B-cell) of the proximal small bowel,OMIM:605027,context,12816,9,AA amyloidosis | Melnick-Needles syndrome | Yellow fever,False,True,False,0.0,0.0,"Images 1-2 (CT - GI & IV Contrast, axial plane, gastrointestinal; CT - GI & IV Contrast, axial plane, gastrointestinal):
+Technique: Axial CT of the abdomen with oral and intravenous contrast, single slice at the level of the kidneys.
+Anatomy: Liver, gallbladder, pancreas, spleen, kidneys, adrenal glands, aorta, IVC, bowel loops, spine, paraspinal muscles.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver extends inferiorly below the level of the renal hila, consistent with enlargement.
+- Gallbladder distension (Right upper quadrant) [definite]: The gallbladder is enlarged and contains low-density fluid without evidence of stones or wall thickening.
+- Pancreatic enlargement (Epigastrium) [definite]: The pancreas appears diffusely enlarged with indistinct margins and stranding of the surrounding fat.
+- Bilateral hydronephrosis (Kidneys) [definite]: Dilation of the renal pelvises and calyces is present bilaterally, with thinning of the renal parenchyma.
+- Left adrenal gland enlargement (Left upper quadrant) [probable]: The left adrenal gland is enlarged and has a nodular or mass-like appearance compared to the right side.
+Pertinent negatives: No cholelithiasis; No ascites; No free intraperitoneal air; No splenomegaly; No lymphadenopathy
+Summary: The images demonstrate hepatomegaly, a distended gallbladder, diffuse pancreatic enlargement with peripancreatic stranding, bilateral hydronephrosis, and an enlarged left adrenal gland.",2.0,0.0,,
+MPX1495,Non-Hodgkins Lymphoma (Large B-cell) of the proximal small bowel,OMIM:605027,verified,12816,9,AA amyloidosis | Melnick-Needles syndrome | Yellow fever,False,True,False,0.0,0.0,"Images 1-2 (CT - GI & IV Contrast, axial plane, gastrointestinal; CT - GI & IV Contrast, axial plane, gastrointestinal):
+Technique: Axial CT of the abdomen with oral and intravenous contrast, single slice at the level of the kidneys.
+Anatomy: Liver, gallbladder, pancreas, spleen, kidneys, adrenal glands, aorta, IVC, bowel loops, spine, paraspinal muscles.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver extends inferiorly below the level of the renal hila, consistent with enlargement.
+- Gallbladder distension (Right upper quadrant) [definite]: The gallbladder is enlarged and contains low-density fluid without evidence of stones or wall thickening.
+- Pancreatic enlargement (Epigastrium) [definite]: The pancreas appears diffusely enlarged with indistinct margins and stranding of the surrounding fat.
+- Bilateral hydronephrosis (Kidneys) [definite]: Dilation of the renal pelvises and calyces is present bilaterally, with thinning of the renal parenchyma.
+- Left adrenal gland enlargement (Left upper quadrant) [probable]: The left adrenal gland is enlarged and has a nodular or mass-like appearance compared to the right side.
+Pertinent negatives: No cholelithiasis; No ascites; No free intraperitoneal air; No splenomegaly; No lymphadenopathy
+Summary: The images demonstrate hepatomegaly, a distended gallbladder, diffuse pancreatic enlargement with peripancreatic stranding, bilateral hydronephrosis, and an enlarged left adrenal gland.",2.0,0.0,5.0,5.0
+MPX1495,Non-Hodgkins Lymphoma (Large B-cell) of the proximal small bowel,OMIM:605027,definite,12816,9,AA amyloidosis | Melnick-Needles syndrome | Yellow fever,False,True,False,0.0,0.0,"Images 1-2 (CT - GI & IV Contrast, axial plane, gastrointestinal; CT - GI & IV Contrast, axial plane, gastrointestinal):
+Technique: Axial CT of the abdomen with oral and intravenous contrast, single slice at the level of the kidneys.
+Anatomy: Liver, gallbladder, pancreas, spleen, kidneys, adrenal glands, aorta, IVC, bowel loops, spine, paraspinal muscles.
+Findings:
+- Hepatomegaly (Right upper quadrant) [definite]: The liver extends inferiorly below the level of the renal hila, consistent with enlargement.
+- Gallbladder distension (Right upper quadrant) [definite]: The gallbladder is enlarged and contains low-density fluid without evidence of stones or wall thickening.
+- Pancreatic enlargement (Epigastrium) [definite]: The pancreas appears diffusely enlarged with indistinct margins and stranding of the surrounding fat.
+- Bilateral hydronephrosis (Kidneys) [definite]: Dilation of the renal pelvises and calyces is present bilaterally, with thinning of the renal parenchyma.
+Pertinent negatives: No cholelithiasis; No ascites; No free intraperitoneal air; No splenomegaly; No lymphadenopathy",2.0,0.0,,
+MPX1495,Non-Hodgkins Lymphoma (Large B-cell) of the proximal small bowel,OMIM:605027,reference,12820,4,Ileal neuroendocrine tumor | Primary hepatic neuroendocrine carcinoma | Gallbladder neuroendocrine tumor,,,,,,,,,,

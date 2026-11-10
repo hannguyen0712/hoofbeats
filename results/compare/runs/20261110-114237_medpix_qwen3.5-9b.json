@@ -1,0 +1,112 @@
+{
+ "metrics": {
+  "medpix": {
+   "model": "qwen3.5:9b",
+   "task": "medpix",
+   "cases": 40,
+   "labeled": 40,
+   "failed_calls": 0,
+   "rank_text_top1": 0.025,
+   "rank_text_top3": 0.075,
+   "rank_text_top10": 0.125,
+   "rank_text_mrr": 0.064,
+   "rank_radiologist_top1": 0.075,
+   "rank_radiologist_top3": 0.125,
+   "rank_radiologist_top10": 0.2,
+   "rank_radiologist_mrr": 0.111,
+   "rank_image_top1": 0.0,
+   "rank_image_top3": 0.0,
+   "rank_image_top10": 0.0,
+   "rank_image_mrr": 0.004,
+   "rank_multimodal_top1": 0.05,
+   "rank_multimodal_top3": 0.075,
+   "rank_multimodal_top10": 0.125,
+   "rank_multimodal_mrr": 0.077,
+   "image_precision": 0.146,
+   "image_recall": 0.167,
+   "unparsed_images": 0,
+   "sec_per_call": 0.0,
+   "requests": 0,
+   "cache_hits": 0,
+   "image_findings": 28,
+   "image_findings_agree": 5,
+   "image_precision_pooled": 0.1786
+  },
+  "requests": {
+   "requests": 0,
+   "retries": 0,
+   "cache_hits": 0,
+   "would_send": 0,
+   "offline_misses": 0,
+   "sec_per_request": 0.0
+  }
+ },
+ "files": [
+  "results/compare/medpix_qwen3.5-9b.csv"
+ ],
+ "settings": {
+  "split": "all",
+  "max_images": 2,
+  "only_labeled": true,
+  "limit": 40,
+  "hpo": "hp/releases/2026-09-01",
+  "annotations": "2026-09-02",
+  "prefixes": [
+   "OMIM",
+   "ORPHA"
+  ],
+  "common": null,
+  "prior_weight": 1.0,
+  "absent_weight": 0.5,
+  "absent_min_freq": 0.8,
+  "use_onset": false,
+  "use_sex": false,
+  "reliability": {
+   "image": 0.2687
+  },
+  "model": "qwen3.5:9b",
+  "endpoint": "http://localhost:11434/v1/chat/completions",
+  "max_tokens": 4096,
+  "extra": {
+   "reasoning_effort": "none"
+  },
+  "offline": false
+ },
+ "id": "20261110-114237_medpix_qwen3.5-9b",
+ "command": "medpix",
+ "argv": [
+  "--common",
+  "none",
+  "--note",
+  "Qwen images, held-out reliability",
+  "--reliability",
+  "results/calib/rel_qwen_image.json",
+  "--llm",
+  "--llm-endpoint",
+  "http://localhost:11434/v1/chat/completions",
+  "--llm-model",
+  "qwen3.5:9b",
+  "--llm-max-tokens",
+  "4096",
+  "--llm-extra",
+  "{\"reasoning_effort\": \"none\"}",
+  "medpix",
+  "--medpix",
+  "data/medpix-src/MedPix-2-0",
+  "--orphadata-xml",
+  "data/kb/ORPHA_ICD10_mapping_en.xml",
+  "--only-labeled",
+  "--limit",
+  "40",
+  "--max-images",
+  "2",
+  "--images-per-call",
+  "2",
+  "--out",
+  "results/compare"
+ ],
+ "note": "Qwen images, held-out reliability",
+ "started": "2026-11-10 11:42:37",
+ "status": "ok",
+ "seconds": 7.0
+}

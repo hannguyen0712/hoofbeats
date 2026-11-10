@@ -1,0 +1,51 @@
+{
+ "metrics": {},
+ "files": [],
+ "settings": {
+  "sample": 300,
+  "seed": 13,
+  "rounds": 5,
+  "llm_cases": 30,
+  "hpo": "hp/releases/2026-09-01",
+  "annotations": "2026-09-02",
+  "prefixes": [
+   "OMIM"
+  ],
+  "common": null,
+  "prior_weight": 1.0,
+  "model": "gemini-3.8-flash",
+  "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+  "max_tokens": 8192,
+  "extra": {
+   "reasoning_effort": "low"
+  }
+ },
+ "id": "20261019-154540_llm-bench_gemini-3.8-flash",
+ "command": "llm-bench",
+ "argv": [
+  "--common",
+  "none",
+  "--note",
+  "3.8 flash, low effort",
+  "--llm",
+  "--llm-endpoint",
+  "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+  "--llm-model",
+  "gemini-3.8-flash",
+  "--llm-key-env",
+  "GEMINI_API_KEY",
+  "--llm-max-tokens",
+  "8192",
+  "--llm-extra",
+  "{\"reasoning_effort\": \"low\"}",
+  "llm-bench",
+  "--llm-cases",
+  "30",
+  "--out",
+  "results/compare"
+ ],
+ "note": "3.8 flash, low effort",
+ "started": "2026-10-19 15:45:40",
+ "status": "stopped (Ctrl-C)",
+ "seconds": 563.1
+}

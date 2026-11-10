@@ -1,0 +1,84 @@
+{
+ "metrics": {
+  "requests": {
+   "requests": 3,
+   "retries": 0,
+   "cache_hits": 0,
+   "would_send": 0,
+   "offline_misses": 0,
+   "sec_per_request": 0.01
+  },
+  "llm": {
+   "model": "qwen3.6:27b",
+   "task": "phenopacket",
+   "cases": 1,
+   "failed_calls": 3,
+   "stopped_early": "3 failed cases in a row",
+   "sec_per_call": 0.01,
+   "requests": 3,
+   "cache_hits": 0,
+   "reranked": 0,
+   "ranker_top1": 0.0,
+   "ranker_top3": 0.0,
+   "ranker_top10": 0.0,
+   "ranker_mrr": 0.0,
+   "rerank_top1": 0.0,
+   "rerank_top3": 0.0,
+   "rerank_top10": 0.0,
+   "rerank_mrr": 0.0
+  }
+ },
+ "files": [
+  "results/compare/llm_rerank_qwen3.6-27b.csv"
+ ],
+ "settings": {
+  "sample": 300,
+  "seed": 13,
+  "rounds": 5,
+  "llm_cases": 30,
+  "hpo": "hp/releases/2026-09-01",
+  "annotations": "2026-09-02",
+  "prefixes": [
+   "OMIM"
+  ],
+  "common": null,
+  "prior_weight": 1.0,
+  "absent_weight": 0.5,
+  "absent_min_freq": 0.8,
+  "use_onset": false,
+  "use_sex": false,
+  "model": "qwen3.6:27b",
+  "endpoint": "http://localhost:11434/v1/chat/completions",
+  "max_tokens": 16384,
+  "extra": {
+   "reasoning_effort": "high"
+  },
+  "offline": false
+ },
+ "id": "20261109-213623_llm-bench_qwen3.6-27b",
+ "command": "llm-bench",
+ "argv": [
+  "--common",
+  "none",
+  "--note",
+  "Qwen3.6 27b, high",
+  "--llm",
+  "--llm-endpoint",
+  "http://localhost:11434/v1/chat/completions",
+  "--llm-model",
+  "qwen3.6:27b",
+  "--llm-max-tokens",
+  "16384",
+  "--llm-extra",
+  "{\"reasoning_effort\": \"high\"}",
+  "llm-bench",
+  "--llm-cases",
+  "30",
+  "--out",
+  "results/compare"
+ ],
+ "note": "Qwen3.6 27b, high",
+ "started": "2026-11-09 21:36:23",
+ "status": "partial (stopped early: 3 failed cases in a row)",
+ "seconds": 3.8
+}

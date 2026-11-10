@@ -1,0 +1,160 @@
+run       20261110-103505_medpix-context_qwen3.5-9b
+started   2026-11-10 10:35:05
+command   medpix-context
+note      Qwen3.5 9b image context + verify, NO history
+status    ok
+duration  24.6 min
+argv      python -m hoofbeats --common none --note 'Qwen3.5 9b image context + verify, NO history' --context-model qwen3.5:9b --context-endpoint http://localhost:11434/v1/chat/completions --context-extra '{"reasoning_effort": "none"}' --context-max-tokens 4096 --context-verify medpix-context --context-no-history --medpix data/medpix-src/MedPix-2-0 --orphadata-xml data/kb/ORPHA_ICD10_mapping_en.xml --cases MPX1033,MPX1043,MPX1063,MPX1075,MPX1067,MPX1109,MPX1115,MPX1135,MPX1123,MPX1152,MPX1159,MPX1154,MPX1169,MPX1165,MPX1164,MPX1191,MPX1174,MPX1194,MPX1195,MPX1229,MPX1227,MPX1231,MPX1259,MPX1301,MPX1309,MPX1279,MPX1321,MPX1318,MPX1366,MPX1381,MPX1371,MPX1355,MPX1429,MPX1419,MPX1454,MPX1433,MPX1463,MPX1442,MPX1473,MPX1495 --conditions text,context,verified,definite,reference --max-images 2 --images-per-call 2 --out results/compare
+
+split         test
+limit         20
+seed          13
+max_images    2
+hpo           hp/releases/2026-09-01
+annotations   2026-09-02
+prefixes      ['OMIM', 'ORPHA']
+common        None
+prior_weight  1.0
+absent_weight 0.5
+absent_min_freq0.8
+use_onset     False
+use_sex       False
+context_model qwen3.5:9b
+context_endpointhttp://localhost:11434/v1/chat/completions
+context_verifyTrue
+conditions    ['text', 'context', 'verified', 'definite', 'reference']
+images_per_call2
+context_no_historyTrue
+
+========================================================================
+console output
+========================================================================
+
+[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 12820 rare + 0 common diseases
+[llm] image context (Stage A) by qwen3.5:9b via http://localhost:11434/v1/chat/completions: --context-model; each finding checked with a second request (--context-verify)
+[medpix-context] 40 cases with images and a knowledge-base diagnosis (chosen); up to 2 images each; Stage 1 with rules + numbers
+
+[medpix-context] 1/40 cases
+[medpix-context] 2/40 cases
+[medpix-context] 3/40 cases
+[medpix-context] 4/40 cases
+[medpix-context] 5/40 cases
+[medpix-context] 6/40 cases
+[medpix-context] 7/40 cases
+[medpix-context] 8/40 cases
+[medpix-context] 9/40 cases
+[medpix-context] 10/40 cases
+[medpix-context] 11/40 cases
+[medpix-context] 12/40 cases
+[medpix-context] 13/40 cases
+[medpix-context] 14/40 cases
+[medpix-context] 15/40 cases
+[medpix-context] 16/40 cases
+[medpix-context] 17/40 cases
+[medpix-context] 18/40 cases
+[medpix-context] 19/40 cases
+[medpix-context] 20/40 cases
+[medpix-context] 21/40 cases
+[medpix-context] 22/40 cases
+[medpix-context] 23/40 cases
+[medpix-context] 24/40 cases
+[medpix-context] 25/40 cases
+[medpix-context] 26/40 cases
+[medpix-context] 27/40 cases
+[medpix-context] 28/40 cases
+[medpix-context] 29/40 cases
+[medpix-context] 30/40 cases
+[medpix-context] 31/40 cases
+[medpix-context] 32/40 cases
+[medpix-context] 33/40 cases
+[medpix-context] 34/40 cases
+[medpix-context] 35/40 cases
+[medpix-context] 36/40 cases
+[medpix-context] 37/40 cases
+[medpix-context] 38/40 cases
+[medpix-context] 39/40 cases
+[medpix-context] 40/40 cases
+
+Rank of the MedPix diagnosis by the ranker (Stage 1 findings -> disease scoring), 40 cases; image context by qwen3.5:9b (rows in results/compare/medpix_context_ctx-qwen3.5-9b.csv)
+
+| Stage 1 reads | Top-1 | Top-3 | Top-10 | MRR | findings per case |
+|---|---|---|---|---|---|
+| history/exam text | 0.025 | 0.075 | 0.125 | 0.064 | 3.5 |
+| text + image context (Stage A) | 0.100 | 0.100 | 0.150 | 0.114 | 7.8 |
+| text + image context, findings checked by the vision model | 0.100 | 0.125 | 0.150 | 0.121 | 7.2 |
+| text + image context, only findings the vision model called definite | 0.100 | 0.100 | 0.150 | 0.114 | 7.8 |
+| text + radiologist findings (upper bound for a context) | 0.075 | 0.125 | 0.200 | 0.111 | 4.4 |
+
+Image context vs the radiologist's findings (HPO terms): precision 8.7%, recall 16.7%; contexts that named the diagnosis 0.0% (disease names are never turned into findings); replies parsed 100.0%
+Pooled over all findings: 4 of 70 match the radiologist (5.7%)
+
+Checked image context vs the radiologist's findings (HPO terms): precision 7.1%, recall 12.5%; contexts that named the diagnosis 0.0% (disease names are never turned into findings); replies parsed 100.0%
+Pooled over all findings: 3 of 43 match the radiologist (7.0%)
+Check: 92 of 190 described findings confirmed (48%); the rest dropped
+
+Image context, definite findings only vs the radiologist's findings (HPO terms): precision 9.0%, recall 16.7%; contexts that named the diagnosis 0.0% (disease names are never turned into findings); replies parsed 100.0%
+Pooled over all findings: 4 of 68 match the radiologist (5.9%)
+
+[llm] 2% of image contexts stopped before their JSON was finished. MedGemma 1.5 often gets stuck repeating itself while it thinks. Use --json-mode (the server then returns JSON only), keep --llm-max-tokens (or --context-max-tokens) at 4096 or more, and set Ollama's context length to 16k.
+[llm] image context: 77 requests sent to qwen3.5:9b, 0 answered from cache
+[compare] summary appended to results/compare/llm_compare.csv
+
+========================================================================
+metrics (also in the .json file)
+========================================================================
+{
+ "medpix_context": {
+  "model": "qwen3.5:9b",
+  "context_model": "qwen3.5:9b",
+  "task": "medpix-context-no-history",
+  "cases": 40,
+  "failed_calls": 0,
+  "stopped_early": "",
+  "text_top1": 0.025,
+  "text_top3": 0.075,
+  "text_top10": 0.125,
+  "text_mrr": 0.064,
+  "context_top1": 0.1,
+  "context_top3": 0.1,
+  "context_top10": 0.15,
+  "context_mrr": 0.114,
+  "verified_top1": 0.1,
+  "verified_top3": 0.125,
+  "verified_top10": 0.15,
+  "verified_mrr": 0.121,
+  "definite_top1": 0.1,
+  "definite_top3": 0.1,
+  "definite_top10": 0.15,
+  "definite_mrr": 0.114,
+  "reference_top1": 0.075,
+  "reference_top3": 0.125,
+  "reference_top10": 0.2,
+  "reference_mrr": 0.111,
+  "context_named_diagnosis": 0.0,
+  "context_parsed": 1.0,
+  "context_precision": 0.087,
+  "context_recall": 0.167,
+  "context_findings": 70,
+  "context_findings_agree": 4,
+  "verified_named_diagnosis": 0.0,
+  "verified_parsed": 1.0,
+  "verified_precision": 0.071,
+  "verified_recall": 0.125,
+  "verified_findings": 43,
+  "verified_findings_agree": 3,
+  "findings_checked": 190,
+  "findings_kept": 92,
+  "definite_named_diagnosis": 0.0,
+  "definite_parsed": 1.0,
+  "definite_precision": 0.09,
+  "definite_recall": 0.167,
+  "definite_findings": 68,
+  "definite_findings_agree": 4,
+  "sec_per_call": 18.74,
+  "requests": 77,
+  "cache_hits": 0
+ }
+}
+
+files written:
+  results/compare/medpix_context_ctx-qwen3.5-9b.csv

@@ -1,0 +1,92 @@
+run       20261110-001949_llm-bench_qwen3.5-9b
+started   2026-11-10 00:19:49
+command   llm-bench
+note      qwen test low
+status    ok
+duration  13.4 min
+argv      python -m hoofbeats --common none --note 'qwen test low' --llm --llm-endpoint http://localhost:11434/v1/chat/completions --llm-model qwen3.5:9b --llm-max-tokens 8192 --llm-extra '{"reasoning_effort": "low"}' llm-bench --llm-cases 2 --out results/compare
+
+sample        300
+seed          13
+rounds        5
+llm_cases     2
+hpo           hp/releases/2026-09-01
+annotations   2026-09-02
+prefixes      ['OMIM']
+common        None
+prior_weight  1.0
+absent_weight 0.5
+absent_min_freq0.8
+use_onset     False
+use_sex       False
+model         qwen3.5:9b
+endpoint      http://localhost:11434/v1/chat/completions
+max_tokens    8192
+extra         {'reasoning_effort': 'low'}
+offline       False
+
+========================================================================
+console output
+========================================================================
+
+[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 8465 rare + 0 common diseases
+[data] 223 evaluable cases; sending the first 2 to the model
+[llm] qwen3.5:9b via http://localhost:11434/v1/chat/completions; 0 cached replies in results/compare/llm_cache
+
+[llm] 1/2
+[llm] 2/2
+
+qwen3.5:9b on 2 evaluable cases (rows in results/compare/llm_rerank_qwen3.5-9b.csv):
+| ranking | Top-1 | Top-3 | Top-10 | MRR |
+|---|---|---|---|---|
+| ranker alone | 0.500 | 0.500 | 0.500 | 0.500 |
+| ranker + LLM re-rank | 0.500 | 0.500 | 0.500 | 0.500 |
+| LLM alone | 0.000 | 0.000 | 0.000 | 0.000 |
+Re-ranked 1 cases (the others had the truth outside the top 10); replies parsed: 0%; explanation sentences kept after checking: nan%
+LLM-alone answers matched to a knowledge-base disease: 0%
+[llm] requests sent 3 (retries 0), answered from cache 0, 267.19 s per request
+[compare] summary appended to results/compare/llm_compare.csv
+
+========================================================================
+metrics (also in the .json file)
+========================================================================
+{
+ "requests": {
+  "requests": 3,
+  "retries": 0,
+  "cache_hits": 0,
+  "would_send": 0,
+  "offline_misses": 0,
+  "sec_per_request": 267.19
+ },
+ "llm": {
+  "model": "qwen3.5:9b",
+  "task": "phenopacket",
+  "cases": 2,
+  "failed_calls": 0,
+  "stopped_early": "",
+  "sec_per_call": 267.19,
+  "requests": 3,
+  "cache_hits": 0,
+  "reranked": 1,
+  "ranker_top1": 0.5,
+  "ranker_top3": 0.5,
+  "ranker_top10": 0.5,
+  "ranker_mrr": 0.5,
+  "rerank_top1": 0.5,
+  "rerank_top3": 0.5,
+  "rerank_top10": 0.5,
+  "rerank_mrr": 0.5,
+  "direct_top1": 0.0,
+  "direct_top3": 0.0,
+  "direct_top10": 0.0,
+  "direct_mrr": 0.0,
+  "rerank_parse_rate": 0.0,
+  "faithfulness": null,
+  "direct_parse_rate": 0.0,
+  "direct_mapped": 0.0
+ }
+}
+
+files written:
+  results/compare/llm_rerank_qwen3.5-9b.csv

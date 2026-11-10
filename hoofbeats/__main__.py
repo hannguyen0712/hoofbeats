@@ -20,7 +20,7 @@ from .data import (DiseaseMatcher, Extractor, download, learn_common, load_medpi
                    load_phenopackets, orphadata_icd10)
 from .grounding import level_of
 from .model import (AnnotationDB, Case, Finding, LRRanker, Ontology, Ranking, Status, explain,
-                    most_frequent_test, suggest_tests, verify_claim)
+                    most_frequent_test, suggest_tests, verify_claim, parse_reliability)
 from .context import add_arguments as add_context_arguments, commands as context_commands
 from .workup import add_arguments as add_workup_arguments, commands as workup_commands
 from .train import add_arguments as add_train_arguments, commands as train_commands, load_weights, rerank_learned
@@ -174,6 +174,11 @@ def load_kb(a, prefixes=("OMIM",)):
     r = LRRanker(ont, db, prior_weight=a.prior_weight, rare_mass=rare_mass,
                  absent_weight=a.absent_weight, absent_min_freq=a.absent_min_freq)
     r.use_onset, r.use_sex = a.use_onset, a.use_sex
+    r.reliability = parse_reliability(getattr(a, "reliability", None))
+    if r.reliability:
+        RUN["settings"]["reliability"] = r.reliability
+        print("[kb] reliability: " + ", ".join(f"{k} {v:.0%}" for k, v in r.reliability.items())
+              + " (other sources count fully)")
     return r
 
 
@@ -211,6 +216,37 @@ def topk(ranks) -> dict:
 
 def fmt(m: dict) -> str:
     return " | ".join(f"{m[k]:.3f}" for k in ("top1", "top3", "top10", "mrr"))
+
+
+def _num(x):
+    return None if x is None or (isinstance(x, float) and math.isnan(x)) else int(x)
+
+
+def paired_table(base: str, base_ranks, others: list, groups, key: str) -> dict:
+    # each condition against the baseline on the same cases, as in benchmark: change in Top-1, Top-10 and MRR with
+    # 95% CIs (paired, resampling whole diseases), and the moves that matter. A move counts only if it involves the
+    # top 10 (into or within it, or out of it): from rank 12,820 to 12,795 is a reshuffle of tied diseases, not a gain
+    from .report import boot_ci
+    b = [_num(x) for x in base_ranks]
+    top = lambda r, k: np.array([1.0 if x and x <= k else 0.0 for x in r])
+    rr = lambda r: np.array([1.0 / x if x else 0.0 for x in r])
+    pct = lambda d: f"{100 * d.mean():+.1f} ({100 * boot_ci(d, groups=groups)[0]:+.1f} to {100 * boot_ci(d, groups=groups)[1]:+.1f})"
+    print(f"\nAgainst {base}, same cases (95% CI resampling diseases; moves count only if they involve the top 10):")
+    print("| condition | Top-1, pts | Top-10, pts | MRR x100 | moved up | moved down |\n|---|---|---|---|---|---|")
+    out = {}
+    for name, ranks in others:
+        o = [_num(x) for x in ranks]
+        d1, d10, dm = top(o, 1) - top(b, 1), top(o, 10) - top(b, 10), rr(o) - rr(b)
+        inf = lambda x: x if x else 10 ** 9
+        up = sum(1 for x, y in zip(b, o) if inf(y) < inf(x) and inf(y) <= 10)
+        down = sum(1 for x, y in zip(b, o) if inf(y) > inf(x) and inf(x) <= 10)
+        print(f"| {name} | {pct(d1)} | {pct(d10)} | {pct(dm)} | {up} | {down} |")
+        out[name] = {"top1_delta": float(d1.mean()), "top1_ci": boot_ci(d1, groups=groups),
+                     "top10_delta": float(d10.mean()), "top10_ci": boot_ci(d10, groups=groups),
+                     "mrr_delta": float(dm.mean()), "mrr_ci": boot_ci(dm, groups=groups),
+                     "moved_up": up, "moved_down": down, "cases": len(o)}
+    note(key, **out)
+    return out
 
 
 # commands
@@ -617,13 +653,18 @@ def llm_benchmark(a, r: LRRanker, llm, sub: list[Case]):
         rk = r.score(c, leak(c))
         shortlist = [d for d, _, _ in rk.top(10)]
         pos = lambda order: next((j for j, d in enumerate(order, 1) if d in c.truth), None)
+        shown = rk
+        if a.rerank_shuffle:      # anchoring test: the shortlist reaches the LLM in a random order (posteriors still shown)
+            top = list(rk.order[:10])
+            random.Random(f"{a.seed}:{c.case_id}").shuffle(top)
+            shown = Ranking(rk.diseases, rk.log_scores, rk.probs, np.concatenate([top, rk.order[10:]]).astype(int))
         row = {"case": c.case_id, "truth": c.truth[0], "ranker": pos(shortlist)}
         try:
             if row["ranker"] is None and not a.rerank_all:   # re-ranking cannot bring the truth into the top 10
                 row.update({"rerank": None, "rerank_skipped": True})
             else:
                 lit = gather_literature(a, pm, r, ext, c, rk, leak(c)) if pm else {}
-                res = rerank(llm, r, c, rk, leak(c), k=10, literature=lit)
+                res = rerank(llm, r, c, shown, leak(c), k=10, literature=lit)
                 row.update({"rerank": pos(res.ranking), "rerank_parsed": res.parsed, "faithfulness": res.faithfulness,
                             "pubmed_sentences": sum(map(len, lit.values())), "rerank_skipped": False})
             if not a.skip_direct:
@@ -651,11 +692,12 @@ def llm_benchmark(a, r: LRRanker, llm, sub: list[Case]):
     if not out:
         raise SystemExit(f"no case was answered by {llm.model}" + (f": {stopped}" if stopped else ""))
     df = pd.DataFrame(out)
-    path = Path(a.out) / f"llm_rerank_{llm.slug}.csv"
+    path = Path(a.out) / f"llm_rerank_{llm.slug}{'_shuffled' if a.rerank_shuffle else ''}.csv"
     df.to_csv(wrote(path), index=False)
     print(f"\n\n{llm.model} on {len(df)} evaluable cases (rows in {path}):")
     print("| ranking | Top-1 | Top-3 | Top-10 | MRR |\n|---|---|---|---|---|")
-    summary = {"model": llm.model, "task": "phenopacket", "cases": len(df), "failed_calls": failed,
+    summary = {"model": llm.model, "task": "phenopacket" + ("-shuffled" if a.rerank_shuffle else ""),
+               "cases": len(df), "failed_calls": failed,
                "stopped_early": stopped, "sec_per_call": llm.usage()["sec_per_request"],
                "requests": llm.requests, "cache_hits": llm.cache_hits,
                "reranked": int((~df.rerank_skipped.fillna(False).astype(bool)).sum())}
@@ -676,6 +718,11 @@ def llm_benchmark(a, r: LRRanker, llm, sub: list[Case]):
         summary["direct_parse_rate"] = round(df.direct_parsed.fillna(False).mean(), 3)
         summary["direct_mapped"] = round(df.direct_mapped.mean(), 3)
         print(f"LLM-alone answers matched to a knowledge-base disease: {summary['direct_mapped']:.0%}")
+    others = [(lab, df[col]) for col, lab in (("rerank", "ranker + LLM re-rank"), ("direct", "LLM alone")) if col in df]
+    if others:
+        paired_table("ranker alone", df["ranker"], others, df["truth"].astype(str), "llm_paired")
+    if a.rerank_shuffle:
+        print("(shortlist shown to the LLM in a random order: compare with the unshuffled run on the same cases)")
     print(usage_line(llm))
     note("llm", **summary)
     log_compare(a, summary)
@@ -1197,6 +1244,34 @@ def image_agreement(r: LRRanker, predicted: set[str], reference: set[str]) -> tu
     return p, rc
 
 
+def read_case_ids(spec: str | None) -> set[str]:
+    # --exclude-cases: a CSV with a "case" (or "U_id") column, e.g. an earlier run's rows, or comma-separated ids
+    if not spec:
+        return set()
+    path = Path(spec)
+    if path.is_file():
+        df = pd.read_csv(path)
+        col = next((c for c in ("case", "U_id", "case_id") if c in df), None)
+        if col is None:
+            raise SystemExit(f"{spec}: no case, U_id or case_id column")
+        return set(df[col].astype(str))
+    return {x.strip() for x in spec.split(",") if x.strip()}
+
+
+def write_reliability(path, kind: str, agree: int, pred: int, cases: int) -> float | None:
+    # measured reliability of one finding source: pooled precision against the radiologist (findings that match one
+    # of the radiologist's, ancestors count, over all findings the model reported), saved for --reliability
+    if not pred:
+        print(f"[reliability] no {kind} findings to measure; nothing written")
+        return None
+    p = agree / pred
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    Path(path).write_text(json.dumps({kind: round(p, 4)}) + "\n")
+    print(f"[reliability] {kind}: {agree} of {pred} findings match the radiologist ({p:.1%}), {cases} cases -> {path}")
+    print("              measured on these cases only: use it with --reliability on other cases")
+    return p
+
+
 def cmd_medpix(a):
     r = load_kb(a, ("OMIM", "ORPHA"))
     ext = Extractor(r.ont)
@@ -1204,6 +1279,11 @@ def cmd_medpix(a):
     cases = load_medpix(a.medpix, DiseaseMatcher(r.db.names, syn), ext, a.split, a.labels)
     if a.only_labeled:
         cases = [c for c in cases if c.truth]
+    skip = read_case_ids(a.exclude_cases)
+    if skip:
+        n = len(cases)
+        cases = [c for c in cases if c.case_id not in skip]
+        print(f"[medpix] {n - len(cases)} cases left out (--exclude-cases)")
     if a.limit:
         cases = cases[: a.limit]
     ew = load_weights(a, RUN)
@@ -1250,10 +1330,12 @@ def cmd_medpix(a):
                 rows.append(row)
                 continue
             both = Case(c.case_id, text + [f for f in img if f.hpo_id not in have], c.truth)
-            p, rc = image_agreement(r, {f.hpo_id for f in img if f.status == Status.PRESENT}, {f.hpo_id for f in ref})
+            said = {f.hpo_id for f in img if f.status == Status.PRESENT}
+            p, rc = image_agreement(r, said, {f.hpo_id for f in ref})
             row.update({"rank_image": r.score(Case(c.case_id, img, c.truth)).rank_of(c.truth) if c.truth else None,
                         "rank_multimodal": r.score(both).rank_of(c.truth) if c.truth else None,
                         "n_image": len(img), "image_precision": p, "image_recall": rc,
+                        "image_pred": len(said), "image_agree": round((p or 0) * len(said)),
                         "unparsed_images": sum(not x["parsed"] for x in recs),
                         "report": " | ".join(x["report"] for x in recs)[:1000]})
             print(f"\r[medpix] {i}/{len(cases)} cases read", end="", flush=True)
@@ -1283,11 +1365,14 @@ def cmd_medpix(a):
     summary = {"model": llm.model if llm else "none", "task": "medpix", "cases": len(df), "labeled": len(lab),
                "failed_calls": failed}
     for name, col in conds:
-        if col not in lab:
+        if col not in lab or lab.empty:      # no labelled case left: nothing to score
             continue
         m = topk([None if pd.isna(x) else int(x) for x in lab[col]])
         print(f"| {name} | {fmt(m)} |")
         summary.update({f"{col}_{k}": round(v, 3) for k, v in m.items()})
+    rest = [(name, lab[col]) for name, col in conds[1:] if col in lab]
+    if rest and not lab.empty:
+        paired_table("history + exam text", lab["rank_text"], rest, lab["truth"].astype(str), "medpix_paired")
     note("medpix", **summary)
     if llm:
         summary.update({"image_precision": round(df.image_precision.mean(), 3), "image_recall": round(df.image_recall.mean(), 3),
@@ -1297,6 +1382,13 @@ def cmd_medpix(a):
         print(f"\nLLM image findings vs radiologist: precision {summary['image_precision']:.1%}, "
               f"recall {summary['image_recall']:.1%}; unparsed replies {summary['unparsed_images']}; "
               f"{summary['sec_per_call']} s per request")
+        agree, pred = int(df.image_agree.fillna(0).sum()), int(df.image_pred.fillna(0).sum())
+        summary.update({"image_findings": pred, "image_findings_agree": agree,
+                        "image_precision_pooled": round(agree / pred, 4) if pred else None})
+        print(f"Pooled over all findings: {agree} of {pred} match the radiologist"
+              + (f" ({agree / pred:.1%})" if pred else ""))
+        if a.reliability_out:
+            write_reliability(a.reliability_out, "image", agree, pred, int(df.image_pred.notna().sum()))
         print(usage_line(llm))
         note("medpix", **summary)
         log_compare(a, summary)
@@ -1313,6 +1405,10 @@ def main(argv=None):
     p.add_argument("--absent-weight", type=float, default=0.5, help="weight on absent findings (1 = old rule)")
     p.add_argument("--use-onset", action="store_true", help="score the patient's age of onset (or age) against disease onset")
     p.add_argument("--use-sex", action="store_true", help="X-linked recessive / Y-linked diseases count against female patients")
+    p.add_argument("--reliability", help='how often findings from each source are real, as JSON text or a JSON file, '
+                   'e.g. \'{"image_context": 0.15, "image": 0.15}\'. Each finding\'s LR becomes p*LR + (1-p): '
+                   'unreliable findings are pulled toward no information. Source kinds: phenopacket, input, note, '
+                   'image_context, image, followup, lab, vitals, medpix; "*" sets the default (1)')
     p.add_argument("--absent-min-freq", type=float, default=0.8,
                    help="absent findings only count for features the disease shows this often (0 = old rule)")
     p.add_argument("--pubmed", action="store_true", help="add verified PubMed abstract sentences as evidence")
@@ -1357,6 +1453,8 @@ def main(argv=None):
         if name in ("benchmark", "llm-bench"):
             s.add_argument("--llm-cases", type=int, default=50, help="evaluable cases sent to the model")
             s.add_argument("--skip-direct", action="store_true", help="skip the LLM-alone baseline")
+            s.add_argument("--rerank-shuffle", action="store_true",
+                           help="anchoring test: show the shortlist to the LLM in a random order (seeded per case)")
             s.add_argument("--rerank-all", action="store_true",
                            help="also re-rank cases whose truth is outside the top 10 (cannot change accuracy)")
     s = sub.add_parser("learn-common")
@@ -1381,6 +1479,8 @@ def main(argv=None):
     s.add_argument("--only-labeled", action="store_true", help="only cases whose diagnosis is in the knowledge base")
     s.add_argument("--limit", type=int, help="first N cases (quick runs)")
     s.add_argument("--cache", help="jsonl of raw image reads (default: <out>/medpix_image_reads_<model>.jsonl)")
+    s.add_argument("--exclude-cases", help="leave these cases out: a CSV with a case column (e.g. an earlier run) or ids")
+    s.add_argument("--reliability-out", help="write the image findings' measured reliability here, for --reliability")
     s.add_argument("--out", default="results")
     s = sub.add_parser("extract-eval", help="score reader outputs on case files against gold findings")
     s.add_argument("--cases", default="examples", help="folder with the case files named in the gold file")

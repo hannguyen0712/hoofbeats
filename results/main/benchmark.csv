@@ -1,0 +1,2001 @@
+condition,case,truth,rank,evaluable
+present only,PMID_30315159_Patient_5,OMIM:620475,2067,True
+present only,PMID_27087320_Subject_9,OMIM:616975,7367,False
+present only,PMID_20358602_Patient_C8,OMIM:122470,3,True
+present only,PMID_18551513_8,OMIM:613205,248,True
+present only,PMID_38991538_Individual_22_120746,OMIM:620851,23,True
+present only,PMID_40442284_RNU2_2_Individual_3,OMIM:621304,5,True
+present only,PMID_23495017_Patient_7,OMIM:614332,6680,False
+present only,PMID_39073169_Patient_F1_III_5,OMIM:301134,5097,False
+present only,PMID_39013458_individual_VUSM110013,OMIM:610253,1041,True
+present only,PMID_28575651_Individual_3,OMIM:617560,56,True
+present only,PMID_37761890_60,OMIM:616362,482,True
+present only,PMID_36195757_Proband_8,OMIM:621402,6796,False
+present only,PMID_40455867_P3,OMIM:621475,918,True
+present only,PMID_33674768_Patient_17_This_study,OMIM:300867,563,True
+present only,PMID_35143101_Family_WGSI059JH_individual_iw182,OMIM:618428,1965,True
+present only,PMID_34338282_GLSP_family_3,OMIM:206700,1,True
+present only,PMID_29333303_proposita,OMIM:269150,36,True
+present only,PMID_27764983_Family_2_Individual_MZ,OMIM:162000,2,True
+present only,PMID_30965037_Patient_2,OMIM:616873,106,True
+present only,PMID_18669544_FO_08,OMIM:209900,1,True
+present only,PMID_30580808_Patient_9,OMIM:618362,7680,False
+present only,PMID_31727177_patient_6,OMIM:147920,1,True
+present only,PMID_18264100_Family_2_patient_II1,OMIM:231095,1,True
+present only,PMID_31666973_Patient_EYE65,OMIM:613826,1,True
+present only,PMID_30679813_Individual_22,OMIM:618089,559,True
+present only,PMID_23505306_Patient_1,OMIM:613826,1,True
+present only,PMID_26178382_UAB_R5455_I2,OMIM:162200,1,True
+present only,PMID_40576023_Family_6_IV_4,OMIM:621344,139,True
+present only,PMID_26997095_patient,OMIM:256500,1,True
+present only,PMID_41125872_Pathogenic_08,OMIM:621456,6241,False
+present only,PMID_19353847_patient,OMIM:604377,1,True
+present only,PMID_35190816_STX_29896790_P3,OMIM:612164,23,True
+present only,PMID_37183190_Family_7_individual_ind_11,OMIM:610042,10,True
+present only,PMID_31396399_Family_2individual_10,OMIM:616276,7,True
+present only,PMID_24321194_II_2,OMIM:248250,1,True
+present only,PMID_24997176_Family_15,OMIM:613826,1,True
+present only,PMID_24736735_G072_F,OMIM:146510,8,True
+present only,PMID_36446582_Goldenberg2016_P15,OMIM:148050,1933,True
+present only,PMID_39191256_T_30,OMIM:620996,3615,False
+present only,PMID_37196654_Individual_44_DDD_286674,OMIM:618505,2,True
+present only,PMID_39073169_Patient_F1_III_7,OMIM:301134,5097,False
+present only,PMID_37183190_Family_10_individual_ind_14,OMIM:610042,2,True
+present only,PMID_23273567_individual_FII_2,OMIM:258480,1176,True
+present only,PMID_40210435_A_III_2,OMIM:621507,7224,False
+present only,PMID_19864201_Case_4,OMIM:151100,3,True
+present only,PMID_29040572_Family_7_individual,OMIM:620887,2,True
+present only,PMID_39013458_individual_KS110019_VUSM110007,OMIM:610253,2552,True
+present only,PMID_39013458_individual_KS110047,OMIM:610253,262,True
+present only,PMID_37196654_Individual_65,OMIM:618505,27,True
+present only,PMID_35484142_F6_P7,OMIM:620460,7372,False
+present only,PMID_30170160_P5,OMIM:620816,1,True
+present only,PMID_25439728_IV_3,OMIM:616354,76,True
+present only,PMID_34214472_patient_P3,OMIM:620901,5027,False
+present only,PMID_36067010_Family_1_Patient_1,OMIM:620504,7446,False
+present only,PMID_22034507_DIII_1,OMIM:162000,1,True
+present only,PMID_28137957_HSP84_II_1,OMIM:617225,1281,True
+present only,PMID_20513137_individual_N986_GSM_GSM492723,OMIM:162200,3,True
+present only,PMID_9101303_patient,OMIM:162200,4,True
+present only,PMID_17187620_child,OMIM:604377,2,True
+present only,PMID_37951597_Family_17_Subject_1,OMIM:620785,6904,False
+present only,PMID_26047050_Patient_SRF153,OMIM:613826,1,True
+present only,PMID_36316122_case_presentation,OMIM:621079,1584,True
+present only,PMID_32480058_Case_F7P2,OMIM:618052,8092,False
+present only,PMID_21487076_Patient_II_4,OMIM:620607,68,True
+present only,PMID_36189931_6,OMIM:130050,1,True
+present only,PMID_37962958_Individual_11,OMIM:620535,1350,True
+present only,PMID_28065471_PV_1,OMIM:617403,3123,True
+present only,PMID_33674768_Patient_38_This_study,OMIM:300867,1236,True
+present only,PMID_21660509_Indian_familye,OMIM:601869,150,True
+present only,PMID_30679813_Individual_3,OMIM:618089,198,True
+present only,PMID_35190816_STX_STXBP1adult_Pt6,OMIM:612164,35,True
+present only,PMID_37843397_Patient_UM9,OMIM:151660,1,True
+present only,PMID_18423521_Patient_1b,OMIM:113620,2,True
+present only,PMID_36586412_Individual_6,OMIM:301111,1251,True
+present only,PMID_30072743_individual_237_523,OMIM:613826,2,True
+present only,PMID_30170160_P7,OMIM:620816,1,True
+present only,PMID_34606115_F3_6,OMIM:621424,2108,True
+present only,PMID_35923690_50_2,OMIM:105650,183,True
+present only,PMID_26178382_UAB_R4346,OMIM:162200,8,True
+present only,PMID_18256394_Patient_12,OMIM:176670,692,True
+present only,PMID_35190816_STX_26865513_Patient_16,OMIM:612164,27,True
+present only,PMID_28652255_V_3,OMIM:208920,39,True
+present only,PMID_37684057_10_yr_old_boy,OMIM:618443,685,True
+present only,PMID_37761890_29,OMIM:616362,2639,True
+present only,PMID_39013458_individual_KS110043_VUSM110019,OMIM:610253,738,True
+present only,PMID_39306721_Family_6_Individual_7,OMIM:621060,6478,False
+present only,PMID_37163662_Family_A_Patient_1,OMIM:620775,87,True
+present only,PMID_33087723_E4,OMIM:619375,3580,False
+present only,PMID_15452312_III_5,OMIM:604187,1009,True
+present only,PMID_14531790_F762_individual_IV_3,OMIM:162000,1,True
+present only,PMID_37963460_Family_2_individual_II_1,OMIM:620852,8029,False
+present only,PMID_21217753_Fam_1_IV_9,OMIM:613795,2,True
+present only,PMID_39013458_individual_KS110005,OMIM:610253,791,True
+present only,PMID_36446582_Gnazzo_2020_P20,OMIM:148050,1,True
+present only,PMID_23664117_family_F9_subject_P10,OMIM:615349,2,True
+present only,PMID_30451291_V_1,OMIM:300088,255,True
+present only,PMID_38154379_4_Family_2,OMIM:620767,7608,False
+present only,PMID_38950288_Proband_3,OMIM:621251,2798,False
+present only,PMID_35190816_STX_Syrbe_10,OMIM:612164,88,True
+present only,PMID_36446582_KBG10B,OMIM:148050,47,True
+present only,PMID_39442041_Patient_2,OMIM:621012,7492,False
+present only,PMID_34038384_Family_B_III_15,OMIM:620755,5096,False
+present only,PMID_32376980_Patient_30,OMIM:618164,221,True
+present only,PMID_30968594_individual_16,OMIM:201910,186,True
+present only,PMID_31898322_case_9_index,OMIM:615582,680,True
+present only,PMID_34363755_Family_1_individual_P1,OMIM:620880,7943,False
+present only,PMID_38815585_Individual_3,OMIM:620985,483,True
+present only,PMID_36006710_Patient_3,OMIM:620430,3812,False
+present only,PMID_33674768_Patient_10_Guo_2018_BMC_Med_Genet_19_206,OMIM:300867,430,True
+present only,PMID_16865293_Family_4_individual_8Y1M,OMIM:216400,1,True
+present only,PMID_36446582_Ockeloen2015_P2,OMIM:148050,5,True
+present only,PMID_34655521_Patient_6,OMIM:620990,1006,False
+present only,PMID_39315527_Family_9_IV_2,OMIM:621354,6137,False
+present only,PMID_37843397_TR36,OMIM:151660,1,True
+present only,PMID_15266616_136,OMIM:147791,864,True
+present only,PMID_40267907_Family_1_1,OMIM:621381,8039,False
+present only,PMID_40965981_Individual_3,OMIM:621495,7130,False
+present only,PMID_36553465_P3,OMIM:606574,26,True
+present only,PMID_29359243_29359243_P1,OMIM:616370,1016,True
+present only,PMID_28940506_Family_9_Individual_10,OMIM:615471,1,True
+present only,PMID_28625504_SA1_3,OMIM:617622,5802,False
+present only,PMID_35190816_STX_29896790_P2,OMIM:612164,15,True
+present only,PMID_37964426_Individual_F2594S_3,OMIM:117360,1,True
+present only,PMID_40146200_Family3_IV_4_P8,OMIM:621209,2,True
+present only,PMID_37827158_Proband_8,OMIM:621265,7541,False
+present only,PMID_39369315_Participant_5,OMIM:620851,10,True
+present only,PMID_29110636_proband_VMFS,OMIM:107480,15,True
+present only,PMID_38413182_Patient_1,OMIM:621225,7008,False
+present only,PMID_39970126_FAMILY_1_individual_F1P7_pedigree_III11,OMIM:621236,6409,False
+present only,PMID_39753129_Family_2_II_1,OMIM:621080,2798,False
+present only,PMID_17460694_F010191,OMIM:609053,3,True
+present only,PMID_22155372_8_year_old_girl,OMIM:609622,1,True
+present only,PMID_34521999_Individual_26,OMIM:617140,36,True
+present only,PMID_24321194_II_3,OMIM:248250,1,True
+present only,PMID_28949039_Case_4,OMIM:159900,29,True
+present only,PMID_31449058_Patient_2,OMIM:620836,46,True
+present only,PMID_17273967_III_5,OMIM:602400,3,True
+present only,PMID_25851998_Sibling_2,OMIM:616638,368,True
+present only,PMID_29290338_Family_UAB_R2546_individual_RS,OMIM:162200,3,True
+present only,PMID_25845469_Patient_2,OMIM:614249,1051,True
+present only,PMID_36446582_Kutkowska_Kazmierczak2021_P17,OMIM:148050,1696,True
+present only,PMID_12203992_Patient_D30,OMIM:154700,1,True
+present only,PMID_27087320_Subject_6,OMIM:616975,7475,False
+present only,PMID_28687524_proband,OMIM:602342,20,True
+present only,PMID_11344241_Individual_III_3,OMIM:151660,1,True
+present only,PMID_37660254_Patient_3,OMIM:620669,7096,False
+present only,PMID_22541558_individual_J_1,OMIM:154400,266,True
+present only,PMID_37962958_Individual_31,OMIM:620535,1341,True
+present only,PMID_37256937_Patient_4,OMIM:621539,5931,False
+present only,PMID_37256937_Patient_10,OMIM:621539,5931,False
+present only,PMID_40420380_Participant_2,OMIM:621474,32,True
+present only,PMID_33450762_P1_Mother,OMIM:621091,6243,False
+present only,PMID_21696388_IV_1,OMIM:606693,33,True
+present only,PMID_15266616_3,OMIM:147791,461,True
+present only,PMID_22241092_Patient_CDL406,OMIM:122470,1,True
+present only,PMID_39753129_Family_4_I_2,OMIM:621080,4438,False
+present only,PMID_34363755_Family_3_individual_P4,OMIM:620880,6749,False
+present only,PMID_36189931_1,OMIM:130050,1,True
+present only,PMID_23495017_Patient_5a,OMIM:614332,6960,False
+present only,PMID_33576469_Patient_5,OMIM:129600,2,True
+present only,PMID_33633439_17413_II_1,OMIM:620731,8,True
+present only,PMID_30152016_Case_5,OMIM:615829,2,True
+present only,PMID_38977784_PE30_II_5,OMIM:621182,52,True
+present only,PMID_37196654_Individual_76,OMIM:618505,32,True
+present only,PMID_36751037_Family_K_Patient_15,OMIM:621192,570,True
+present only,PMID_16439204_P1,OMIM:611291,1,True
+present only,PMID_29469822_Family_12_V_1,OMIM:605275,14,True
+present only,PMID_37196654_Individual_52_SSC_12683_p1,OMIM:618505,35,True
+present only,PMID_31021519_individual_from_Trakadis_et_al,OMIM:612313,24,True
+present only,PMID_26541327_Pat_11_FX,OMIM:614800,2814,True
+present only,PMID_38791218_Family_1_Patient_1_I_2,OMIM:621434,3966,False
+present only,PMID_36823193_Patient_4_Family_3,OMIM:620451,7296,False
+present only,PMID_38740982_Family_5_Individual_5,OMIM:618089,39,True
+present only,PMID_38566089_Case_presentation,OMIM:617140,61,True
+present only,PMID_37196654_Individual_15,OMIM:618505,45,True
+present only,PMID_35716097_Patient_5,OMIM:615829,1,True
+present only,PMID_38858457_F8_individual_11,OMIM:620923,21,True
+present only,PMID_40830826_Family_3_II_2,OMIM:621488,6842,False
+present only,PMID_37963460_Family_1_individual_III_1,OMIM:620852,7002,False
+present only,PMID_33674768_Patient_32_This_study,OMIM:300867,68,True
+present only,PMID_40043708_F5,OMIM:621195,6348,False
+present only,PMID_10580070_Family_B_individual_III_11,OMIM:115200,891,True
+present only,PMID_37962958_Individual_40,OMIM:620535,978,True
+present only,PMID_38480682_F3_II_1,OMIM:620786,6806,False
+present only,PMID_27250695_Family_13_patient_18,OMIM:608716,6,True
+present only,PMID_36303223_Proband_7_from_PMID_12112661,OMIM:272300,634,True
+present only,PMID_27894351_14DG0714,OMIM:620943,2,True
+present only,PMID_35923690_50_7,OMIM:105650,236,True
+present only,PMID_20519243_Patient_2,OMIM:142900,2,True
+present only,PMID_12384777_Family_5_5A,OMIM:613850,3204,False
+present only,PMID_12058348_Patient_5,OMIM:151100,1258,True
+present only,PMID_35308163_Patient_2,OMIM:605911,34,True
+present only,PMID_17245395_Family_K8_individual_II_2,OMIM:162000,1,True
+present only,PMID_38702431_Patient_2,OMIM:620985,77,True
+present only,PMID_35344616_A19,OMIM:268310,4,True
+present only,PMID_37418012_Family_1_IV_5,OMIM:621226,8,True
+present only,PMID_33277917_Patient_8,OMIM:616364,1,True
+present only,PMID_39191256_A_1b,OMIM:620996,3615,False
+present only,PMID_26942287_UMCN9,OMIM:616364,1,True
+present only,PMID_24736735_G16012,OMIM:175700,500,True
+present only,PMID_22693999_family_member_III_2,OMIM:620659,6230,False
+present only,PMID_39708122_F1_VI_2,OMIM:621182,17,True
+present only,PMID_29707406_A_II_2,OMIM:606854,9,True
+present only,PMID_25511235_B3_1,OMIM:605911,1,True
+present only,PMID_38054405_Family_1_individual_P2,OMIM:620746,275,True
+present only,PMID_27108797_F2_II1,OMIM:206700,2,True
+present only,PMID_24443441_P_2,OMIM:620969,5564,False
+present only,PMID_38459354_Family_2_proband,OMIM:620794,2285,False
+present only,PMID_29181157_Patient,OMIM:618977,1,True
+present only,PMID_20853184_NAPO_6,OMIM:606693,1,True
+present only,PMID_34645992_Individual_1,OMIM:616364,35,True
+present only,PMID_20082460_case_9,OMIM:305400,11,True
+present only,PMID_30580808_Patient_11,OMIM:618362,7818,False
+present only,PMID_37071997_Subject_I17,OMIM:620489,7462,False
+present only,PMID_38740982_Family_4_Individual_4_1,OMIM:618089,39,True
+present only,PMID_40146200_Family1_IV_1_P1,OMIM:621209,23,True
+present only,PMID_39191256_A_5b,OMIM:620996,3615,False
+present only,PMID_22726846_Individual_KS47,OMIM:614608,179,True
+present only,PMID_38230350_Proband_P5_family_B_B_II_2,OMIM:620777,5481,False
+present only,PMID_22541559_individual_G_013_IV_6,OMIM:611091,68,True
+present only,PMID_33977139_Patient_5,OMIM:609528,477,True
+present only,PMID_31569402_Family_8_Patient_I,OMIM:609192,1,True
+present only,PMID_28940506_Family_8_Individual_9,OMIM:615471,1,True
+present only,PMID_25511235_A1_4,OMIM:605911,1,True
+present only,PMID_21683322_AD_Family_27_b,OMIM:102370,2,True
+present only,PMID_32154675_Family_7_Patient_16,OMIM:613795,2,True
+present only,PMID_38465576_Individual_2,OMIM:621263,7980,False
+present only,PMID_34906488_Individual_7,OMIM:621063,30,True
+present only,PMID_35977029_Family_3_individualND,OMIM:620494,91,True
+present only,PMID_37024973_Trio_2_proband,OMIM:621231,1,True
+present only,PMID_38014483_Family_c_individual_c_4,OMIM:620666,15,True
+present only,PMID_33534181_patient,OMIM:256500,1,True
+present only,PMID_37054711_Family_7_Subject_9,OMIM:620428,6905,False
+present only,PMID_32480058_Case_F13P1,OMIM:618052,7618,False
+present only,PMID_39636576_F4_Australia_P6,OMIM:621201,34,True
+present only,PMID_16965330_Sibling_of_patient_7,OMIM:240300,1,True
+present only,PMID_36996813_Individual_12,OMIM:620371,6324,False
+present only,PMID_26706854_Subject_1_1,OMIM:603671,2,True
+present only,PMID_39315527_Family_16_Najmabadi_et_al_II_3,OMIM:621354,6242,False
+present only,PMID_31001818_individual_5_DDD_CAM272076,OMIM:615032,1,True
+present only,PMID_36047608_Patient_1_F1_II_4,OMIM:620666,7,True
+present only,PMID_36136088_Family_2_II_3,OMIM:620911,7153,False
+present only,PMID_35743164_P11,OMIM:117360,2,True
+present only,PMID_35911904_III_4,OMIM:610042,13,True
+present only,PMID_30099644_IV_11,OMIM:600138,183,True
+present only,PMID_32480058_Case_F6P1_original_pedigree_II_1,OMIM:618052,7087,False
+present only,PMID_21217753_Fam_1_III_3,OMIM:613795,11,True
+present only,PMID_25802881_P72,OMIM:103580,3,True
+present only,PMID_37895315_Patient_4_HTP964,OMIM:621248,85,True
+present only,PMID_40146200_Family2_IV_5_P4,OMIM:621209,11,True
+present only,PMID_21358634_Family_8,OMIM:132800,3128,False
+present only,PMID_19683336_Patient_5,OMIM:256500,1,True
+present only,PMID_18669544_FO_06,OMIM:209900,2,True
+present only,PMID_29050284_proband_II_5,OMIM:203200,20,True
+present only,PMID_40267907_Family_6_1,OMIM:621381,6479,False
+present only,PMID_20887961_Patient_2,OMIM:600920,1,True
+present only,PMID_17646629_index_patient_II_3,OMIM:607259,117,True
+present only,PMID_21236492_Individual_P10,OMIM:614199,250,True
+present only,PMID_31853710_II_2,OMIM:621095,20,True
+present only,PMID_37895315_Patient_1_HTP1301,OMIM:621248,15,True
+present only,PMID_25802881_P43,OMIM:103580,1,True
+present only,PMID_24736735_G111,OMIM:175700,244,True
+present only,PMID_39191256_T_14,OMIM:620996,3615,False
+present only,PMID_32710489_Group_1_Patient_7,OMIM:620155,8404,False
+present only,PMID_25704603_Family_M328_individual_IV_1,OMIM:616269,7105,False
+present only,PMID_38158856_Patient_4_Family_III,OMIM:621566,8210,False
+present only,PMID_10077612_Family_A_IV_14,OMIM:142900,1,True
+present only,PMID_33578420_1_year_old_female,OMIM:620528,6,True
+present only,PMID_36103875_Individual_1,OMIM:620502,6150,False
+present only,PMID_37875108_Patient_3,OMIM:301115,5643,False
+present only,PMID_31021519_SATB2_10_from_Zarate_et_al_2018a,OMIM:612313,46,True
+present only,PMID_31021519_SATB2_54_from_Zarate_et_al_2018a,OMIM:612313,57,True
+present only,PMID_25959430_individual_IV_2_family_A,OMIM:602875,36,True
+present only,PMID_41125872_Pathogenic_06,OMIM:621457,7067,False
+present only,PMID_37768732_Family_2_Patient_2,OMIM:621280,27,True
+present only,PMID_40683276_Family_7_Patient_17,OMIM:621333,7003,False
+present only,PMID_25802881_M10,OMIM:612463,155,True
+present only,PMID_39369315_Participant_4,OMIM:620851,1,True
+present only,PMID_12632326_subject_1,OMIM:606217,2798,False
+present only,PMID_32765928_Case_3,OMIM:151100,1,True
+present only,PMID_40856104_Participant_2_1,OMIM:621382,6905,False
+present only,PMID_31239556_individual_34,OMIM:615502,492,True
+present only,PMID_10939567_Patient_EMD5_III_3,OMIM:181350,8,True
+present only,PMID_9312167_A_I_2,OMIM:179800,2246,True
+present only,PMID_24259288_III_10,OMIM:300868,2,True
+present only,PMID_36256512_F10_II_2,OMIM:620938,247,True
+present only,PMID_38404363_Family_1_II_3,OMIM:621164,2,True
+present only,PMID_28611345_case_report,OMIM:614800,8465,True
+present only,PMID_21367767_F39_II_3,OMIM:606658,3,True
+present only,PMID_30558828_Patient,OMIM:614800,4138,True
+present only,PMID_39500882_Patient_3,OMIM:621212,8180,False
+present only,PMID_30152016_Patient_5,OMIM:615829,2,True
+present only,PMID_24736735_G109_Father,OMIM:175700,35,True
+present only,PMID_38430071_F1_II_2,OMIM:621313,332,True
+present only,PMID_32631816_Patient_IV_2_1,OMIM:620703,2,True
+present only,PMID_30881852_index_case,OMIM:161200,1,True
+present only,PMID_38977784_PKMR471_IV_4,OMIM:621182,158,True
+present only,PMID_38503300_Individual_4,OMIM:620807,6469,False
+present only,PMID_37541189_Individual_12,OMIM:620688,7184,False
+present only,PMID_36586412_Individual_5,OMIM:301111,859,True
+present only,PMID_33744911_III_9,OMIM:621078,179,True
+present only,PMID_14569098_F1_individual_4,OMIM:162000,2,True
+present only,PMID_30050362_individual_II_3,OMIM:228600,152,True
+present only,PMID_31021519_individual_SATB2_100,OMIM:612313,56,True
+present only,PMID_34521999_Individual_18,OMIM:617140,31,True
+present only,PMID_38325380_Patient_1,OMIM:301118,8259,False
+present only,PMID_25477417_F5_1,OMIM:248250,1,True
+present only,PMID_36331550_Family_20_Patient_25,OMIM:620540,81,True
+present only,PMID_38740982_Family_4_Individual_4,OMIM:618089,157,True
+present only,PMID_36074124_1_01687,OMIM:620570,4878,False
+present only,PMID_31337854_Patient_39,OMIM:122470,1,True
+present only,PMID_28782633_Family_1_11_year_old_son_P9,OMIM:620670,5204,False
+present only,PMID_21660509_PKDF1258b,OMIM:601869,150,True
+present only,PMID_36929019_F2_II4,OMIM:621331,6043,False
+present only,PMID_36303223_Proband_6_from_PMID_12112661,OMIM:272300,634,True
+present only,PMID_39390489_Patient_1,OMIM:620401,38,True
+present only,PMID_36307226_Proband_8,OMIM:620537,13,True
+present only,PMID_37951597_Family_3_Subject_2,OMIM:620785,7296,False
+present only,PMID_30622725_patient,OMIM:614800,2504,True
+present only,PMID_37876076_patient,OMIM:616900,1,True
+present only,PMID_22305531_IV_2,OMIM:300868,1,True
+present only,PMID_39962046_C_II_2,OMIM:621154,6478,False
+present only,PMID_36351433_F1_IV_1,OMIM:620908,7922,False
+present only,PMID_25477417_F3_1,OMIM:248250,1,True
+present only,PMID_22772368_7_III_1,OMIM:614816,4,True
+present only,PMID_37951597_Family_23_Subject_1,OMIM:620785,6150,False
+present only,PMID_28074573_HC2,OMIM:163950,16,True
+present only,PMID_35142290_III_3,OMIM:620999,4300,False
+present only,PMID_23714749_Family_5_patient_7,OMIM:256810,1,True
+present only,PMID_35618278_IX,OMIM:621248,1,True
+present only,PMID_38230350_Proband_P3_family_A_II_3,OMIM:620777,5528,False
+present only,PMID_36001342_Patient_III_3,OMIM:618428,501,True
+present only,PMID_37075751_Individual_3,OMIM:616462,1615,True
+present only,PMID_34421895_P1,OMIM:619375,317,True
+present only,PMID_29127725_Patient_1,OMIM:174300,172,True
+present only,PMID_15976030_kindred_A_patient_8,OMIM:609549,3615,False
+present only,PMID_22541559_individual_M_192_V_3,OMIM:611091,22,True
+present only,PMID_37943617_Patient_4_IV_5,OMIM:621068,7881,False
+present only,PMID_37584719_Patient_P10,OMIM:620815,362,True
+present only,PMID_36695497_Individual_6,OMIM:620731,7,True
+present only,PMID_36135717_Patient_1,OMIM:621194,2589,False
+present only,PMID_32980981_Individual_III_2,OMIM:621295,1,True
+present only,PMID_31527767_III_12,OMIM:129600,4,True
+present only,PMID_24721225_Patient_III_1,OMIM:301111,116,True
+present only,PMID_38508705_Case_8,OMIM:621500,5096,False
+present only,PMID_24736735_G070,OMIM:175700,341,True
+present only,PMID_37071997_Subject_I12,OMIM:620489,5536,False
+present only,PMID_34890546_M120_Mayo_R1097,OMIM:621164,2,True
+present only,PMID_37256937_Patient_5,OMIM:621539,5931,False
+present only,PMID_38404363_Family_1_III_1,OMIM:621164,2,True
+present only,PMID_36553465_P10,OMIM:606574,19,True
+present only,PMID_34950897_Patient_5,OMIM:615829,3,True
+present only,PMID_39117932_individual_12,OMIM:609322,577,True
+present only,PMID_31643139_Patient_3,OMIM:616831,8,True
+present only,PMID_39069253_individual_10_Weiss_et_al,OMIM:618619,33,True
+present only,PMID_34521999_Individual_13,OMIM:617140,62,True
+present only,PMID_35603789_Patient_3_D24N_D24N,OMIM:621512,155,True
+present only,PMID_39315527_Family_15_Al_Kasbi_et_al_IV_1,OMIM:621354,7067,False
+present only,PMID_36067010_Family_3_Patient_5,OMIM:620504,7433,False
+present only,PMID_24164096_patient,OMIM:159950,281,True
+present only,PMID_37154409_BII_2,OMIM:606658,4,True
+present only,PMID_31057532_Family_A_individual_A_II_1,OMIM:616873,166,True
+present only,PMID_7517574_EFA,OMIM:620813,4,True
+present only,PMID_20799361_Patient_2,OMIM:611590,68,True
+present only,PMID_23714749_Family_7_patient_10,OMIM:256810,2,True
+present only,PMID_39306721_Family_10_Individual_15,OMIM:621060,7357,False
+present only,PMID_39315527_Family_9_IV_1,OMIM:621354,6716,False
+present only,PMID_26981933_Family_B_individual_B7,OMIM:616873,1391,True
+present only,PMID_16865293_Family_2_individual_9Y11M,OMIM:216400,1,True
+present only,PMID_38991538_Individual_28_UDN135254,OMIM:620851,5,True
+present only,PMID_16965330_patient_9,OMIM:240300,1,True
+present only,PMID_37843397_TR6,OMIM:151660,1,True
+present only,PMID_37063705_F1_3,OMIM:621424,187,True
+present only,PMID_34415117_patient_2,OMIM:615032,1,True
+present only,PMID_37947183_Family_F7_individual_P10,OMIM:620771,7706,False
+present only,PMID_38430071_F1_II_1,OMIM:621313,120,True
+present only,PMID_25835445_2_II_4,OMIM:615582,34,True
+present only,PMID_19800048_UW87,OMIM:300804,3739,True
+present only,PMID_30612693_Individual_13,OMIM:618443,1999,True
+present only,PMID_39191256_A_9,OMIM:620996,3615,False
+present only,PMID_21358634_Family_13,OMIM:132800,3128,False
+present only,PMID_23222957_Family_7_7_1,OMIM:242840,1,True
+present only,PMID_38626355_UNC_186_II1,OMIM:620984,6417,False
+present only,PMID_25477417_F8_1,OMIM:248250,1,True
+present only,PMID_36189931_20,OMIM:130050,1,True
+present only,PMID_34974531_Case_22,OMIM:620943,70,True
+present only,PMID_30580808_Patient_8,OMIM:618362,7439,False
+present only,PMID_39233737_Patient_1,OMIM:621481,7284,False
+present only,PMID_16571880_cohort,OMIM:610042,1,True
+present only,PMID_21217753_Fam_1_III_8,OMIM:613795,3,True
+present only,PMID_36777704_Patient_1,OMIM:122470,1,True
+present only,PMID_28103835_proband_IV_3,OMIM:305400,9,True
+present only,PMID_24355708_IHG25357_individual_1,OMIM:215470,2,True
+present only,PMID_33235621_Case_report,OMIM:610168,8,True
+present only,PMID_32376980_Patient_29,OMIM:618164,576,True
+present only,PMID_40442284_RNU5B_1_Individual_1,OMIM:621302,34,True
+present only,PMID_27939640_individual_P6,OMIM:617333,5331,True
+present only,PMID_37963460_Family_4_individual_III_2,OMIM:620852,7907,False
+present only,PMID_20375004_3_I_1,OMIM:184900,6694,False
+present only,PMID_28065471_PIII_1,OMIM:617403,5470,True
+present only,PMID_25480986_individual_B_1,OMIM:275400,1,True
+present only,PMID_34890546_M1629_Mayo_II_1,OMIM:621164,1,True
+present only,PMID_40259859_Family_2_II_1,OMIM:621260,6323,False
+present only,PMID_38118446_F2_I_3,OMIM:620888,6448,False
+present only,PMID_23335590_Subject_3269,OMIM:304110,1,True
+present only,PMID_38325380_Patient_10,OMIM:301118,7983,False
+present only,PMID_38950322_P1,OMIM:620960,7195,False
+present only,PMID_41716553_Patient_1,OMIM:613670,129,True
+present only,PMID_11950863_Individual_I_3,OMIM:311200,1,True
+present only,PMID_38118446_F10_I_12,OMIM:617988,1,True
+present only,PMID_37656279_Pedigree_A_II_3,OMIM:620510,7684,False
+present only,PMID_39480921_Patient_11,OMIM:621034,6286,False
+present only,PMID_40519748_Family_2_individual_III_4,OMIM:621499,5097,False
+present only,PMID_15266616_138,OMIM:147791,530,True
+present only,PMID_16021330_LDJP1_1,OMIM:620681,3,True
+present only,PMID_24498630_ISR1,OMIM:246200,688,True
+present only,PMID_36331550_Family_19_Patient_24,OMIM:620540,396,True
+present only,PMID_32376980_Patient_33_also_see_Urreizti_et_al_AJMG_2016_patient_P6_for_phenotypic_description,OMIM:618164,1076,True
+present only,PMID_23714749_Family_9_patient_13,OMIM:256810,2,True
+present only,PMID_37947183_Family_F6_individual_P9,OMIM:620771,7183,False
+present only,PMID_38579670_Individual_8,OMIM:620806,6150,False
+present only,PMID_36965478_Individual_6,OMIM:620515,6591,False
+present only,PMID_28984260_child,OMIM:232700,18,True
+present only,PMID_19768645_Patient_2,OMIM:151100,2,True
+present only,PMID_37761890_35,OMIM:616362,804,True
+present only,PMID_37349293_Patient_1,OMIM:620565,7456,False
+present only,PMID_40267907_Family_10,OMIM:621381,6905,False
+present only,PMID_31021519_individual_SATB2_95,OMIM:612313,499,True
+present only,PMID_38325380_Patient_14,OMIM:301118,7591,False
+present only,PMID_19896112_P2,OMIM:610042,4,True
+present only,PMID_36136088_Family_1_II_1,OMIM:620911,6241,False
+present only,PMID_35904126_Proband_8,OMIM:620450,6848,False
+present only,PMID_41125872_Pathogenic_19,OMIM:621456,5097,False
+present only,PMID_40856104_Participant_10_8,OMIM:621382,7122,False
+present only,PMID_35618278_XIII,OMIM:621248,1,True
+present only,PMID_2107739_sister_II_5,OMIM:621417,2723,False
+present only,PMID_28862745_PD_Case_5,OMIM:616840,5,True
+present only,PMID_38531365_Individual_2,OMIM:621325,7229,False
+present only,PMID_19807739_Patient_2,OMIM:240300,1,True
+present only,PMID_36549593_Id5,OMIM:621421,275,True
+present only,PMID_33674768_Patient_59_This_study,OMIM:300867,379,True
+present only,PMID_34521999_Individual_38,OMIM:617140,121,True
+present only,PMID_10749987_Family_B_patient_B1,OMIM:604377,1,True
+present only,PMID_22772368_5_III_1,OMIM:614816,4,True
+present only,PMID_30968594_individual_25,OMIM:201910,601,True
+present only,PMID_28007989_F1_II_3,OMIM:616457,4,True
+present only,PMID_24791903_Patient_1,OMIM:615829,2,True
+present only,PMID_18385497_Patient_1,OMIM:620952,6707,False
+present only,PMID_34612517_F3_II_3,OMIM:617478,1,True
+present only,PMID_32480058_Case_F1P1_original_pedigree_A_IX_2,OMIM:618052,4386,False
+present only,PMID_31721432_patient_4,OMIM:615032,2,True
+present only,PMID_39209701_Patient_2,OMIM:621232,2896,False
+present only,PMID_37660254_Patient_4,OMIM:620669,6810,False
+present only,PMID_36303223_Proband_15_from_PMID_12001203,OMIM:272300,1,True
+present only,PMID_19776401_Patient_1_1,OMIM:243700,13,True
+present only,PMID_36662884_P7,OMIM:621097,13,True
+present only,PMID_35310830_Individual_III_2,OMIM:619806,5802,False
+present only,PMID_39480921_Patient_12,OMIM:621034,7453,False
+present only,PMID_39306721_Family_15_Individual_21,OMIM:621060,5096,False
+present only,PMID_17110937_Patient_7,OMIM:610842,1,True
+present only,PMID_39721588_Individual_16,OMIM:621372,5931,False
+present only,PMID_23495017_Patient_8,OMIM:614332,6591,False
+present only,PMID_38858457_F5_individual_5,OMIM:620923,3,True
+present only,PMID_21696388_IV_6,OMIM:606693,37,True
+present only,PMID_37843397_Patient_1_7,OMIM:151660,1,True
+present only,PMID_24951643_Patient_5,OMIM:615120,537,True
+present only,PMID_32376980_Patient_19,OMIM:618164,399,True
+present only,PMID_40683276_Family_9_Patient_20,OMIM:621333,5771,False
+present only,PMID_32376980_Patient_45,OMIM:618164,1193,True
+present only,PMID_19818506_Patient_3,OMIM:608415,1,True
+present only,PMID_29050398_P1,OMIM:620540,8,True
+present only,PMID_10077612_Family_A_IV_20,OMIM:142900,1,True
+present only,PMID_26805781_Family_6_Subject_6_II_1,OMIM:616878,1,True
+present only,PMID_32765928_Case_2,OMIM:151100,2,True
+present only,PMID_36253531_Family_2_probed,OMIM:621237,4968,False
+present only,PMID_38531365_Individual_8,OMIM:621325,5097,False
+present only,PMID_38413582_Family_4_individual_II_2,OMIM:620793,3,True
+present only,PMID_22241092_Patient_CDL266,OMIM:122470,1,True
+present only,PMID_25802881_M39,OMIM:612463,73,True
+present only,PMID_17968484_Patient_4,OMIM:210200,62,True
+present only,PMID_38479391_Individual_12,OMIM:621049,5097,False
+present only,PMID_39306721_Family_21_Individual_28,OMIM:621060,6150,False
+present only,PMID_19683336_Patient_8,OMIM:256500,1,True
+present only,PMID_31569402_Family_2_Patient_I,OMIM:609192,3,True
+present only,PMID_41130203_F1_II_1,OMIM:621460,6479,False
+present only,PMID_18513678_individual_5030,OMIM:260300,299,True
+present only,PMID_34976470_fetus_one,OMIM:301127,54,True
+present only,PMID_37148315_Family_2_Proband_II_1,OMIM:621471,2896,False
+present only,PMID_39978342_P22,OMIM:621185,5803,False
+present only,PMID_23913798_Patient_1,OMIM:620458,5,True
+present only,PMID_26833330_F1_II3,OMIM:616829,1,True
+present only,PMID_36182950_Patient_85,OMIM:615032,1,True
+present only,PMID_25168959_Patient_L43,OMIM:614608,8,True
+present only,PMID_29379883_Family_1_patient_1,OMIM:616907,1,True
+present only,PMID_21358634_Family_4,OMIM:132800,3128,False
+present only,PMID_38411716_Case_2,OMIM:305400,2,True
+present only,PMID_41130203_F5_II_3,OMIM:621460,5359,False
+present only,PMID_27536553_Patient_4,OMIM:256810,1,True
+present only,PMID_4045952_IV_13,OMIM:301310,1,True
+present only,PMID_31898322_case_20_son_of_19,OMIM:615582,70,True
+present + absent,PMID_30315159_Patient_5,OMIM:620475,2852,True
+present + absent,PMID_27087320_Subject_9,OMIM:616975,7367,False
+present + absent,PMID_20358602_Patient_C8,OMIM:122470,36,True
+present + absent,PMID_18551513_8,OMIM:613205,299,True
+present + absent,PMID_38991538_Individual_22_120746,OMIM:620851,21,True
+present + absent,PMID_40442284_RNU2_2_Individual_3,OMIM:621304,35,True
+present + absent,PMID_23495017_Patient_7,OMIM:614332,6651,False
+present + absent,PMID_39073169_Patient_F1_III_5,OMIM:301134,5097,False
+present + absent,PMID_39013458_individual_VUSM110013,OMIM:610253,730,True
+present + absent,PMID_28575651_Individual_3,OMIM:617560,61,True
+present + absent,PMID_37761890_60,OMIM:616362,1102,True
+present + absent,PMID_36195757_Proband_8,OMIM:621402,6796,False
+present + absent,PMID_40455867_P3,OMIM:621475,686,True
+present + absent,PMID_33674768_Patient_17_This_study,OMIM:300867,574,True
+present + absent,PMID_35143101_Family_WGSI059JH_individual_iw182,OMIM:618428,1965,True
+present + absent,PMID_34338282_GLSP_family_3,OMIM:206700,1,True
+present + absent,PMID_29333303_proposita,OMIM:269150,36,True
+present + absent,PMID_27764983_Family_2_Individual_MZ,OMIM:162000,2,True
+present + absent,PMID_30965037_Patient_2,OMIM:616873,86,True
+present + absent,PMID_18669544_FO_08,OMIM:209900,1,True
+present + absent,PMID_30580808_Patient_9,OMIM:618362,7680,False
+present + absent,PMID_31727177_patient_6,OMIM:147920,2,True
+present + absent,PMID_18264100_Family_2_patient_II1,OMIM:231095,1,True
+present + absent,PMID_31666973_Patient_EYE65,OMIM:613826,1,True
+present + absent,PMID_30679813_Individual_22,OMIM:618089,2635,True
+present + absent,PMID_23505306_Patient_1,OMIM:613826,1,True
+present + absent,PMID_26178382_UAB_R5455_I2,OMIM:162200,3,True
+present + absent,PMID_40576023_Family_6_IV_4,OMIM:621344,600,True
+present + absent,PMID_26997095_patient,OMIM:256500,1,True
+present + absent,PMID_41125872_Pathogenic_08,OMIM:621456,6241,False
+present + absent,PMID_19353847_patient,OMIM:604377,1,True
+present + absent,PMID_35190816_STX_29896790_P3,OMIM:612164,23,True
+present + absent,PMID_37183190_Family_7_individual_ind_11,OMIM:610042,39,True
+present + absent,PMID_31396399_Family_2individual_10,OMIM:616276,12,True
+present + absent,PMID_24321194_II_2,OMIM:248250,1,True
+present + absent,PMID_24997176_Family_15,OMIM:613826,1,True
+present + absent,PMID_24736735_G072_F,OMIM:146510,9,True
+present + absent,PMID_36446582_Goldenberg2016_P15,OMIM:148050,5054,True
+present + absent,PMID_39191256_T_30,OMIM:620996,3625,False
+present + absent,PMID_37196654_Individual_44_DDD_286674,OMIM:618505,57,True
+present + absent,PMID_39073169_Patient_F1_III_7,OMIM:301134,5097,False
+present + absent,PMID_37183190_Family_10_individual_ind_14,OMIM:610042,26,True
+present + absent,PMID_23273567_individual_FII_2,OMIM:258480,1133,True
+present + absent,PMID_40210435_A_III_2,OMIM:621507,7224,False
+present + absent,PMID_19864201_Case_4,OMIM:151100,176,True
+present + absent,PMID_29040572_Family_7_individual,OMIM:620887,3,True
+present + absent,PMID_39013458_individual_KS110019_VUSM110007,OMIM:610253,2466,True
+present + absent,PMID_39013458_individual_KS110047,OMIM:610253,64,True
+present + absent,PMID_37196654_Individual_65,OMIM:618505,101,True
+present + absent,PMID_35484142_F6_P7,OMIM:620460,7372,False
+present + absent,PMID_30170160_P5,OMIM:620816,1,True
+present + absent,PMID_25439728_IV_3,OMIM:616354,78,True
+present + absent,PMID_34214472_patient_P3,OMIM:620901,5027,False
+present + absent,PMID_36067010_Family_1_Patient_1,OMIM:620504,7446,False
+present + absent,PMID_22034507_DIII_1,OMIM:162000,1,True
+present + absent,PMID_28137957_HSP84_II_1,OMIM:617225,1368,True
+present + absent,PMID_20513137_individual_N986_GSM_GSM492723,OMIM:162200,20,True
+present + absent,PMID_9101303_patient,OMIM:162200,4,True
+present + absent,PMID_17187620_child,OMIM:604377,2,True
+present + absent,PMID_37951597_Family_17_Subject_1,OMIM:620785,6890,False
+present + absent,PMID_26047050_Patient_SRF153,OMIM:613826,1,True
+present + absent,PMID_36316122_case_presentation,OMIM:621079,1584,True
+present + absent,PMID_32480058_Case_F7P2,OMIM:618052,8092,False
+present + absent,PMID_21487076_Patient_II_4,OMIM:620607,107,True
+present + absent,PMID_36189931_6,OMIM:130050,1,True
+present + absent,PMID_37962958_Individual_11,OMIM:620535,1855,True
+present + absent,PMID_28065471_PV_1,OMIM:617403,3072,True
+present + absent,PMID_33674768_Patient_38_This_study,OMIM:300867,1380,True
+present + absent,PMID_21660509_Indian_familye,OMIM:601869,115,True
+present + absent,PMID_30679813_Individual_3,OMIM:618089,283,True
+present + absent,PMID_35190816_STX_STXBP1adult_Pt6,OMIM:612164,35,True
+present + absent,PMID_37843397_Patient_UM9,OMIM:151660,4,True
+present + absent,PMID_18423521_Patient_1b,OMIM:113620,1,True
+present + absent,PMID_36586412_Individual_6,OMIM:301111,2222,True
+present + absent,PMID_30072743_individual_237_523,OMIM:613826,16,True
+present + absent,PMID_30170160_P7,OMIM:620816,1,True
+present + absent,PMID_34606115_F3_6,OMIM:621424,4738,True
+present + absent,PMID_35923690_50_2,OMIM:105650,148,True
+present + absent,PMID_26178382_UAB_R4346,OMIM:162200,524,True
+present + absent,PMID_18256394_Patient_12,OMIM:176670,730,True
+present + absent,PMID_35190816_STX_26865513_Patient_16,OMIM:612164,27,True
+present + absent,PMID_28652255_V_3,OMIM:208920,175,True
+present + absent,PMID_37684057_10_yr_old_boy,OMIM:618443,685,True
+present + absent,PMID_37761890_29,OMIM:616362,3418,True
+present + absent,PMID_39013458_individual_KS110043_VUSM110019,OMIM:610253,534,True
+present + absent,PMID_39306721_Family_6_Individual_7,OMIM:621060,6478,False
+present + absent,PMID_37163662_Family_A_Patient_1,OMIM:620775,74,True
+present + absent,PMID_33087723_E4,OMIM:619375,3580,False
+present + absent,PMID_15452312_III_5,OMIM:604187,650,True
+present + absent,PMID_14531790_F762_individual_IV_3,OMIM:162000,3,True
+present + absent,PMID_37963460_Family_2_individual_II_1,OMIM:620852,8029,False
+present + absent,PMID_21217753_Fam_1_IV_9,OMIM:613795,2,True
+present + absent,PMID_39013458_individual_KS110005,OMIM:610253,641,True
+present + absent,PMID_36446582_Gnazzo_2020_P20,OMIM:148050,2,True
+present + absent,PMID_23664117_family_F9_subject_P10,OMIM:615349,2,True
+present + absent,PMID_30451291_V_1,OMIM:300088,1238,True
+present + absent,PMID_38154379_4_Family_2,OMIM:620767,7608,False
+present + absent,PMID_38950288_Proband_3,OMIM:621251,2798,False
+present + absent,PMID_35190816_STX_Syrbe_10,OMIM:612164,88,True
+present + absent,PMID_36446582_KBG10B,OMIM:148050,260,True
+present + absent,PMID_39442041_Patient_2,OMIM:621012,7492,False
+present + absent,PMID_34038384_Family_B_III_15,OMIM:620755,5096,False
+present + absent,PMID_32376980_Patient_30,OMIM:618164,216,True
+present + absent,PMID_30968594_individual_16,OMIM:201910,186,True
+present + absent,PMID_31898322_case_9_index,OMIM:615582,8453,True
+present + absent,PMID_34363755_Family_1_individual_P1,OMIM:620880,7943,False
+present + absent,PMID_38815585_Individual_3,OMIM:620985,331,True
+present + absent,PMID_36006710_Patient_3,OMIM:620430,3812,False
+present + absent,PMID_33674768_Patient_10_Guo_2018_BMC_Med_Genet_19_206,OMIM:300867,541,True
+present + absent,PMID_16865293_Family_4_individual_8Y1M,OMIM:216400,1,True
+present + absent,PMID_36446582_Ockeloen2015_P2,OMIM:148050,9,True
+present + absent,PMID_34655521_Patient_6,OMIM:620990,1006,False
+present + absent,PMID_39315527_Family_9_IV_2,OMIM:621354,6136,False
+present + absent,PMID_37843397_TR36,OMIM:151660,1,True
+present + absent,PMID_15266616_136,OMIM:147791,1544,True
+present + absent,PMID_40267907_Family_1_1,OMIM:621381,8039,False
+present + absent,PMID_40965981_Individual_3,OMIM:621495,7126,False
+present + absent,PMID_36553465_P3,OMIM:606574,24,True
+present + absent,PMID_29359243_29359243_P1,OMIM:616370,1016,True
+present + absent,PMID_28940506_Family_9_Individual_10,OMIM:615471,34,True
+present + absent,PMID_28625504_SA1_3,OMIM:617622,5800,False
+present + absent,PMID_35190816_STX_29896790_P2,OMIM:612164,15,True
+present + absent,PMID_37964426_Individual_F2594S_3,OMIM:117360,17,True
+present + absent,PMID_40146200_Family3_IV_4_P8,OMIM:621209,2,True
+present + absent,PMID_37827158_Proband_8,OMIM:621265,7534,False
+present + absent,PMID_39369315_Participant_5,OMIM:620851,8,True
+present + absent,PMID_29110636_proband_VMFS,OMIM:107480,20,True
+present + absent,PMID_38413182_Patient_1,OMIM:621225,7008,False
+present + absent,PMID_39970126_FAMILY_1_individual_F1P7_pedigree_III11,OMIM:621236,6409,False
+present + absent,PMID_39753129_Family_2_II_1,OMIM:621080,2798,False
+present + absent,PMID_17460694_F010191,OMIM:609053,5,True
+present + absent,PMID_22155372_8_year_old_girl,OMIM:609622,1,True
+present + absent,PMID_34521999_Individual_26,OMIM:617140,37,True
+present + absent,PMID_24321194_II_3,OMIM:248250,6,True
+present + absent,PMID_28949039_Case_4,OMIM:159900,30,True
+present + absent,PMID_31449058_Patient_2,OMIM:620836,183,True
+present + absent,PMID_17273967_III_5,OMIM:602400,6,True
+present + absent,PMID_25851998_Sibling_2,OMIM:616638,444,True
+present + absent,PMID_29290338_Family_UAB_R2546_individual_RS,OMIM:162200,2,True
+present + absent,PMID_25845469_Patient_2,OMIM:614249,1024,True
+present + absent,PMID_36446582_Kutkowska_Kazmierczak2021_P17,OMIM:148050,5014,True
+present + absent,PMID_12203992_Patient_D30,OMIM:154700,6,True
+present + absent,PMID_27087320_Subject_6,OMIM:616975,7475,False
+present + absent,PMID_28687524_proband,OMIM:602342,20,True
+present + absent,PMID_11344241_Individual_III_3,OMIM:151660,1,True
+present + absent,PMID_37660254_Patient_3,OMIM:620669,7096,False
+present + absent,PMID_22541558_individual_J_1,OMIM:154400,152,True
+present + absent,PMID_37962958_Individual_31,OMIM:620535,1585,True
+present + absent,PMID_37256937_Patient_4,OMIM:621539,5931,False
+present + absent,PMID_37256937_Patient_10,OMIM:621539,5930,False
+present + absent,PMID_40420380_Participant_2,OMIM:621474,41,True
+present + absent,PMID_33450762_P1_Mother,OMIM:621091,6235,False
+present + absent,PMID_21696388_IV_1,OMIM:606693,32,True
+present + absent,PMID_15266616_3,OMIM:147791,487,True
+present + absent,PMID_22241092_Patient_CDL406,OMIM:122470,1,True
+present + absent,PMID_39753129_Family_4_I_2,OMIM:621080,4432,False
+present + absent,PMID_34363755_Family_3_individual_P4,OMIM:620880,6747,False
+present + absent,PMID_36189931_1,OMIM:130050,2,True
+present + absent,PMID_23495017_Patient_5a,OMIM:614332,6960,False
+present + absent,PMID_33576469_Patient_5,OMIM:129600,4,True
+present + absent,PMID_33633439_17413_II_1,OMIM:620731,7,True
+present + absent,PMID_30152016_Case_5,OMIM:615829,140,True
+present + absent,PMID_38977784_PE30_II_5,OMIM:621182,112,True
+present + absent,PMID_37196654_Individual_76,OMIM:618505,93,True
+present + absent,PMID_36751037_Family_K_Patient_15,OMIM:621192,1093,True
+present + absent,PMID_16439204_P1,OMIM:611291,1,True
+present + absent,PMID_29469822_Family_12_V_1,OMIM:605275,9,True
+present + absent,PMID_37196654_Individual_52_SSC_12683_p1,OMIM:618505,35,True
+present + absent,PMID_31021519_individual_from_Trakadis_et_al,OMIM:612313,24,True
+present + absent,PMID_26541327_Pat_11_FX,OMIM:614800,3234,True
+present + absent,PMID_38791218_Family_1_Patient_1_I_2,OMIM:621434,3966,False
+present + absent,PMID_36823193_Patient_4_Family_3,OMIM:620451,7296,False
+present + absent,PMID_38740982_Family_5_Individual_5,OMIM:618089,1472,True
+present + absent,PMID_38566089_Case_presentation,OMIM:617140,59,True
+present + absent,PMID_37196654_Individual_15,OMIM:618505,40,True
+present + absent,PMID_35716097_Patient_5,OMIM:615829,1,True
+present + absent,PMID_38858457_F8_individual_11,OMIM:620923,28,True
+present + absent,PMID_40830826_Family_3_II_2,OMIM:621488,6842,False
+present + absent,PMID_37963460_Family_1_individual_III_1,OMIM:620852,7002,False
+present + absent,PMID_33674768_Patient_32_This_study,OMIM:300867,34,True
+present + absent,PMID_40043708_F5,OMIM:621195,6346,False
+present + absent,PMID_10580070_Family_B_individual_III_11,OMIM:115200,772,True
+present + absent,PMID_37962958_Individual_40,OMIM:620535,1946,True
+present + absent,PMID_38480682_F3_II_1,OMIM:620786,6806,False
+present + absent,PMID_27250695_Family_13_patient_18,OMIM:608716,184,True
+present + absent,PMID_36303223_Proband_7_from_PMID_12112661,OMIM:272300,634,True
+present + absent,PMID_27894351_14DG0714,OMIM:620943,2,True
+present + absent,PMID_35923690_50_7,OMIM:105650,214,True
+present + absent,PMID_20519243_Patient_2,OMIM:142900,25,True
+present + absent,PMID_12384777_Family_5_5A,OMIM:613850,3204,False
+present + absent,PMID_12058348_Patient_5,OMIM:151100,1324,True
+present + absent,PMID_35308163_Patient_2,OMIM:605911,67,True
+present + absent,PMID_17245395_Family_K8_individual_II_2,OMIM:162000,6,True
+present + absent,PMID_38702431_Patient_2,OMIM:620985,73,True
+present + absent,PMID_35344616_A19,OMIM:268310,3,True
+present + absent,PMID_37418012_Family_1_IV_5,OMIM:621226,5,True
+present + absent,PMID_33277917_Patient_8,OMIM:616364,1,True
+present + absent,PMID_39191256_A_1b,OMIM:620996,3625,False
+present + absent,PMID_26942287_UMCN9,OMIM:616364,4,True
+present + absent,PMID_24736735_G16012,OMIM:175700,397,True
+present + absent,PMID_22693999_family_member_III_2,OMIM:620659,6230,False
+present + absent,PMID_39708122_F1_VI_2,OMIM:621182,30,True
+present + absent,PMID_29707406_A_II_2,OMIM:606854,9,True
+present + absent,PMID_25511235_B3_1,OMIM:605911,1,True
+present + absent,PMID_38054405_Family_1_individual_P2,OMIM:620746,116,True
+present + absent,PMID_27108797_F2_II1,OMIM:206700,1,True
+present + absent,PMID_24443441_P_2,OMIM:620969,5564,False
+present + absent,PMID_38459354_Family_2_proband,OMIM:620794,2285,False
+present + absent,PMID_29181157_Patient,OMIM:618977,1,True
+present + absent,PMID_20853184_NAPO_6,OMIM:606693,1,True
+present + absent,PMID_34645992_Individual_1,OMIM:616364,445,True
+present + absent,PMID_20082460_case_9,OMIM:305400,18,True
+present + absent,PMID_30580808_Patient_11,OMIM:618362,7818,False
+present + absent,PMID_37071997_Subject_I17,OMIM:620489,7460,False
+present + absent,PMID_38740982_Family_4_Individual_4_1,OMIM:618089,8149,True
+present + absent,PMID_40146200_Family1_IV_1_P1,OMIM:621209,23,True
+present + absent,PMID_39191256_A_5b,OMIM:620996,3625,False
+present + absent,PMID_22726846_Individual_KS47,OMIM:614608,2509,True
+present + absent,PMID_38230350_Proband_P5_family_B_B_II_2,OMIM:620777,5481,False
+present + absent,PMID_22541559_individual_G_013_IV_6,OMIM:611091,225,True
+present + absent,PMID_33977139_Patient_5,OMIM:609528,629,True
+present + absent,PMID_31569402_Family_8_Patient_I,OMIM:609192,36,True
+present + absent,PMID_28940506_Family_8_Individual_9,OMIM:615471,1,True
+present + absent,PMID_25511235_A1_4,OMIM:605911,1,True
+present + absent,PMID_21683322_AD_Family_27_b,OMIM:102370,3,True
+present + absent,PMID_32154675_Family_7_Patient_16,OMIM:613795,4,True
+present + absent,PMID_38465576_Individual_2,OMIM:621263,7980,False
+present + absent,PMID_34906488_Individual_7,OMIM:621063,46,True
+present + absent,PMID_35977029_Family_3_individualND,OMIM:620494,263,True
+present + absent,PMID_37024973_Trio_2_proband,OMIM:621231,1,True
+present + absent,PMID_38014483_Family_c_individual_c_4,OMIM:620666,29,True
+present + absent,PMID_33534181_patient,OMIM:256500,1,True
+present + absent,PMID_37054711_Family_7_Subject_9,OMIM:620428,6905,False
+present + absent,PMID_32480058_Case_F13P1,OMIM:618052,7618,False
+present + absent,PMID_39636576_F4_Australia_P6,OMIM:621201,194,True
+present + absent,PMID_16965330_Sibling_of_patient_7,OMIM:240300,1,True
+present + absent,PMID_36996813_Individual_12,OMIM:620371,6324,False
+present + absent,PMID_26706854_Subject_1_1,OMIM:603671,424,True
+present + absent,PMID_39315527_Family_16_Najmabadi_et_al_II_3,OMIM:621354,6242,False
+present + absent,PMID_31001818_individual_5_DDD_CAM272076,OMIM:615032,1,True
+present + absent,PMID_36047608_Patient_1_F1_II_4,OMIM:620666,4,True
+present + absent,PMID_36136088_Family_2_II_3,OMIM:620911,7148,False
+present + absent,PMID_35743164_P11,OMIM:117360,2,True
+present + absent,PMID_35911904_III_4,OMIM:610042,474,True
+present + absent,PMID_30099644_IV_11,OMIM:600138,557,True
+present + absent,PMID_32480058_Case_F6P1_original_pedigree_II_1,OMIM:618052,7087,False
+present + absent,PMID_21217753_Fam_1_III_3,OMIM:613795,16,True
+present + absent,PMID_25802881_P72,OMIM:103580,404,True
+present + absent,PMID_37895315_Patient_4_HTP964,OMIM:621248,85,True
+present + absent,PMID_40146200_Family2_IV_5_P4,OMIM:621209,11,True
+present + absent,PMID_21358634_Family_8,OMIM:132800,3125,False
+present + absent,PMID_19683336_Patient_5,OMIM:256500,1,True
+present + absent,PMID_18669544_FO_06,OMIM:209900,2,True
+present + absent,PMID_29050284_proband_II_5,OMIM:203200,20,True
+present + absent,PMID_40267907_Family_6_1,OMIM:621381,6479,False
+present + absent,PMID_20887961_Patient_2,OMIM:600920,1,True
+present + absent,PMID_17646629_index_patient_II_3,OMIM:607259,180,True
+present + absent,PMID_21236492_Individual_P10,OMIM:614199,226,True
+present + absent,PMID_31853710_II_2,OMIM:621095,24,True
+present + absent,PMID_37895315_Patient_1_HTP1301,OMIM:621248,15,True
+present + absent,PMID_25802881_P43,OMIM:103580,2,True
+present + absent,PMID_24736735_G111,OMIM:175700,239,True
+present + absent,PMID_39191256_T_14,OMIM:620996,3625,False
+present + absent,PMID_32710489_Group_1_Patient_7,OMIM:620155,8404,False
+present + absent,PMID_25704603_Family_M328_individual_IV_1,OMIM:616269,7105,False
+present + absent,PMID_38158856_Patient_4_Family_III,OMIM:621566,8210,False
+present + absent,PMID_10077612_Family_A_IV_14,OMIM:142900,19,True
+present + absent,PMID_33578420_1_year_old_female,OMIM:620528,9,True
+present + absent,PMID_36103875_Individual_1,OMIM:620502,6148,False
+present + absent,PMID_37875108_Patient_3,OMIM:301115,5640,False
+present + absent,PMID_31021519_SATB2_10_from_Zarate_et_al_2018a,OMIM:612313,170,True
+present + absent,PMID_31021519_SATB2_54_from_Zarate_et_al_2018a,OMIM:612313,70,True
+present + absent,PMID_25959430_individual_IV_2_family_A,OMIM:602875,33,True
+present + absent,PMID_41125872_Pathogenic_06,OMIM:621457,7067,False
+present + absent,PMID_37768732_Family_2_Patient_2,OMIM:621280,26,True
+present + absent,PMID_40683276_Family_7_Patient_17,OMIM:621333,7003,False
+present + absent,PMID_25802881_M10,OMIM:612463,336,True
+present + absent,PMID_39369315_Participant_4,OMIM:620851,1,True
+present + absent,PMID_12632326_subject_1,OMIM:606217,2798,False
+present + absent,PMID_32765928_Case_3,OMIM:151100,7,True
+present + absent,PMID_40856104_Participant_2_1,OMIM:621382,6905,False
+present + absent,PMID_31239556_individual_34,OMIM:615502,269,True
+present + absent,PMID_10939567_Patient_EMD5_III_3,OMIM:181350,7,True
+present + absent,PMID_9312167_A_I_2,OMIM:179800,2246,True
+present + absent,PMID_24259288_III_10,OMIM:300868,2,True
+present + absent,PMID_36256512_F10_II_2,OMIM:620938,236,True
+present + absent,PMID_38404363_Family_1_II_3,OMIM:621164,1,True
+present + absent,PMID_28611345_case_report,OMIM:614800,8465,True
+present + absent,PMID_21367767_F39_II_3,OMIM:606658,2,True
+present + absent,PMID_30558828_Patient,OMIM:614800,4084,True
+present + absent,PMID_39500882_Patient_3,OMIM:621212,8180,False
+present + absent,PMID_30152016_Patient_5,OMIM:615829,7,True
+present + absent,PMID_24736735_G109_Father,OMIM:175700,125,True
+present + absent,PMID_38430071_F1_II_2,OMIM:621313,328,True
+present + absent,PMID_32631816_Patient_IV_2_1,OMIM:620703,6,True
+present + absent,PMID_30881852_index_case,OMIM:161200,1,True
+present + absent,PMID_38977784_PKMR471_IV_4,OMIM:621182,580,True
+present + absent,PMID_38503300_Individual_4,OMIM:620807,6469,False
+present + absent,PMID_37541189_Individual_12,OMIM:620688,7184,False
+present + absent,PMID_36586412_Individual_5,OMIM:301111,3391,True
+present + absent,PMID_33744911_III_9,OMIM:621078,347,True
+present + absent,PMID_14569098_F1_individual_4,OMIM:162000,2,True
+present + absent,PMID_30050362_individual_II_3,OMIM:228600,152,True
+present + absent,PMID_31021519_individual_SATB2_100,OMIM:612313,481,True
+present + absent,PMID_34521999_Individual_18,OMIM:617140,224,True
+present + absent,PMID_38325380_Patient_1,OMIM:301118,8259,False
+present + absent,PMID_25477417_F5_1,OMIM:248250,1,True
+present + absent,PMID_36331550_Family_20_Patient_25,OMIM:620540,98,True
+present + absent,PMID_38740982_Family_4_Individual_4,OMIM:618089,1514,True
+present + absent,PMID_36074124_1_01687,OMIM:620570,4878,False
+present + absent,PMID_31337854_Patient_39,OMIM:122470,1,True
+present + absent,PMID_28782633_Family_1_11_year_old_son_P9,OMIM:620670,5204,False
+present + absent,PMID_21660509_PKDF1258b,OMIM:601869,115,True
+present + absent,PMID_36929019_F2_II4,OMIM:621331,6043,False
+present + absent,PMID_36303223_Proband_6_from_PMID_12112661,OMIM:272300,634,True
+present + absent,PMID_39390489_Patient_1,OMIM:620401,39,True
+present + absent,PMID_36307226_Proband_8,OMIM:620537,9,True
+present + absent,PMID_37951597_Family_3_Subject_2,OMIM:620785,7296,False
+present + absent,PMID_30622725_patient,OMIM:614800,2433,True
+present + absent,PMID_37876076_patient,OMIM:616900,36,True
+present + absent,PMID_22305531_IV_2,OMIM:300868,1,True
+present + absent,PMID_39962046_C_II_2,OMIM:621154,6478,False
+present + absent,PMID_36351433_F1_IV_1,OMIM:620908,7924,False
+present + absent,PMID_25477417_F3_1,OMIM:248250,1,True
+present + absent,PMID_22772368_7_III_1,OMIM:614816,5,True
+present + absent,PMID_37951597_Family_23_Subject_1,OMIM:620785,6127,False
+present + absent,PMID_28074573_HC2,OMIM:163950,60,True
+present + absent,PMID_35142290_III_3,OMIM:620999,4300,False
+present + absent,PMID_23714749_Family_5_patient_7,OMIM:256810,113,True
+present + absent,PMID_35618278_IX,OMIM:621248,1,True
+present + absent,PMID_38230350_Proband_P3_family_A_II_3,OMIM:620777,5528,False
+present + absent,PMID_36001342_Patient_III_3,OMIM:618428,508,True
+present + absent,PMID_37075751_Individual_3,OMIM:616462,1686,True
+present + absent,PMID_34421895_P1,OMIM:619375,328,True
+present + absent,PMID_29127725_Patient_1,OMIM:174300,217,True
+present + absent,PMID_15976030_kindred_A_patient_8,OMIM:609549,3615,False
+present + absent,PMID_22541559_individual_M_192_V_3,OMIM:611091,84,True
+present + absent,PMID_37943617_Patient_4_IV_5,OMIM:621068,7881,False
+present + absent,PMID_37584719_Patient_P10,OMIM:620815,471,True
+present + absent,PMID_36695497_Individual_6,OMIM:620731,3,True
+present + absent,PMID_36135717_Patient_1,OMIM:621194,2589,False
+present + absent,PMID_32980981_Individual_III_2,OMIM:621295,1,True
+present + absent,PMID_31527767_III_12,OMIM:129600,2,True
+present + absent,PMID_24721225_Patient_III_1,OMIM:301111,115,True
+present + absent,PMID_38508705_Case_8,OMIM:621500,5096,False
+present + absent,PMID_24736735_G070,OMIM:175700,434,True
+present + absent,PMID_37071997_Subject_I12,OMIM:620489,5536,False
+present + absent,PMID_34890546_M120_Mayo_R1097,OMIM:621164,1,True
+present + absent,PMID_37256937_Patient_5,OMIM:621539,5930,False
+present + absent,PMID_38404363_Family_1_III_1,OMIM:621164,1,True
+present + absent,PMID_36553465_P10,OMIM:606574,18,True
+present + absent,PMID_34950897_Patient_5,OMIM:615829,3826,True
+present + absent,PMID_39117932_individual_12,OMIM:609322,577,True
+present + absent,PMID_31643139_Patient_3,OMIM:616831,8,True
+present + absent,PMID_39069253_individual_10_Weiss_et_al,OMIM:618619,41,True
+present + absent,PMID_34521999_Individual_13,OMIM:617140,226,True
+present + absent,PMID_35603789_Patient_3_D24N_D24N,OMIM:621512,161,True
+present + absent,PMID_39315527_Family_15_Al_Kasbi_et_al_IV_1,OMIM:621354,7067,False
+present + absent,PMID_36067010_Family_3_Patient_5,OMIM:620504,7433,False
+present + absent,PMID_24164096_patient,OMIM:159950,282,True
+present + absent,PMID_37154409_BII_2,OMIM:606658,4,True
+present + absent,PMID_31057532_Family_A_individual_A_II_1,OMIM:616873,131,True
+present + absent,PMID_7517574_EFA,OMIM:620813,13,True
+present + absent,PMID_20799361_Patient_2,OMIM:611590,72,True
+present + absent,PMID_23714749_Family_7_patient_10,OMIM:256810,1008,True
+present + absent,PMID_39306721_Family_10_Individual_15,OMIM:621060,7357,False
+present + absent,PMID_39315527_Family_9_IV_1,OMIM:621354,6714,False
+present + absent,PMID_26981933_Family_B_individual_B7,OMIM:616873,1191,True
+present + absent,PMID_16865293_Family_2_individual_9Y11M,OMIM:216400,1,True
+present + absent,PMID_38991538_Individual_28_UDN135254,OMIM:620851,1,True
+present + absent,PMID_16965330_patient_9,OMIM:240300,2,True
+present + absent,PMID_37843397_TR6,OMIM:151660,1,True
+present + absent,PMID_37063705_F1_3,OMIM:621424,158,True
+present + absent,PMID_34415117_patient_2,OMIM:615032,1,True
+present + absent,PMID_37947183_Family_F7_individual_P10,OMIM:620771,7704,False
+present + absent,PMID_38430071_F1_II_1,OMIM:621313,116,True
+present + absent,PMID_25835445_2_II_4,OMIM:615582,2240,True
+present + absent,PMID_19800048_UW87,OMIM:300804,3733,True
+present + absent,PMID_30612693_Individual_13,OMIM:618443,1889,True
+present + absent,PMID_39191256_A_9,OMIM:620996,3615,False
+present + absent,PMID_21358634_Family_13,OMIM:132800,3125,False
+present + absent,PMID_23222957_Family_7_7_1,OMIM:242840,1,True
+present + absent,PMID_38626355_UNC_186_II1,OMIM:620984,6417,False
+present + absent,PMID_25477417_F8_1,OMIM:248250,1,True
+present + absent,PMID_36189931_20,OMIM:130050,3,True
+present + absent,PMID_34974531_Case_22,OMIM:620943,70,True
+present + absent,PMID_30580808_Patient_8,OMIM:618362,7440,False
+present + absent,PMID_39233737_Patient_1,OMIM:621481,7284,False
+present + absent,PMID_16571880_cohort,OMIM:610042,1,True
+present + absent,PMID_21217753_Fam_1_III_8,OMIM:613795,2,True
+present + absent,PMID_36777704_Patient_1,OMIM:122470,1,True
+present + absent,PMID_28103835_proband_IV_3,OMIM:305400,13,True
+present + absent,PMID_24355708_IHG25357_individual_1,OMIM:215470,1,True
+present + absent,PMID_33235621_Case_report,OMIM:610168,41,True
+present + absent,PMID_32376980_Patient_29,OMIM:618164,566,True
+present + absent,PMID_40442284_RNU5B_1_Individual_1,OMIM:621302,31,True
+present + absent,PMID_27939640_individual_P6,OMIM:617333,5616,True
+present + absent,PMID_37963460_Family_4_individual_III_2,OMIM:620852,7907,False
+present + absent,PMID_20375004_3_I_1,OMIM:184900,6694,False
+present + absent,PMID_28065471_PIII_1,OMIM:617403,5459,True
+present + absent,PMID_25480986_individual_B_1,OMIM:275400,1,True
+present + absent,PMID_34890546_M1629_Mayo_II_1,OMIM:621164,1,True
+present + absent,PMID_40259859_Family_2_II_1,OMIM:621260,6323,False
+present + absent,PMID_38118446_F2_I_3,OMIM:620888,6448,False
+present + absent,PMID_23335590_Subject_3269,OMIM:304110,2,True
+present + absent,PMID_38325380_Patient_10,OMIM:301118,7970,False
+present + absent,PMID_38950322_P1,OMIM:620960,7195,False
+present + absent,PMID_41716553_Patient_1,OMIM:613670,160,True
+present + absent,PMID_11950863_Individual_I_3,OMIM:311200,1,True
+present + absent,PMID_38118446_F10_I_12,OMIM:617988,1,True
+present + absent,PMID_37656279_Pedigree_A_II_3,OMIM:620510,7685,False
+present + absent,PMID_39480921_Patient_11,OMIM:621034,6288,False
+present + absent,PMID_40519748_Family_2_individual_III_4,OMIM:621499,5098,False
+present + absent,PMID_15266616_138,OMIM:147791,599,True
+present + absent,PMID_16021330_LDJP1_1,OMIM:620681,3,True
+present + absent,PMID_24498630_ISR1,OMIM:246200,676,True
+present + absent,PMID_36331550_Family_19_Patient_24,OMIM:620540,640,True
+present + absent,PMID_32376980_Patient_33_also_see_Urreizti_et_al_AJMG_2016_patient_P6_for_phenotypic_description,OMIM:618164,1070,True
+present + absent,PMID_23714749_Family_9_patient_13,OMIM:256810,440,True
+present + absent,PMID_37947183_Family_F6_individual_P9,OMIM:620771,7178,False
+present + absent,PMID_38579670_Individual_8,OMIM:620806,6150,False
+present + absent,PMID_36965478_Individual_6,OMIM:620515,6591,False
+present + absent,PMID_28984260_child,OMIM:232700,11,True
+present + absent,PMID_19768645_Patient_2,OMIM:151100,39,True
+present + absent,PMID_37761890_35,OMIM:616362,928,True
+present + absent,PMID_37349293_Patient_1,OMIM:620565,7459,False
+present + absent,PMID_40267907_Family_10,OMIM:621381,6902,False
+present + absent,PMID_31021519_individual_SATB2_95,OMIM:612313,2601,True
+present + absent,PMID_38325380_Patient_14,OMIM:301118,7575,False
+present + absent,PMID_19896112_P2,OMIM:610042,3,True
+present + absent,PMID_36136088_Family_1_II_1,OMIM:620911,6241,False
+present + absent,PMID_35904126_Proband_8,OMIM:620450,6848,False
+present + absent,PMID_41125872_Pathogenic_19,OMIM:621456,5097,False
+present + absent,PMID_40856104_Participant_10_8,OMIM:621382,7122,False
+present + absent,PMID_35618278_XIII,OMIM:621248,1,True
+present + absent,PMID_2107739_sister_II_5,OMIM:621417,2723,False
+present + absent,PMID_28862745_PD_Case_5,OMIM:616840,5,True
+present + absent,PMID_38531365_Individual_2,OMIM:621325,7230,False
+present + absent,PMID_19807739_Patient_2,OMIM:240300,1,True
+present + absent,PMID_36549593_Id5,OMIM:621421,182,True
+present + absent,PMID_33674768_Patient_59_This_study,OMIM:300867,460,True
+present + absent,PMID_34521999_Individual_38,OMIM:617140,239,True
+present + absent,PMID_10749987_Family_B_patient_B1,OMIM:604377,1,True
+present + absent,PMID_22772368_5_III_1,OMIM:614816,5,True
+present + absent,PMID_30968594_individual_25,OMIM:201910,687,True
+present + absent,PMID_28007989_F1_II_3,OMIM:616457,4,True
+present + absent,PMID_24791903_Patient_1,OMIM:615829,1,True
+present + absent,PMID_18385497_Patient_1,OMIM:620952,6707,False
+present + absent,PMID_34612517_F3_II_3,OMIM:617478,2,True
+present + absent,PMID_32480058_Case_F1P1_original_pedigree_A_IX_2,OMIM:618052,4378,False
+present + absent,PMID_31721432_patient_4,OMIM:615032,1,True
+present + absent,PMID_39209701_Patient_2,OMIM:621232,2896,False
+present + absent,PMID_37660254_Patient_4,OMIM:620669,6810,False
+present + absent,PMID_36303223_Proband_15_from_PMID_12001203,OMIM:272300,2,True
+present + absent,PMID_19776401_Patient_1_1,OMIM:243700,16,True
+present + absent,PMID_36662884_P7,OMIM:621097,20,True
+present + absent,PMID_35310830_Individual_III_2,OMIM:619806,5802,False
+present + absent,PMID_39480921_Patient_12,OMIM:621034,7453,False
+present + absent,PMID_39306721_Family_15_Individual_21,OMIM:621060,4866,False
+present + absent,PMID_17110937_Patient_7,OMIM:610842,1,True
+present + absent,PMID_39721588_Individual_16,OMIM:621372,5931,False
+present + absent,PMID_23495017_Patient_8,OMIM:614332,6591,False
+present + absent,PMID_38858457_F5_individual_5,OMIM:620923,6,True
+present + absent,PMID_21696388_IV_6,OMIM:606693,33,True
+present + absent,PMID_37843397_Patient_1_7,OMIM:151660,107,True
+present + absent,PMID_24951643_Patient_5,OMIM:615120,980,True
+present + absent,PMID_32376980_Patient_19,OMIM:618164,366,True
+present + absent,PMID_40683276_Family_9_Patient_20,OMIM:621333,5774,False
+present + absent,PMID_32376980_Patient_45,OMIM:618164,1367,True
+present + absent,PMID_19818506_Patient_3,OMIM:608415,1,True
+present + absent,PMID_29050398_P1,OMIM:620540,19,True
+present + absent,PMID_10077612_Family_A_IV_20,OMIM:142900,1,True
+present + absent,PMID_26805781_Family_6_Subject_6_II_1,OMIM:616878,3,True
+present + absent,PMID_32765928_Case_2,OMIM:151100,2,True
+present + absent,PMID_36253531_Family_2_probed,OMIM:621237,4968,False
+present + absent,PMID_38531365_Individual_8,OMIM:621325,5097,False
+present + absent,PMID_38413582_Family_4_individual_II_2,OMIM:620793,2,True
+present + absent,PMID_22241092_Patient_CDL266,OMIM:122470,1,True
+present + absent,PMID_25802881_M39,OMIM:612463,151,True
+present + absent,PMID_17968484_Patient_4,OMIM:210200,61,True
+present + absent,PMID_38479391_Individual_12,OMIM:621049,5094,False
+present + absent,PMID_39306721_Family_21_Individual_28,OMIM:621060,6150,False
+present + absent,PMID_19683336_Patient_8,OMIM:256500,1,True
+present + absent,PMID_31569402_Family_2_Patient_I,OMIM:609192,34,True
+present + absent,PMID_41130203_F1_II_1,OMIM:621460,6479,False
+present + absent,PMID_18513678_individual_5030,OMIM:260300,854,True
+present + absent,PMID_34976470_fetus_one,OMIM:301127,65,True
+present + absent,PMID_37148315_Family_2_Proband_II_1,OMIM:621471,2896,False
+present + absent,PMID_39978342_P22,OMIM:621185,5636,False
+present + absent,PMID_23913798_Patient_1,OMIM:620458,12,True
+present + absent,PMID_26833330_F1_II3,OMIM:616829,1,True
+present + absent,PMID_36182950_Patient_85,OMIM:615032,2,True
+present + absent,PMID_25168959_Patient_L43,OMIM:614608,2,True
+present + absent,PMID_29379883_Family_1_patient_1,OMIM:616907,1,True
+present + absent,PMID_21358634_Family_4,OMIM:132800,3125,False
+present + absent,PMID_38411716_Case_2,OMIM:305400,9,True
+present + absent,PMID_41130203_F5_II_3,OMIM:621460,5359,False
+present + absent,PMID_27536553_Patient_4,OMIM:256810,1,True
+present + absent,PMID_4045952_IV_13,OMIM:301310,1,True
+present + absent,PMID_31898322_case_20_son_of_19,OMIM:615582,1960,True
+"present + absent, NO leakage control",PMID_30315159_Patient_5,OMIM:620475,1,True
+"present + absent, NO leakage control",PMID_27087320_Subject_9,OMIM:616975,280,False
+"present + absent, NO leakage control",PMID_20358602_Patient_C8,OMIM:122470,96,True
+"present + absent, NO leakage control",PMID_18551513_8,OMIM:613205,1,True
+"present + absent, NO leakage control",PMID_38991538_Individual_22_120746,OMIM:620851,1,True
+"present + absent, NO leakage control",PMID_40442284_RNU2_2_Individual_3,OMIM:621304,2,True
+"present + absent, NO leakage control",PMID_23495017_Patient_7,OMIM:614332,29,False
+"present + absent, NO leakage control",PMID_39073169_Patient_F1_III_5,OMIM:301134,4,False
+"present + absent, NO leakage control",PMID_39013458_individual_VUSM110013,OMIM:610253,164,True
+"present + absent, NO leakage control",PMID_28575651_Individual_3,OMIM:617560,1,True
+"present + absent, NO leakage control",PMID_37761890_60,OMIM:616362,1102,True
+"present + absent, NO leakage control",PMID_36195757_Proband_8,OMIM:621402,1,False
+"present + absent, NO leakage control",PMID_40455867_P3,OMIM:621475,1,True
+"present + absent, NO leakage control",PMID_33674768_Patient_17_This_study,OMIM:300867,146,True
+"present + absent, NO leakage control",PMID_35143101_Family_WGSI059JH_individual_iw182,OMIM:618428,1,True
+"present + absent, NO leakage control",PMID_34338282_GLSP_family_3,OMIM:206700,1,True
+"present + absent, NO leakage control",PMID_29333303_proposita,OMIM:269150,36,True
+"present + absent, NO leakage control",PMID_27764983_Family_2_Individual_MZ,OMIM:162000,2,True
+"present + absent, NO leakage control",PMID_30965037_Patient_2,OMIM:616873,86,True
+"present + absent, NO leakage control",PMID_18669544_FO_08,OMIM:209900,1,True
+"present + absent, NO leakage control",PMID_30580808_Patient_9,OMIM:618362,346,False
+"present + absent, NO leakage control",PMID_31727177_patient_6,OMIM:147920,6,True
+"present + absent, NO leakage control",PMID_18264100_Family_2_patient_II1,OMIM:231095,1,True
+"present + absent, NO leakage control",PMID_31666973_Patient_EYE65,OMIM:613826,1,True
+"present + absent, NO leakage control",PMID_30679813_Individual_22,OMIM:618089,2635,True
+"present + absent, NO leakage control",PMID_23505306_Patient_1,OMIM:613826,1,True
+"present + absent, NO leakage control",PMID_26178382_UAB_R5455_I2,OMIM:162200,3,True
+"present + absent, NO leakage control",PMID_40576023_Family_6_IV_4,OMIM:621344,14,True
+"present + absent, NO leakage control",PMID_26997095_patient,OMIM:256500,1,True
+"present + absent, NO leakage control",PMID_41125872_Pathogenic_08,OMIM:621456,1,False
+"present + absent, NO leakage control",PMID_19353847_patient,OMIM:604377,1,True
+"present + absent, NO leakage control",PMID_35190816_STX_29896790_P3,OMIM:612164,23,True
+"present + absent, NO leakage control",PMID_37183190_Family_7_individual_ind_11,OMIM:610042,39,True
+"present + absent, NO leakage control",PMID_31396399_Family_2individual_10,OMIM:616276,5,True
+"present + absent, NO leakage control",PMID_24321194_II_2,OMIM:248250,1,True
+"present + absent, NO leakage control",PMID_24997176_Family_15,OMIM:613826,1,True
+"present + absent, NO leakage control",PMID_24736735_G072_F,OMIM:146510,1,True
+"present + absent, NO leakage control",PMID_36446582_Goldenberg2016_P15,OMIM:148050,5054,True
+"present + absent, NO leakage control",PMID_39191256_T_30,OMIM:620996,1,False
+"present + absent, NO leakage control",PMID_37196654_Individual_44_DDD_286674,OMIM:618505,5,True
+"present + absent, NO leakage control",PMID_39073169_Patient_F1_III_7,OMIM:301134,1,False
+"present + absent, NO leakage control",PMID_37183190_Family_10_individual_ind_14,OMIM:610042,6,True
+"present + absent, NO leakage control",PMID_23273567_individual_FII_2,OMIM:258480,1,True
+"present + absent, NO leakage control",PMID_40210435_A_III_2,OMIM:621507,1,False
+"present + absent, NO leakage control",PMID_19864201_Case_4,OMIM:151100,176,True
+"present + absent, NO leakage control",PMID_29040572_Family_7_individual,OMIM:620887,1,True
+"present + absent, NO leakage control",PMID_39013458_individual_KS110019_VUSM110007,OMIM:610253,8,True
+"present + absent, NO leakage control",PMID_39013458_individual_KS110047,OMIM:610253,4,True
+"present + absent, NO leakage control",PMID_37196654_Individual_65,OMIM:618505,1,True
+"present + absent, NO leakage control",PMID_35484142_F6_P7,OMIM:620460,4,False
+"present + absent, NO leakage control",PMID_30170160_P5,OMIM:620816,1,True
+"present + absent, NO leakage control",PMID_25439728_IV_3,OMIM:616354,1,True
+"present + absent, NO leakage control",PMID_34214472_patient_P3,OMIM:620901,1,False
+"present + absent, NO leakage control",PMID_36067010_Family_1_Patient_1,OMIM:620504,1,False
+"present + absent, NO leakage control",PMID_22034507_DIII_1,OMIM:162000,1,True
+"present + absent, NO leakage control",PMID_28137957_HSP84_II_1,OMIM:617225,5,True
+"present + absent, NO leakage control",PMID_20513137_individual_N986_GSM_GSM492723,OMIM:162200,20,True
+"present + absent, NO leakage control",PMID_9101303_patient,OMIM:162200,4,True
+"present + absent, NO leakage control",PMID_17187620_child,OMIM:604377,1,True
+"present + absent, NO leakage control",PMID_37951597_Family_17_Subject_1,OMIM:620785,1,False
+"present + absent, NO leakage control",PMID_26047050_Patient_SRF153,OMIM:613826,1,True
+"present + absent, NO leakage control",PMID_36316122_case_presentation,OMIM:621079,1,True
+"present + absent, NO leakage control",PMID_32480058_Case_F7P2,OMIM:618052,1,False
+"present + absent, NO leakage control",PMID_21487076_Patient_II_4,OMIM:620607,1,True
+"present + absent, NO leakage control",PMID_36189931_6,OMIM:130050,1,True
+"present + absent, NO leakage control",PMID_37962958_Individual_11,OMIM:620535,1855,True
+"present + absent, NO leakage control",PMID_28065471_PV_1,OMIM:617403,1,True
+"present + absent, NO leakage control",PMID_33674768_Patient_38_This_study,OMIM:300867,346,True
+"present + absent, NO leakage control",PMID_21660509_Indian_familye,OMIM:601869,23,True
+"present + absent, NO leakage control",PMID_30679813_Individual_3,OMIM:618089,283,True
+"present + absent, NO leakage control",PMID_35190816_STX_STXBP1adult_Pt6,OMIM:612164,35,True
+"present + absent, NO leakage control",PMID_37843397_Patient_UM9,OMIM:151660,1,True
+"present + absent, NO leakage control",PMID_18423521_Patient_1b,OMIM:113620,1,True
+"present + absent, NO leakage control",PMID_36586412_Individual_6,OMIM:301111,5656,True
+"present + absent, NO leakage control",PMID_30072743_individual_237_523,OMIM:613826,6,True
+"present + absent, NO leakage control",PMID_30170160_P7,OMIM:620816,1,True
+"present + absent, NO leakage control",PMID_34606115_F3_6,OMIM:621424,40,True
+"present + absent, NO leakage control",PMID_35923690_50_2,OMIM:105650,1,True
+"present + absent, NO leakage control",PMID_26178382_UAB_R4346,OMIM:162200,524,True
+"present + absent, NO leakage control",PMID_18256394_Patient_12,OMIM:176670,730,True
+"present + absent, NO leakage control",PMID_35190816_STX_26865513_Patient_16,OMIM:612164,27,True
+"present + absent, NO leakage control",PMID_28652255_V_3,OMIM:208920,175,True
+"present + absent, NO leakage control",PMID_37684057_10_yr_old_boy,OMIM:618443,685,True
+"present + absent, NO leakage control",PMID_37761890_29,OMIM:616362,3418,True
+"present + absent, NO leakage control",PMID_39013458_individual_KS110043_VUSM110019,OMIM:610253,61,True
+"present + absent, NO leakage control",PMID_39306721_Family_6_Individual_7,OMIM:621060,59,False
+"present + absent, NO leakage control",PMID_37163662_Family_A_Patient_1,OMIM:620775,1,True
+"present + absent, NO leakage control",PMID_33087723_E4,OMIM:619375,524,False
+"present + absent, NO leakage control",PMID_15452312_III_5,OMIM:604187,14,True
+"present + absent, NO leakage control",PMID_14531790_F762_individual_IV_3,OMIM:162000,3,True
+"present + absent, NO leakage control",PMID_37963460_Family_2_individual_II_1,OMIM:620852,1,False
+"present + absent, NO leakage control",PMID_21217753_Fam_1_IV_9,OMIM:613795,1,True
+"present + absent, NO leakage control",PMID_39013458_individual_KS110005,OMIM:610253,1,True
+"present + absent, NO leakage control",PMID_36446582_Gnazzo_2020_P20,OMIM:148050,2,True
+"present + absent, NO leakage control",PMID_23664117_family_F9_subject_P10,OMIM:615349,1,True
+"present + absent, NO leakage control",PMID_30451291_V_1,OMIM:300088,1238,True
+"present + absent, NO leakage control",PMID_38154379_4_Family_2,OMIM:620767,1,False
+"present + absent, NO leakage control",PMID_38950288_Proband_3,OMIM:621251,4,False
+"present + absent, NO leakage control",PMID_35190816_STX_Syrbe_10,OMIM:612164,88,True
+"present + absent, NO leakage control",PMID_36446582_KBG10B,OMIM:148050,260,True
+"present + absent, NO leakage control",PMID_39442041_Patient_2,OMIM:621012,1,False
+"present + absent, NO leakage control",PMID_34038384_Family_B_III_15,OMIM:620755,435,False
+"present + absent, NO leakage control",PMID_32376980_Patient_30,OMIM:618164,93,True
+"present + absent, NO leakage control",PMID_30968594_individual_16,OMIM:201910,186,True
+"present + absent, NO leakage control",PMID_31898322_case_9_index,OMIM:615582,8453,True
+"present + absent, NO leakage control",PMID_34363755_Family_1_individual_P1,OMIM:620880,1,False
+"present + absent, NO leakage control",PMID_38815585_Individual_3,OMIM:620985,1,True
+"present + absent, NO leakage control",PMID_36006710_Patient_3,OMIM:620430,1,False
+"present + absent, NO leakage control",PMID_33674768_Patient_10_Guo_2018_BMC_Med_Genet_19_206,OMIM:300867,523,True
+"present + absent, NO leakage control",PMID_16865293_Family_4_individual_8Y1M,OMIM:216400,1,True
+"present + absent, NO leakage control",PMID_36446582_Ockeloen2015_P2,OMIM:148050,9,True
+"present + absent, NO leakage control",PMID_34655521_Patient_6,OMIM:620990,1,False
+"present + absent, NO leakage control",PMID_39315527_Family_9_IV_2,OMIM:621354,1,False
+"present + absent, NO leakage control",PMID_37843397_TR36,OMIM:151660,1,True
+"present + absent, NO leakage control",PMID_15266616_136,OMIM:147791,1544,True
+"present + absent, NO leakage control",PMID_40267907_Family_1_1,OMIM:621381,1,False
+"present + absent, NO leakage control",PMID_40965981_Individual_3,OMIM:621495,1,False
+"present + absent, NO leakage control",PMID_36553465_P3,OMIM:606574,24,True
+"present + absent, NO leakage control",PMID_29359243_29359243_P1,OMIM:616370,1016,True
+"present + absent, NO leakage control",PMID_28940506_Family_9_Individual_10,OMIM:615471,39,True
+"present + absent, NO leakage control",PMID_28625504_SA1_3,OMIM:617622,10,False
+"present + absent, NO leakage control",PMID_35190816_STX_29896790_P2,OMIM:612164,15,True
+"present + absent, NO leakage control",PMID_37964426_Individual_F2594S_3,OMIM:117360,17,True
+"present + absent, NO leakage control",PMID_40146200_Family3_IV_4_P8,OMIM:621209,2,True
+"present + absent, NO leakage control",PMID_37827158_Proband_8,OMIM:621265,2,False
+"present + absent, NO leakage control",PMID_39369315_Participant_5,OMIM:620851,1,True
+"present + absent, NO leakage control",PMID_29110636_proband_VMFS,OMIM:107480,20,True
+"present + absent, NO leakage control",PMID_38413182_Patient_1,OMIM:621225,1,False
+"present + absent, NO leakage control",PMID_39970126_FAMILY_1_individual_F1P7_pedigree_III11,OMIM:621236,1,False
+"present + absent, NO leakage control",PMID_39753129_Family_2_II_1,OMIM:621080,2730,False
+"present + absent, NO leakage control",PMID_17460694_F010191,OMIM:609053,1,True
+"present + absent, NO leakage control",PMID_22155372_8_year_old_girl,OMIM:609622,1,True
+"present + absent, NO leakage control",PMID_34521999_Individual_26,OMIM:617140,37,True
+"present + absent, NO leakage control",PMID_24321194_II_3,OMIM:248250,6,True
+"present + absent, NO leakage control",PMID_28949039_Case_4,OMIM:159900,1,True
+"present + absent, NO leakage control",PMID_31449058_Patient_2,OMIM:620836,1,True
+"present + absent, NO leakage control",PMID_17273967_III_5,OMIM:602400,2,True
+"present + absent, NO leakage control",PMID_25851998_Sibling_2,OMIM:616638,3,True
+"present + absent, NO leakage control",PMID_29290338_Family_UAB_R2546_individual_RS,OMIM:162200,2,True
+"present + absent, NO leakage control",PMID_25845469_Patient_2,OMIM:614249,1,True
+"present + absent, NO leakage control",PMID_36446582_Kutkowska_Kazmierczak2021_P17,OMIM:148050,5014,True
+"present + absent, NO leakage control",PMID_12203992_Patient_D30,OMIM:154700,6,True
+"present + absent, NO leakage control",PMID_27087320_Subject_6,OMIM:616975,33,False
+"present + absent, NO leakage control",PMID_28687524_proband,OMIM:602342,20,True
+"present + absent, NO leakage control",PMID_11344241_Individual_III_3,OMIM:151660,1,True
+"present + absent, NO leakage control",PMID_37660254_Patient_3,OMIM:620669,1,False
+"present + absent, NO leakage control",PMID_22541558_individual_J_1,OMIM:154400,1,True
+"present + absent, NO leakage control",PMID_37962958_Individual_31,OMIM:620535,1585,True
+"present + absent, NO leakage control",PMID_37256937_Patient_4,OMIM:621539,1,False
+"present + absent, NO leakage control",PMID_37256937_Patient_10,OMIM:621539,2,False
+"present + absent, NO leakage control",PMID_40420380_Participant_2,OMIM:621474,1,True
+"present + absent, NO leakage control",PMID_33450762_P1_Mother,OMIM:621091,1,False
+"present + absent, NO leakage control",PMID_21696388_IV_1,OMIM:606693,32,True
+"present + absent, NO leakage control",PMID_15266616_3,OMIM:147791,487,True
+"present + absent, NO leakage control",PMID_22241092_Patient_CDL406,OMIM:122470,1,True
+"present + absent, NO leakage control",PMID_39753129_Family_4_I_2,OMIM:621080,121,False
+"present + absent, NO leakage control",PMID_34363755_Family_3_individual_P4,OMIM:620880,3,False
+"present + absent, NO leakage control",PMID_36189931_1,OMIM:130050,2,True
+"present + absent, NO leakage control",PMID_23495017_Patient_5a,OMIM:614332,1,False
+"present + absent, NO leakage control",PMID_33576469_Patient_5,OMIM:129600,4,True
+"present + absent, NO leakage control",PMID_33633439_17413_II_1,OMIM:620731,27,True
+"present + absent, NO leakage control",PMID_30152016_Case_5,OMIM:615829,166,True
+"present + absent, NO leakage control",PMID_38977784_PE30_II_5,OMIM:621182,94,True
+"present + absent, NO leakage control",PMID_37196654_Individual_76,OMIM:618505,1,True
+"present + absent, NO leakage control",PMID_36751037_Family_K_Patient_15,OMIM:621192,1,True
+"present + absent, NO leakage control",PMID_16439204_P1,OMIM:611291,1,True
+"present + absent, NO leakage control",PMID_29469822_Family_12_V_1,OMIM:605275,3,True
+"present + absent, NO leakage control",PMID_37196654_Individual_52_SSC_12683_p1,OMIM:618505,60,True
+"present + absent, NO leakage control",PMID_31021519_individual_from_Trakadis_et_al,OMIM:612313,24,True
+"present + absent, NO leakage control",PMID_26541327_Pat_11_FX,OMIM:614800,3234,True
+"present + absent, NO leakage control",PMID_38791218_Family_1_Patient_1_I_2,OMIM:621434,14,False
+"present + absent, NO leakage control",PMID_36823193_Patient_4_Family_3,OMIM:620451,3,False
+"present + absent, NO leakage control",PMID_38740982_Family_5_Individual_5,OMIM:618089,1472,True
+"present + absent, NO leakage control",PMID_38566089_Case_presentation,OMIM:617140,59,True
+"present + absent, NO leakage control",PMID_37196654_Individual_15,OMIM:618505,1,True
+"present + absent, NO leakage control",PMID_35716097_Patient_5,OMIM:615829,1,True
+"present + absent, NO leakage control",PMID_38858457_F8_individual_11,OMIM:620923,1,True
+"present + absent, NO leakage control",PMID_40830826_Family_3_II_2,OMIM:621488,1,False
+"present + absent, NO leakage control",PMID_37963460_Family_1_individual_III_1,OMIM:620852,32,False
+"present + absent, NO leakage control",PMID_33674768_Patient_32_This_study,OMIM:300867,242,True
+"present + absent, NO leakage control",PMID_40043708_F5,OMIM:621195,1,False
+"present + absent, NO leakage control",PMID_10580070_Family_B_individual_III_11,OMIM:115200,389,True
+"present + absent, NO leakage control",PMID_37962958_Individual_40,OMIM:620535,1946,True
+"present + absent, NO leakage control",PMID_38480682_F3_II_1,OMIM:620786,1,False
+"present + absent, NO leakage control",PMID_27250695_Family_13_patient_18,OMIM:608716,331,True
+"present + absent, NO leakage control",PMID_36303223_Proband_7_from_PMID_12112661,OMIM:272300,634,True
+"present + absent, NO leakage control",PMID_27894351_14DG0714,OMIM:620943,1,True
+"present + absent, NO leakage control",PMID_35923690_50_7,OMIM:105650,2,True
+"present + absent, NO leakage control",PMID_20519243_Patient_2,OMIM:142900,25,True
+"present + absent, NO leakage control",PMID_12384777_Family_5_5A,OMIM:613850,1,False
+"present + absent, NO leakage control",PMID_12058348_Patient_5,OMIM:151100,1,True
+"present + absent, NO leakage control",PMID_35308163_Patient_2,OMIM:605911,67,True
+"present + absent, NO leakage control",PMID_17245395_Family_K8_individual_II_2,OMIM:162000,6,True
+"present + absent, NO leakage control",PMID_38702431_Patient_2,OMIM:620985,1,True
+"present + absent, NO leakage control",PMID_35344616_A19,OMIM:268310,1,True
+"present + absent, NO leakage control",PMID_37418012_Family_1_IV_5,OMIM:621226,1,True
+"present + absent, NO leakage control",PMID_33277917_Patient_8,OMIM:616364,1,True
+"present + absent, NO leakage control",PMID_39191256_A_1b,OMIM:620996,1,False
+"present + absent, NO leakage control",PMID_26942287_UMCN9,OMIM:616364,4,True
+"present + absent, NO leakage control",PMID_24736735_G16012,OMIM:175700,1,True
+"present + absent, NO leakage control",PMID_22693999_family_member_III_2,OMIM:620659,1,False
+"present + absent, NO leakage control",PMID_39708122_F1_VI_2,OMIM:621182,1,True
+"present + absent, NO leakage control",PMID_29707406_A_II_2,OMIM:606854,9,True
+"present + absent, NO leakage control",PMID_25511235_B3_1,OMIM:605911,1,True
+"present + absent, NO leakage control",PMID_38054405_Family_1_individual_P2,OMIM:620746,1,True
+"present + absent, NO leakage control",PMID_27108797_F2_II1,OMIM:206700,1,True
+"present + absent, NO leakage control",PMID_24443441_P_2,OMIM:620969,1,False
+"present + absent, NO leakage control",PMID_38459354_Family_2_proband,OMIM:620794,249,False
+"present + absent, NO leakage control",PMID_29181157_Patient,OMIM:618977,1,True
+"present + absent, NO leakage control",PMID_20853184_NAPO_6,OMIM:606693,1,True
+"present + absent, NO leakage control",PMID_34645992_Individual_1,OMIM:616364,445,True
+"present + absent, NO leakage control",PMID_20082460_case_9,OMIM:305400,1,True
+"present + absent, NO leakage control",PMID_30580808_Patient_11,OMIM:618362,538,False
+"present + absent, NO leakage control",PMID_37071997_Subject_I17,OMIM:620489,1,False
+"present + absent, NO leakage control",PMID_38740982_Family_4_Individual_4_1,OMIM:618089,8149,True
+"present + absent, NO leakage control",PMID_40146200_Family1_IV_1_P1,OMIM:621209,40,True
+"present + absent, NO leakage control",PMID_39191256_A_5b,OMIM:620996,1,False
+"present + absent, NO leakage control",PMID_22726846_Individual_KS47,OMIM:614608,2509,True
+"present + absent, NO leakage control",PMID_38230350_Proband_P5_family_B_B_II_2,OMIM:620777,1,False
+"present + absent, NO leakage control",PMID_22541559_individual_G_013_IV_6,OMIM:611091,225,True
+"present + absent, NO leakage control",PMID_33977139_Patient_5,OMIM:609528,629,True
+"present + absent, NO leakage control",PMID_31569402_Family_8_Patient_I,OMIM:609192,36,True
+"present + absent, NO leakage control",PMID_28940506_Family_8_Individual_9,OMIM:615471,1,True
+"present + absent, NO leakage control",PMID_25511235_A1_4,OMIM:605911,1,True
+"present + absent, NO leakage control",PMID_21683322_AD_Family_27_b,OMIM:102370,3,True
+"present + absent, NO leakage control",PMID_32154675_Family_7_Patient_16,OMIM:613795,1,True
+"present + absent, NO leakage control",PMID_38465576_Individual_2,OMIM:621263,1,False
+"present + absent, NO leakage control",PMID_34906488_Individual_7,OMIM:621063,1,True
+"present + absent, NO leakage control",PMID_35977029_Family_3_individualND,OMIM:620494,263,True
+"present + absent, NO leakage control",PMID_37024973_Trio_2_proband,OMIM:621231,1,True
+"present + absent, NO leakage control",PMID_38014483_Family_c_individual_c_4,OMIM:620666,32,True
+"present + absent, NO leakage control",PMID_33534181_patient,OMIM:256500,1,True
+"present + absent, NO leakage control",PMID_37054711_Family_7_Subject_9,OMIM:620428,707,False
+"present + absent, NO leakage control",PMID_32480058_Case_F13P1,OMIM:618052,1,False
+"present + absent, NO leakage control",PMID_39636576_F4_Australia_P6,OMIM:621201,1,True
+"present + absent, NO leakage control",PMID_16965330_Sibling_of_patient_7,OMIM:240300,1,True
+"present + absent, NO leakage control",PMID_36996813_Individual_12,OMIM:620371,1,False
+"present + absent, NO leakage control",PMID_26706854_Subject_1_1,OMIM:603671,575,True
+"present + absent, NO leakage control",PMID_39315527_Family_16_Najmabadi_et_al_II_3,OMIM:621354,12,False
+"present + absent, NO leakage control",PMID_31001818_individual_5_DDD_CAM272076,OMIM:615032,1,True
+"present + absent, NO leakage control",PMID_36047608_Patient_1_F1_II_4,OMIM:620666,6,True
+"present + absent, NO leakage control",PMID_36136088_Family_2_II_3,OMIM:620911,1,False
+"present + absent, NO leakage control",PMID_35743164_P11,OMIM:117360,2,True
+"present + absent, NO leakage control",PMID_35911904_III_4,OMIM:610042,179,True
+"present + absent, NO leakage control",PMID_30099644_IV_11,OMIM:600138,557,True
+"present + absent, NO leakage control",PMID_32480058_Case_F6P1_original_pedigree_II_1,OMIM:618052,1,False
+"present + absent, NO leakage control",PMID_21217753_Fam_1_III_3,OMIM:613795,14,True
+"present + absent, NO leakage control",PMID_25802881_P72,OMIM:103580,404,True
+"present + absent, NO leakage control",PMID_37895315_Patient_4_HTP964,OMIM:621248,1,True
+"present + absent, NO leakage control",PMID_40146200_Family2_IV_5_P4,OMIM:621209,11,True
+"present + absent, NO leakage control",PMID_21358634_Family_8,OMIM:132800,1,False
+"present + absent, NO leakage control",PMID_19683336_Patient_5,OMIM:256500,1,True
+"present + absent, NO leakage control",PMID_18669544_FO_06,OMIM:209900,1,True
+"present + absent, NO leakage control",PMID_29050284_proband_II_5,OMIM:203200,20,True
+"present + absent, NO leakage control",PMID_40267907_Family_6_1,OMIM:621381,1,False
+"present + absent, NO leakage control",PMID_20887961_Patient_2,OMIM:600920,1,True
+"present + absent, NO leakage control",PMID_17646629_index_patient_II_3,OMIM:607259,2,True
+"present + absent, NO leakage control",PMID_21236492_Individual_P10,OMIM:614199,6,True
+"present + absent, NO leakage control",PMID_31853710_II_2,OMIM:621095,1,True
+"present + absent, NO leakage control",PMID_37895315_Patient_1_HTP1301,OMIM:621248,1,True
+"present + absent, NO leakage control",PMID_25802881_P43,OMIM:103580,2,True
+"present + absent, NO leakage control",PMID_24736735_G111,OMIM:175700,75,True
+"present + absent, NO leakage control",PMID_39191256_T_14,OMIM:620996,1,False
+"present + absent, NO leakage control",PMID_32710489_Group_1_Patient_7,OMIM:620155,100,False
+"present + absent, NO leakage control",PMID_25704603_Family_M328_individual_IV_1,OMIM:616269,1,False
+"present + absent, NO leakage control",PMID_38158856_Patient_4_Family_III,OMIM:621566,3,False
+"present + absent, NO leakage control",PMID_10077612_Family_A_IV_14,OMIM:142900,19,True
+"present + absent, NO leakage control",PMID_33578420_1_year_old_female,OMIM:620528,1,True
+"present + absent, NO leakage control",PMID_36103875_Individual_1,OMIM:620502,2037,False
+"present + absent, NO leakage control",PMID_37875108_Patient_3,OMIM:301115,4,False
+"present + absent, NO leakage control",PMID_31021519_SATB2_10_from_Zarate_et_al_2018a,OMIM:612313,170,True
+"present + absent, NO leakage control",PMID_31021519_SATB2_54_from_Zarate_et_al_2018a,OMIM:612313,70,True
+"present + absent, NO leakage control",PMID_25959430_individual_IV_2_family_A,OMIM:602875,2,True
+"present + absent, NO leakage control",PMID_41125872_Pathogenic_06,OMIM:621457,1,False
+"present + absent, NO leakage control",PMID_37768732_Family_2_Patient_2,OMIM:621280,1,True
+"present + absent, NO leakage control",PMID_40683276_Family_7_Patient_17,OMIM:621333,1,False
+"present + absent, NO leakage control",PMID_25802881_M10,OMIM:612463,336,True
+"present + absent, NO leakage control",PMID_39369315_Participant_4,OMIM:620851,1,True
+"present + absent, NO leakage control",PMID_12632326_subject_1,OMIM:606217,4,False
+"present + absent, NO leakage control",PMID_32765928_Case_3,OMIM:151100,7,True
+"present + absent, NO leakage control",PMID_40856104_Participant_2_1,OMIM:621382,1,False
+"present + absent, NO leakage control",PMID_31239556_individual_34,OMIM:615502,32,True
+"present + absent, NO leakage control",PMID_10939567_Patient_EMD5_III_3,OMIM:181350,1,True
+"present + absent, NO leakage control",PMID_9312167_A_I_2,OMIM:179800,6,True
+"present + absent, NO leakage control",PMID_24259288_III_10,OMIM:300868,1,True
+"present + absent, NO leakage control",PMID_36256512_F10_II_2,OMIM:620938,2,True
+"present + absent, NO leakage control",PMID_38404363_Family_1_II_3,OMIM:621164,1,True
+"present + absent, NO leakage control",PMID_28611345_case_report,OMIM:614800,8465,True
+"present + absent, NO leakage control",PMID_21367767_F39_II_3,OMIM:606658,1,True
+"present + absent, NO leakage control",PMID_30558828_Patient,OMIM:614800,4084,True
+"present + absent, NO leakage control",PMID_39500882_Patient_3,OMIM:621212,1,False
+"present + absent, NO leakage control",PMID_30152016_Patient_5,OMIM:615829,1,True
+"present + absent, NO leakage control",PMID_24736735_G109_Father,OMIM:175700,5125,True
+"present + absent, NO leakage control",PMID_38430071_F1_II_2,OMIM:621313,1,True
+"present + absent, NO leakage control",PMID_32631816_Patient_IV_2_1,OMIM:620703,1,True
+"present + absent, NO leakage control",PMID_30881852_index_case,OMIM:161200,1,True
+"present + absent, NO leakage control",PMID_38977784_PKMR471_IV_4,OMIM:621182,353,True
+"present + absent, NO leakage control",PMID_38503300_Individual_4,OMIM:620807,1,False
+"present + absent, NO leakage control",PMID_37541189_Individual_12,OMIM:620688,1,False
+"present + absent, NO leakage control",PMID_36586412_Individual_5,OMIM:301111,8461,True
+"present + absent, NO leakage control",PMID_33744911_III_9,OMIM:621078,56,True
+"present + absent, NO leakage control",PMID_14569098_F1_individual_4,OMIM:162000,2,True
+"present + absent, NO leakage control",PMID_30050362_individual_II_3,OMIM:228600,152,True
+"present + absent, NO leakage control",PMID_31021519_individual_SATB2_100,OMIM:612313,481,True
+"present + absent, NO leakage control",PMID_34521999_Individual_18,OMIM:617140,224,True
+"present + absent, NO leakage control",PMID_38325380_Patient_1,OMIM:301118,1,False
+"present + absent, NO leakage control",PMID_25477417_F5_1,OMIM:248250,1,True
+"present + absent, NO leakage control",PMID_36331550_Family_20_Patient_25,OMIM:620540,104,True
+"present + absent, NO leakage control",PMID_38740982_Family_4_Individual_4,OMIM:618089,1514,True
+"present + absent, NO leakage control",PMID_36074124_1_01687,OMIM:620570,2,False
+"present + absent, NO leakage control",PMID_31337854_Patient_39,OMIM:122470,1,True
+"present + absent, NO leakage control",PMID_28782633_Family_1_11_year_old_son_P9,OMIM:620670,2,False
+"present + absent, NO leakage control",PMID_21660509_PKDF1258b,OMIM:601869,23,True
+"present + absent, NO leakage control",PMID_36929019_F2_II4,OMIM:621331,1,False
+"present + absent, NO leakage control",PMID_36303223_Proband_6_from_PMID_12112661,OMIM:272300,634,True
+"present + absent, NO leakage control",PMID_39390489_Patient_1,OMIM:620401,1,True
+"present + absent, NO leakage control",PMID_36307226_Proband_8,OMIM:620537,1,True
+"present + absent, NO leakage control",PMID_37951597_Family_3_Subject_2,OMIM:620785,1,False
+"present + absent, NO leakage control",PMID_30622725_patient,OMIM:614800,2433,True
+"present + absent, NO leakage control",PMID_37876076_patient,OMIM:616900,36,True
+"present + absent, NO leakage control",PMID_22305531_IV_2,OMIM:300868,1,True
+"present + absent, NO leakage control",PMID_39962046_C_II_2,OMIM:621154,52,False
+"present + absent, NO leakage control",PMID_36351433_F1_IV_1,OMIM:620908,1,False
+"present + absent, NO leakage control",PMID_25477417_F3_1,OMIM:248250,1,True
+"present + absent, NO leakage control",PMID_22772368_7_III_1,OMIM:614816,4,True
+"present + absent, NO leakage control",PMID_37951597_Family_23_Subject_1,OMIM:620785,4276,False
+"present + absent, NO leakage control",PMID_28074573_HC2,OMIM:163950,60,True
+"present + absent, NO leakage control",PMID_35142290_III_3,OMIM:620999,2,False
+"present + absent, NO leakage control",PMID_23714749_Family_5_patient_7,OMIM:256810,122,True
+"present + absent, NO leakage control",PMID_35618278_IX,OMIM:621248,1,True
+"present + absent, NO leakage control",PMID_38230350_Proband_P3_family_A_II_3,OMIM:620777,1,False
+"present + absent, NO leakage control",PMID_36001342_Patient_III_3,OMIM:618428,1,True
+"present + absent, NO leakage control",PMID_37075751_Individual_3,OMIM:616462,8465,True
+"present + absent, NO leakage control",PMID_34421895_P1,OMIM:619375,328,True
+"present + absent, NO leakage control",PMID_29127725_Patient_1,OMIM:174300,1,True
+"present + absent, NO leakage control",PMID_15976030_kindred_A_patient_8,OMIM:609549,3,False
+"present + absent, NO leakage control",PMID_22541559_individual_M_192_V_3,OMIM:611091,84,True
+"present + absent, NO leakage control",PMID_37943617_Patient_4_IV_5,OMIM:621068,1,False
+"present + absent, NO leakage control",PMID_37584719_Patient_P10,OMIM:620815,30,True
+"present + absent, NO leakage control",PMID_36695497_Individual_6,OMIM:620731,5,True
+"present + absent, NO leakage control",PMID_36135717_Patient_1,OMIM:621194,1,False
+"present + absent, NO leakage control",PMID_32980981_Individual_III_2,OMIM:621295,1,True
+"present + absent, NO leakage control",PMID_31527767_III_12,OMIM:129600,2,True
+"present + absent, NO leakage control",PMID_24721225_Patient_III_1,OMIM:301111,1,True
+"present + absent, NO leakage control",PMID_38508705_Case_8,OMIM:621500,1,False
+"present + absent, NO leakage control",PMID_24736735_G070,OMIM:175700,1,True
+"present + absent, NO leakage control",PMID_37071997_Subject_I12,OMIM:620489,78,False
+"present + absent, NO leakage control",PMID_34890546_M120_Mayo_R1097,OMIM:621164,1,True
+"present + absent, NO leakage control",PMID_37256937_Patient_5,OMIM:621539,2,False
+"present + absent, NO leakage control",PMID_38404363_Family_1_III_1,OMIM:621164,1,True
+"present + absent, NO leakage control",PMID_36553465_P10,OMIM:606574,18,True
+"present + absent, NO leakage control",PMID_34950897_Patient_5,OMIM:615829,3826,True
+"present + absent, NO leakage control",PMID_39117932_individual_12,OMIM:609322,577,True
+"present + absent, NO leakage control",PMID_31643139_Patient_3,OMIM:616831,8,True
+"present + absent, NO leakage control",PMID_39069253_individual_10_Weiss_et_al,OMIM:618619,41,True
+"present + absent, NO leakage control",PMID_34521999_Individual_13,OMIM:617140,226,True
+"present + absent, NO leakage control",PMID_35603789_Patient_3_D24N_D24N,OMIM:621512,1,True
+"present + absent, NO leakage control",PMID_39315527_Family_15_Al_Kasbi_et_al_IV_1,OMIM:621354,1,False
+"present + absent, NO leakage control",PMID_36067010_Family_3_Patient_5,OMIM:620504,1,False
+"present + absent, NO leakage control",PMID_24164096_patient,OMIM:159950,282,True
+"present + absent, NO leakage control",PMID_37154409_BII_2,OMIM:606658,1,True
+"present + absent, NO leakage control",PMID_31057532_Family_A_individual_A_II_1,OMIM:616873,131,True
+"present + absent, NO leakage control",PMID_7517574_EFA,OMIM:620813,20,True
+"present + absent, NO leakage control",PMID_20799361_Patient_2,OMIM:611590,72,True
+"present + absent, NO leakage control",PMID_23714749_Family_7_patient_10,OMIM:256810,1094,True
+"present + absent, NO leakage control",PMID_39306721_Family_10_Individual_15,OMIM:621060,1,False
+"present + absent, NO leakage control",PMID_39315527_Family_9_IV_1,OMIM:621354,1,False
+"present + absent, NO leakage control",PMID_26981933_Family_B_individual_B7,OMIM:616873,44,True
+"present + absent, NO leakage control",PMID_16865293_Family_2_individual_9Y11M,OMIM:216400,1,True
+"present + absent, NO leakage control",PMID_38991538_Individual_28_UDN135254,OMIM:620851,1,True
+"present + absent, NO leakage control",PMID_16965330_patient_9,OMIM:240300,2,True
+"present + absent, NO leakage control",PMID_37843397_TR6,OMIM:151660,1,True
+"present + absent, NO leakage control",PMID_37063705_F1_3,OMIM:621424,1,True
+"present + absent, NO leakage control",PMID_34415117_patient_2,OMIM:615032,1,True
+"present + absent, NO leakage control",PMID_37947183_Family_F7_individual_P10,OMIM:620771,1,False
+"present + absent, NO leakage control",PMID_38430071_F1_II_1,OMIM:621313,1,True
+"present + absent, NO leakage control",PMID_25835445_2_II_4,OMIM:615582,2898,True
+"present + absent, NO leakage control",PMID_19800048_UW87,OMIM:300804,1,True
+"present + absent, NO leakage control",PMID_30612693_Individual_13,OMIM:618443,100,True
+"present + absent, NO leakage control",PMID_39191256_A_9,OMIM:620996,1,False
+"present + absent, NO leakage control",PMID_21358634_Family_13,OMIM:132800,1,False
+"present + absent, NO leakage control",PMID_23222957_Family_7_7_1,OMIM:242840,1,True
+"present + absent, NO leakage control",PMID_38626355_UNC_186_II1,OMIM:620984,1,False
+"present + absent, NO leakage control",PMID_25477417_F8_1,OMIM:248250,1,True
+"present + absent, NO leakage control",PMID_36189931_20,OMIM:130050,3,True
+"present + absent, NO leakage control",PMID_34974531_Case_22,OMIM:620943,1,True
+"present + absent, NO leakage control",PMID_30580808_Patient_8,OMIM:618362,1344,False
+"present + absent, NO leakage control",PMID_39233737_Patient_1,OMIM:621481,1,False
+"present + absent, NO leakage control",PMID_16571880_cohort,OMIM:610042,1,True
+"present + absent, NO leakage control",PMID_21217753_Fam_1_III_8,OMIM:613795,1,True
+"present + absent, NO leakage control",PMID_36777704_Patient_1,OMIM:122470,1,True
+"present + absent, NO leakage control",PMID_28103835_proband_IV_3,OMIM:305400,13,True
+"present + absent, NO leakage control",PMID_24355708_IHG25357_individual_1,OMIM:215470,4,True
+"present + absent, NO leakage control",PMID_33235621_Case_report,OMIM:610168,41,True
+"present + absent, NO leakage control",PMID_32376980_Patient_29,OMIM:618164,95,True
+"present + absent, NO leakage control",PMID_40442284_RNU5B_1_Individual_1,OMIM:621302,1,True
+"present + absent, NO leakage control",PMID_27939640_individual_P6,OMIM:617333,2769,True
+"present + absent, NO leakage control",PMID_37963460_Family_4_individual_III_2,OMIM:620852,1,False
+"present + absent, NO leakage control",PMID_20375004_3_I_1,OMIM:184900,1,False
+"present + absent, NO leakage control",PMID_28065471_PIII_1,OMIM:617403,1,True
+"present + absent, NO leakage control",PMID_25480986_individual_B_1,OMIM:275400,1,True
+"present + absent, NO leakage control",PMID_34890546_M1629_Mayo_II_1,OMIM:621164,1,True
+"present + absent, NO leakage control",PMID_40259859_Family_2_II_1,OMIM:621260,1,False
+"present + absent, NO leakage control",PMID_38118446_F2_I_3,OMIM:620888,2,False
+"present + absent, NO leakage control",PMID_23335590_Subject_3269,OMIM:304110,2,True
+"present + absent, NO leakage control",PMID_38325380_Patient_10,OMIM:301118,15,False
+"present + absent, NO leakage control",PMID_38950322_P1,OMIM:620960,1,False
+"present + absent, NO leakage control",PMID_41716553_Patient_1,OMIM:613670,160,True
+"present + absent, NO leakage control",PMID_11950863_Individual_I_3,OMIM:311200,1,True
+"present + absent, NO leakage control",PMID_38118446_F10_I_12,OMIM:617988,1,True
+"present + absent, NO leakage control",PMID_37656279_Pedigree_A_II_3,OMIM:620510,1,False
+"present + absent, NO leakage control",PMID_39480921_Patient_11,OMIM:621034,1,False
+"present + absent, NO leakage control",PMID_40519748_Family_2_individual_III_4,OMIM:621499,1771,False
+"present + absent, NO leakage control",PMID_15266616_138,OMIM:147791,599,True
+"present + absent, NO leakage control",PMID_16021330_LDJP1_1,OMIM:620681,1,True
+"present + absent, NO leakage control",PMID_24498630_ISR1,OMIM:246200,1,True
+"present + absent, NO leakage control",PMID_36331550_Family_19_Patient_24,OMIM:620540,215,True
+"present + absent, NO leakage control",PMID_32376980_Patient_33_also_see_Urreizti_et_al_AJMG_2016_patient_P6_for_phenotypic_description,OMIM:618164,593,True
+"present + absent, NO leakage control",PMID_23714749_Family_9_patient_13,OMIM:256810,503,True
+"present + absent, NO leakage control",PMID_37947183_Family_F6_individual_P9,OMIM:620771,8,False
+"present + absent, NO leakage control",PMID_38579670_Individual_8,OMIM:620806,2,False
+"present + absent, NO leakage control",PMID_36965478_Individual_6,OMIM:620515,1,False
+"present + absent, NO leakage control",PMID_28984260_child,OMIM:232700,11,True
+"present + absent, NO leakage control",PMID_19768645_Patient_2,OMIM:151100,39,True
+"present + absent, NO leakage control",PMID_37761890_35,OMIM:616362,928,True
+"present + absent, NO leakage control",PMID_37349293_Patient_1,OMIM:620565,1,False
+"present + absent, NO leakage control",PMID_40267907_Family_10,OMIM:621381,1,False
+"present + absent, NO leakage control",PMID_31021519_individual_SATB2_95,OMIM:612313,2601,True
+"present + absent, NO leakage control",PMID_38325380_Patient_14,OMIM:301118,5,False
+"present + absent, NO leakage control",PMID_19896112_P2,OMIM:610042,7,True
+"present + absent, NO leakage control",PMID_36136088_Family_1_II_1,OMIM:620911,147,False
+"present + absent, NO leakage control",PMID_35904126_Proband_8,OMIM:620450,690,False
+"present + absent, NO leakage control",PMID_41125872_Pathogenic_19,OMIM:621456,1,False
+"present + absent, NO leakage control",PMID_40856104_Participant_10_8,OMIM:621382,11,False
+"present + absent, NO leakage control",PMID_35618278_XIII,OMIM:621248,1,True
+"present + absent, NO leakage control",PMID_2107739_sister_II_5,OMIM:621417,1,False
+"present + absent, NO leakage control",PMID_28862745_PD_Case_5,OMIM:616840,5,True
+"present + absent, NO leakage control",PMID_38531365_Individual_2,OMIM:621325,1,False
+"present + absent, NO leakage control",PMID_19807739_Patient_2,OMIM:240300,3,True
+"present + absent, NO leakage control",PMID_36549593_Id5,OMIM:621421,1,True
+"present + absent, NO leakage control",PMID_33674768_Patient_59_This_study,OMIM:300867,173,True
+"present + absent, NO leakage control",PMID_34521999_Individual_38,OMIM:617140,239,True
+"present + absent, NO leakage control",PMID_10749987_Family_B_patient_B1,OMIM:604377,1,True
+"present + absent, NO leakage control",PMID_22772368_5_III_1,OMIM:614816,4,True
+"present + absent, NO leakage control",PMID_30968594_individual_25,OMIM:201910,687,True
+"present + absent, NO leakage control",PMID_28007989_F1_II_3,OMIM:616457,1,True
+"present + absent, NO leakage control",PMID_24791903_Patient_1,OMIM:615829,1,True
+"present + absent, NO leakage control",PMID_18385497_Patient_1,OMIM:620952,1,False
+"present + absent, NO leakage control",PMID_34612517_F3_II_3,OMIM:617478,2,True
+"present + absent, NO leakage control",PMID_32480058_Case_F1P1_original_pedigree_A_IX_2,OMIM:618052,710,False
+"present + absent, NO leakage control",PMID_31721432_patient_4,OMIM:615032,1,True
+"present + absent, NO leakage control",PMID_39209701_Patient_2,OMIM:621232,2,False
+"present + absent, NO leakage control",PMID_37660254_Patient_4,OMIM:620669,1,False
+"present + absent, NO leakage control",PMID_36303223_Proband_15_from_PMID_12001203,OMIM:272300,2,True
+"present + absent, NO leakage control",PMID_19776401_Patient_1_1,OMIM:243700,3,True
+"present + absent, NO leakage control",PMID_36662884_P7,OMIM:621097,1,True
+"present + absent, NO leakage control",PMID_35310830_Individual_III_2,OMIM:619806,2,False
+"present + absent, NO leakage control",PMID_39480921_Patient_12,OMIM:621034,1,False
+"present + absent, NO leakage control",PMID_39306721_Family_15_Individual_21,OMIM:621060,4101,False
+"present + absent, NO leakage control",PMID_17110937_Patient_7,OMIM:610842,1,True
+"present + absent, NO leakage control",PMID_39721588_Individual_16,OMIM:621372,1,False
+"present + absent, NO leakage control",PMID_23495017_Patient_8,OMIM:614332,10,False
+"present + absent, NO leakage control",PMID_38858457_F5_individual_5,OMIM:620923,6,True
+"present + absent, NO leakage control",PMID_21696388_IV_6,OMIM:606693,33,True
+"present + absent, NO leakage control",PMID_37843397_Patient_1_7,OMIM:151660,127,True
+"present + absent, NO leakage control",PMID_24951643_Patient_5,OMIM:615120,980,True
+"present + absent, NO leakage control",PMID_32376980_Patient_19,OMIM:618164,134,True
+"present + absent, NO leakage control",PMID_40683276_Family_9_Patient_20,OMIM:621333,1,False
+"present + absent, NO leakage control",PMID_32376980_Patient_45,OMIM:618164,267,True
+"present + absent, NO leakage control",PMID_19818506_Patient_3,OMIM:608415,1,True
+"present + absent, NO leakage control",PMID_29050398_P1,OMIM:620540,11,True
+"present + absent, NO leakage control",PMID_10077612_Family_A_IV_20,OMIM:142900,1,True
+"present + absent, NO leakage control",PMID_26805781_Family_6_Subject_6_II_1,OMIM:616878,1,True
+"present + absent, NO leakage control",PMID_32765928_Case_2,OMIM:151100,2,True
+"present + absent, NO leakage control",PMID_36253531_Family_2_probed,OMIM:621237,1,False
+"present + absent, NO leakage control",PMID_38531365_Individual_8,OMIM:621325,700,False
+"present + absent, NO leakage control",PMID_38413582_Family_4_individual_II_2,OMIM:620793,1,True
+"present + absent, NO leakage control",PMID_22241092_Patient_CDL266,OMIM:122470,1,True
+"present + absent, NO leakage control",PMID_25802881_M39,OMIM:612463,151,True
+"present + absent, NO leakage control",PMID_17968484_Patient_4,OMIM:210200,1,True
+"present + absent, NO leakage control",PMID_38479391_Individual_12,OMIM:621049,3822,False
+"present + absent, NO leakage control",PMID_39306721_Family_21_Individual_28,OMIM:621060,2,False
+"present + absent, NO leakage control",PMID_19683336_Patient_8,OMIM:256500,1,True
+"present + absent, NO leakage control",PMID_31569402_Family_2_Patient_I,OMIM:609192,34,True
+"present + absent, NO leakage control",PMID_41130203_F1_II_1,OMIM:621460,29,False
+"present + absent, NO leakage control",PMID_18513678_individual_5030,OMIM:260300,5,True
+"present + absent, NO leakage control",PMID_34976470_fetus_one,OMIM:301127,1,True
+"present + absent, NO leakage control",PMID_37148315_Family_2_Proband_II_1,OMIM:621471,1,False
+"present + absent, NO leakage control",PMID_39978342_P22,OMIM:621185,4290,False
+"present + absent, NO leakage control",PMID_23913798_Patient_1,OMIM:620458,1,True
+"present + absent, NO leakage control",PMID_26833330_F1_II3,OMIM:616829,1,True
+"present + absent, NO leakage control",PMID_36182950_Patient_85,OMIM:615032,2,True
+"present + absent, NO leakage control",PMID_25168959_Patient_L43,OMIM:614608,3,True
+"present + absent, NO leakage control",PMID_29379883_Family_1_patient_1,OMIM:616907,1,True
+"present + absent, NO leakage control",PMID_21358634_Family_4,OMIM:132800,1,False
+"present + absent, NO leakage control",PMID_38411716_Case_2,OMIM:305400,9,True
+"present + absent, NO leakage control",PMID_41130203_F5_II_3,OMIM:621460,3,False
+"present + absent, NO leakage control",PMID_27536553_Patient_4,OMIM:256810,1,True
+"present + absent, NO leakage control",PMID_4045952_IV_13,OMIM:301310,1,True
+"present + absent, NO leakage control",PMID_31898322_case_20_son_of_19,OMIM:615582,1960,True
+present + absent + gene,PMID_30315159_Patient_5,OMIM:620475,1069,True
+present + absent + gene,PMID_27087320_Subject_9,OMIM:616975,6917,False
+present + absent + gene,PMID_20358602_Patient_C8,OMIM:122470,2,True
+present + absent + gene,PMID_18551513_8,OMIM:613205,36,True
+present + absent + gene,PMID_38991538_Individual_22_120746,OMIM:620851,4,True
+present + absent + gene,PMID_40442284_RNU2_2_Individual_3,OMIM:621304,9,True
+present + absent + gene,PMID_23495017_Patient_7,OMIM:614332,6651,False
+present + absent + gene,PMID_39073169_Patient_F1_III_5,OMIM:301134,5088,False
+present + absent + gene,PMID_39013458_individual_VUSM110013,OMIM:610253,195,True
+present + absent + gene,PMID_28575651_Individual_3,OMIM:617560,5,True
+present + absent + gene,PMID_37761890_60,OMIM:616362,2,True
+present + absent + gene,PMID_36195757_Proband_8,OMIM:621402,6519,False
+present + absent + gene,PMID_40455867_P3,OMIM:621475,257,True
+present + absent + gene,PMID_33674768_Patient_17_This_study,OMIM:300867,168,True
+present + absent + gene,PMID_35143101_Family_WGSI059JH_individual_iw182,OMIM:618428,1170,True
+present + absent + gene,PMID_34338282_GLSP_family_3,OMIM:206700,1,True
+present + absent + gene,PMID_29333303_proposita,OMIM:269150,16,True
+present + absent + gene,PMID_27764983_Family_2_Individual_MZ,OMIM:162000,1,True
+present + absent + gene,PMID_30965037_Patient_2,OMIM:616873,4,True
+present + absent + gene,PMID_18669544_FO_08,OMIM:209900,1,True
+present + absent + gene,PMID_30580808_Patient_9,OMIM:618362,7597,False
+present + absent + gene,PMID_31727177_patient_6,OMIM:147920,1,True
+present + absent + gene,PMID_18264100_Family_2_patient_II1,OMIM:231095,1,True
+present + absent + gene,PMID_31666973_Patient_EYE65,OMIM:613826,1,True
+present + absent + gene,PMID_30679813_Individual_22,OMIM:618089,871,True
+present + absent + gene,PMID_23505306_Patient_1,OMIM:613826,1,True
+present + absent + gene,PMID_26178382_UAB_R5455_I2,OMIM:162200,1,True
+present + absent + gene,PMID_40576023_Family_6_IV_4,OMIM:621344,65,True
+present + absent + gene,PMID_26997095_patient,OMIM:256500,1,True
+present + absent + gene,PMID_41125872_Pathogenic_08,OMIM:621456,6117,False
+present + absent + gene,PMID_19353847_patient,OMIM:604377,1,True
+present + absent + gene,PMID_35190816_STX_29896790_P3,OMIM:612164,2,True
+present + absent + gene,PMID_37183190_Family_7_individual_ind_11,OMIM:610042,4,True
+present + absent + gene,PMID_31396399_Family_2individual_10,OMIM:616276,1,True
+present + absent + gene,PMID_24321194_II_2,OMIM:248250,1,True
+present + absent + gene,PMID_24997176_Family_15,OMIM:613826,1,True
+present + absent + gene,PMID_24736735_G072_F,OMIM:146510,1,True
+present + absent + gene,PMID_36446582_Goldenberg2016_P15,OMIM:148050,2761,True
+present + absent + gene,PMID_39191256_T_30,OMIM:620996,3608,False
+present + absent + gene,PMID_37196654_Individual_44_DDD_286674,OMIM:618505,1,True
+present + absent + gene,PMID_39073169_Patient_F1_III_7,OMIM:301134,5088,False
+present + absent + gene,PMID_37183190_Family_10_individual_ind_14,OMIM:610042,1,True
+present + absent + gene,PMID_23273567_individual_FII_2,OMIM:258480,711,True
+present + absent + gene,PMID_40210435_A_III_2,OMIM:621507,6794,False
+present + absent + gene,PMID_19864201_Case_4,OMIM:151100,1,True
+present + absent + gene,PMID_29040572_Family_7_individual,OMIM:620887,1,True
+present + absent + gene,PMID_39013458_individual_KS110019_VUSM110007,OMIM:610253,1063,True
+present + absent + gene,PMID_39013458_individual_KS110047,OMIM:610253,5,True
+present + absent + gene,PMID_37196654_Individual_65,OMIM:618505,9,True
+present + absent + gene,PMID_35484142_F6_P7,OMIM:620460,6642,False
+present + absent + gene,PMID_30170160_P5,OMIM:620816,1,True
+present + absent + gene,PMID_25439728_IV_3,OMIM:616354,26,True
+present + absent + gene,PMID_34214472_patient_P3,OMIM:620901,2263,False
+present + absent + gene,PMID_36067010_Family_1_Patient_1,OMIM:620504,7026,False
+present + absent + gene,PMID_22034507_DIII_1,OMIM:162000,1,True
+present + absent + gene,PMID_28137957_HSP84_II_1,OMIM:617225,338,True
+present + absent + gene,PMID_20513137_individual_N986_GSM_GSM492723,OMIM:162200,2,True
+present + absent + gene,PMID_9101303_patient,OMIM:162200,3,True
+present + absent + gene,PMID_17187620_child,OMIM:604377,1,True
+present + absent + gene,PMID_37951597_Family_17_Subject_1,OMIM:620785,5982,False
+present + absent + gene,PMID_26047050_Patient_SRF153,OMIM:613826,1,True
+present + absent + gene,PMID_36316122_case_presentation,OMIM:621079,1332,True
+present + absent + gene,PMID_32480058_Case_F7P2,OMIM:618052,7283,False
+present + absent + gene,PMID_21487076_Patient_II_4,OMIM:620607,19,True
+present + absent + gene,PMID_36189931_6,OMIM:130050,1,True
+present + absent + gene,PMID_37962958_Individual_11,OMIM:620535,1855,True
+present + absent + gene,PMID_28065471_PV_1,OMIM:617403,2424,True
+present + absent + gene,PMID_33674768_Patient_38_This_study,OMIM:300867,382,True
+present + absent + gene,PMID_21660509_Indian_familye,OMIM:601869,1,True
+present + absent + gene,PMID_30679813_Individual_3,OMIM:618089,18,True
+present + absent + gene,PMID_35190816_STX_STXBP1adult_Pt6,OMIM:612164,10,True
+present + absent + gene,PMID_37843397_Patient_UM9,OMIM:151660,1,True
+present + absent + gene,PMID_18423521_Patient_1b,OMIM:113620,1,True
+present + absent + gene,PMID_36586412_Individual_6,OMIM:301111,680,True
+present + absent + gene,PMID_30072743_individual_237_523,OMIM:613826,3,True
+present + absent + gene,PMID_30170160_P7,OMIM:620816,1,True
+present + absent + gene,PMID_34606115_F3_6,OMIM:621424,527,True
+present + absent + gene,PMID_35923690_50_2,OMIM:105650,17,True
+present + absent + gene,PMID_26178382_UAB_R4346,OMIM:162200,4,True
+present + absent + gene,PMID_18256394_Patient_12,OMIM:176670,470,True
+present + absent + gene,PMID_35190816_STX_26865513_Patient_16,OMIM:612164,13,True
+present + absent + gene,PMID_28652255_V_3,OMIM:208920,5,True
+present + absent + gene,PMID_37684057_10_yr_old_boy,OMIM:618443,685,True
+present + absent + gene,PMID_37761890_29,OMIM:616362,2309,True
+present + absent + gene,PMID_39013458_individual_KS110043_VUSM110019,OMIM:610253,101,True
+present + absent + gene,PMID_39306721_Family_6_Individual_7,OMIM:621060,6145,False
+present + absent + gene,PMID_37163662_Family_A_Patient_1,OMIM:620775,25,True
+present + absent + gene,PMID_33087723_E4,OMIM:619375,2122,False
+present + absent + gene,PMID_15452312_III_5,OMIM:604187,89,True
+present + absent + gene,PMID_14531790_F762_individual_IV_3,OMIM:162000,1,True
+present + absent + gene,PMID_37963460_Family_2_individual_II_1,OMIM:620852,7892,False
+present + absent + gene,PMID_21217753_Fam_1_IV_9,OMIM:613795,1,True
+present + absent + gene,PMID_39013458_individual_KS110005,OMIM:610253,325,True
+present + absent + gene,PMID_36446582_Gnazzo_2020_P20,OMIM:148050,1,True
+present + absent + gene,PMID_23664117_family_F9_subject_P10,OMIM:615349,1,True
+present + absent + gene,PMID_30451291_V_1,OMIM:300088,2,True
+present + absent + gene,PMID_38154379_4_Family_2,OMIM:620767,7122,False
+present + absent + gene,PMID_38950288_Proband_3,OMIM:621251,2791,False
+present + absent + gene,PMID_35190816_STX_Syrbe_10,OMIM:612164,23,True
+present + absent + gene,PMID_36446582_KBG10B,OMIM:148050,92,True
+present + absent + gene,PMID_39442041_Patient_2,OMIM:621012,7356,False
+present + absent + gene,PMID_34038384_Family_B_III_15,OMIM:620755,809,False
+present + absent + gene,PMID_32376980_Patient_30,OMIM:618164,135,True
+present + absent + gene,PMID_30968594_individual_16,OMIM:201910,47,True
+present + absent + gene,PMID_31898322_case_9_index,OMIM:615582,8330,True
+present + absent + gene,PMID_34363755_Family_1_individual_P1,OMIM:620880,7437,False
+present + absent + gene,PMID_38815585_Individual_3,OMIM:620985,90,True
+present + absent + gene,PMID_36006710_Patient_3,OMIM:620430,2567,False
+present + absent + gene,PMID_33674768_Patient_10_Guo_2018_BMC_Med_Genet_19_206,OMIM:300867,92,True
+present + absent + gene,PMID_16865293_Family_4_individual_8Y1M,OMIM:216400,1,True
+present + absent + gene,PMID_36446582_Ockeloen2015_P2,OMIM:148050,2,True
+present + absent + gene,PMID_34655521_Patient_6,OMIM:620990,1006,False
+present + absent + gene,PMID_39315527_Family_9_IV_2,OMIM:621354,5454,False
+present + absent + gene,PMID_37843397_TR36,OMIM:151660,1,True
+present + absent + gene,PMID_15266616_136,OMIM:147791,1544,True
+present + absent + gene,PMID_40267907_Family_1_1,OMIM:621381,7715,False
+present + absent + gene,PMID_40965981_Individual_3,OMIM:621495,6411,False
+present + absent + gene,PMID_36553465_P3,OMIM:606574,7,True
+present + absent + gene,PMID_29359243_29359243_P1,OMIM:616370,383,True
+present + absent + gene,PMID_28940506_Family_9_Individual_10,OMIM:615471,1,True
+present + absent + gene,PMID_28625504_SA1_3,OMIM:617622,5704,False
+present + absent + gene,PMID_35190816_STX_29896790_P2,OMIM:612164,1,True
+present + absent + gene,PMID_37964426_Individual_F2594S_3,OMIM:117360,1,True
+present + absent + gene,PMID_40146200_Family3_IV_4_P8,OMIM:621209,1,True
+present + absent + gene,PMID_37827158_Proband_8,OMIM:621265,6708,False
+present + absent + gene,PMID_39369315_Participant_5,OMIM:620851,4,True
+present + absent + gene,PMID_29110636_proband_VMFS,OMIM:107480,7,True
+present + absent + gene,PMID_38413182_Patient_1,OMIM:621225,6513,False
+present + absent + gene,PMID_39970126_FAMILY_1_individual_F1P7_pedigree_III11,OMIM:621236,6388,False
+present + absent + gene,PMID_39753129_Family_2_II_1,OMIM:621080,2778,False
+present + absent + gene,PMID_17460694_F010191,OMIM:609053,1,True
+present + absent + gene,PMID_22155372_8_year_old_girl,OMIM:609622,1,True
+present + absent + gene,PMID_34521999_Individual_26,OMIM:617140,8,True
+present + absent + gene,PMID_24321194_II_3,OMIM:248250,1,True
+present + absent + gene,PMID_28949039_Case_4,OMIM:159900,4,True
+present + absent + gene,PMID_31449058_Patient_2,OMIM:620836,49,True
+present + absent + gene,PMID_17273967_III_5,OMIM:602400,2,True
+present + absent + gene,PMID_25851998_Sibling_2,OMIM:616638,315,True
+present + absent + gene,PMID_29290338_Family_UAB_R2546_individual_RS,OMIM:162200,2,True
+present + absent + gene,PMID_25845469_Patient_2,OMIM:614249,429,True
+present + absent + gene,PMID_36446582_Kutkowska_Kazmierczak2021_P17,OMIM:148050,2456,True
+present + absent + gene,PMID_12203992_Patient_D30,OMIM:154700,2,True
+present + absent + gene,PMID_27087320_Subject_6,OMIM:616975,6879,False
+present + absent + gene,PMID_28687524_proband,OMIM:602342,10,True
+present + absent + gene,PMID_11344241_Individual_III_3,OMIM:151660,1,True
+present + absent + gene,PMID_37660254_Patient_3,OMIM:620669,6388,False
+present + absent + gene,PMID_22541558_individual_J_1,OMIM:154400,4,True
+present + absent + gene,PMID_37962958_Individual_31,OMIM:620535,1585,True
+present + absent + gene,PMID_37256937_Patient_4,OMIM:621539,3305,False
+present + absent + gene,PMID_37256937_Patient_10,OMIM:621539,5081,False
+present + absent + gene,PMID_40420380_Participant_2,OMIM:621474,2,True
+present + absent + gene,PMID_33450762_P1_Mother,OMIM:621091,3979,False
+present + absent + gene,PMID_21696388_IV_1,OMIM:606693,2,True
+present + absent + gene,PMID_15266616_3,OMIM:147791,487,True
+present + absent + gene,PMID_22241092_Patient_CDL406,OMIM:122470,1,True
+present + absent + gene,PMID_39753129_Family_4_I_2,OMIM:621080,2586,False
+present + absent + gene,PMID_34363755_Family_3_individual_P4,OMIM:620880,6392,False
+present + absent + gene,PMID_36189931_1,OMIM:130050,1,True
+present + absent + gene,PMID_23495017_Patient_5a,OMIM:614332,6960,False
+present + absent + gene,PMID_33576469_Patient_5,OMIM:129600,1,True
+present + absent + gene,PMID_33633439_17413_II_1,OMIM:620731,1,True
+present + absent + gene,PMID_30152016_Case_5,OMIM:615829,6,True
+present + absent + gene,PMID_38977784_PE30_II_5,OMIM:621182,2,True
+present + absent + gene,PMID_37196654_Individual_76,OMIM:618505,16,True
+present + absent + gene,PMID_36751037_Family_K_Patient_15,OMIM:621192,387,True
+present + absent + gene,PMID_16439204_P1,OMIM:611291,1,True
+present + absent + gene,PMID_29469822_Family_12_V_1,OMIM:605275,2,True
+present + absent + gene,PMID_37196654_Individual_52_SSC_12683_p1,OMIM:618505,1,True
+present + absent + gene,PMID_31021519_individual_from_Trakadis_et_al,OMIM:612313,1,True
+present + absent + gene,PMID_26541327_Pat_11_FX,OMIM:614800,2752,True
+present + absent + gene,PMID_38791218_Family_1_Patient_1_I_2,OMIM:621434,3938,False
+present + absent + gene,PMID_36823193_Patient_4_Family_3,OMIM:620451,7174,False
+present + absent + gene,PMID_38740982_Family_5_Individual_5,OMIM:618089,474,True
+present + absent + gene,PMID_38566089_Case_presentation,OMIM:617140,24,True
+present + absent + gene,PMID_37196654_Individual_15,OMIM:618505,14,True
+present + absent + gene,PMID_35716097_Patient_5,OMIM:615829,1,True
+present + absent + gene,PMID_38858457_F8_individual_11,OMIM:620923,12,True
+present + absent + gene,PMID_40830826_Family_3_II_2,OMIM:621488,6484,False
+present + absent + gene,PMID_37963460_Family_1_individual_III_1,OMIM:620852,6767,False
+present + absent + gene,PMID_33674768_Patient_32_This_study,OMIM:300867,1,True
+present + absent + gene,PMID_40043708_F5,OMIM:621195,6346,False
+present + absent + gene,PMID_10580070_Family_B_individual_III_11,OMIM:115200,31,True
+present + absent + gene,PMID_37962958_Individual_40,OMIM:620535,1946,True
+present + absent + gene,PMID_38480682_F3_II_1,OMIM:620786,6464,False
+present + absent + gene,PMID_27250695_Family_13_patient_18,OMIM:608716,1,True
+present + absent + gene,PMID_36303223_Proband_7_from_PMID_12112661,OMIM:272300,1,True
+present + absent + gene,PMID_27894351_14DG0714,OMIM:620943,1,True
+present + absent + gene,PMID_35923690_50_7,OMIM:105650,19,True
+present + absent + gene,PMID_20519243_Patient_2,OMIM:142900,1,True
+present + absent + gene,PMID_12384777_Family_5_5A,OMIM:613850,3181,False
+present + absent + gene,PMID_12058348_Patient_5,OMIM:151100,597,True
+present + absent + gene,PMID_35308163_Patient_2,OMIM:605911,25,True
+present + absent + gene,PMID_17245395_Family_K8_individual_II_2,OMIM:162000,1,True
+present + absent + gene,PMID_38702431_Patient_2,OMIM:620985,15,True
+present + absent + gene,PMID_35344616_A19,OMIM:268310,1,True
+present + absent + gene,PMID_37418012_Family_1_IV_5,OMIM:621226,2,True
+present + absent + gene,PMID_33277917_Patient_8,OMIM:616364,1,True
+present + absent + gene,PMID_39191256_A_1b,OMIM:620996,3608,False
+present + absent + gene,PMID_26942287_UMCN9,OMIM:616364,1,True
+present + absent + gene,PMID_24736735_G16012,OMIM:175700,39,True
+present + absent + gene,PMID_22693999_family_member_III_2,OMIM:620659,2819,False
+present + absent + gene,PMID_39708122_F1_VI_2,OMIM:621182,4,True
+present + absent + gene,PMID_29707406_A_II_2,OMIM:606854,1,True
+present + absent + gene,PMID_25511235_B3_1,OMIM:605911,1,True
+present + absent + gene,PMID_38054405_Family_1_individual_P2,OMIM:620746,11,True
+present + absent + gene,PMID_27108797_F2_II1,OMIM:206700,1,True
+present + absent + gene,PMID_24443441_P_2,OMIM:620969,4102,False
+present + absent + gene,PMID_38459354_Family_2_proband,OMIM:620794,1216,False
+present + absent + gene,PMID_29181157_Patient,OMIM:618977,1,True
+present + absent + gene,PMID_20853184_NAPO_6,OMIM:606693,1,True
+present + absent + gene,PMID_34645992_Individual_1,OMIM:616364,1,True
+present + absent + gene,PMID_20082460_case_9,OMIM:305400,4,True
+present + absent + gene,PMID_30580808_Patient_11,OMIM:618362,7213,False
+present + absent + gene,PMID_37071997_Subject_I17,OMIM:620489,6961,False
+present + absent + gene,PMID_38740982_Family_4_Individual_4_1,OMIM:618089,7304,True
+present + absent + gene,PMID_40146200_Family1_IV_1_P1,OMIM:621209,1,True
+present + absent + gene,PMID_39191256_A_5b,OMIM:620996,3608,False
+present + absent + gene,PMID_22726846_Individual_KS47,OMIM:614608,1984,True
+present + absent + gene,PMID_38230350_Proband_P5_family_B_B_II_2,OMIM:620777,4256,False
+present + absent + gene,PMID_22541559_individual_G_013_IV_6,OMIM:611091,1,True
+present + absent + gene,PMID_33977139_Patient_5,OMIM:609528,446,True
+present + absent + gene,PMID_31569402_Family_8_Patient_I,OMIM:609192,5,True
+present + absent + gene,PMID_28940506_Family_8_Individual_9,OMIM:615471,1,True
+present + absent + gene,PMID_25511235_A1_4,OMIM:605911,1,True
+present + absent + gene,PMID_21683322_AD_Family_27_b,OMIM:102370,1,True
+present + absent + gene,PMID_32154675_Family_7_Patient_16,OMIM:613795,1,True
+present + absent + gene,PMID_38465576_Individual_2,OMIM:621263,7452,False
+present + absent + gene,PMID_34906488_Individual_7,OMIM:621063,11,True
+present + absent + gene,PMID_35977029_Family_3_individualND,OMIM:620494,15,True
+present + absent + gene,PMID_37024973_Trio_2_proband,OMIM:621231,1,True
+present + absent + gene,PMID_38014483_Family_c_individual_c_4,OMIM:620666,1,True
+present + absent + gene,PMID_33534181_patient,OMIM:256500,1,True
+present + absent + gene,PMID_37054711_Family_7_Subject_9,OMIM:620428,5825,False
+present + absent + gene,PMID_32480058_Case_F13P1,OMIM:618052,6747,False
+present + absent + gene,PMID_39636576_F4_Australia_P6,OMIM:621201,21,True
+present + absent + gene,PMID_16965330_Sibling_of_patient_7,OMIM:240300,1,True
+present + absent + gene,PMID_36996813_Individual_12,OMIM:620371,6100,False
+present + absent + gene,PMID_26706854_Subject_1_1,OMIM:603671,4,True
+present + absent + gene,PMID_39315527_Family_16_Najmabadi_et_al_II_3,OMIM:621354,5630,False
+present + absent + gene,PMID_31001818_individual_5_DDD_CAM272076,OMIM:615032,1,True
+present + absent + gene,PMID_36047608_Patient_1_F1_II_4,OMIM:620666,1,True
+present + absent + gene,PMID_36136088_Family_2_II_3,OMIM:620911,7148,False
+present + absent + gene,PMID_35743164_P11,OMIM:117360,1,True
+present + absent + gene,PMID_35911904_III_4,OMIM:610042,17,True
+present + absent + gene,PMID_30099644_IV_11,OMIM:600138,17,True
+present + absent + gene,PMID_32480058_Case_F6P1_original_pedigree_II_1,OMIM:618052,6933,False
+present + absent + gene,PMID_21217753_Fam_1_III_3,OMIM:613795,1,True
+present + absent + gene,PMID_25802881_P72,OMIM:103580,1,True
+present + absent + gene,PMID_37895315_Patient_4_HTP964,OMIM:621248,13,True
+present + absent + gene,PMID_40146200_Family2_IV_5_P4,OMIM:621209,1,True
+present + absent + gene,PMID_21358634_Family_8,OMIM:132800,954,False
+present + absent + gene,PMID_19683336_Patient_5,OMIM:256500,1,True
+present + absent + gene,PMID_18669544_FO_06,OMIM:209900,1,True
+present + absent + gene,PMID_29050284_proband_II_5,OMIM:203200,1,True
+present + absent + gene,PMID_40267907_Family_6_1,OMIM:621381,6447,False
+present + absent + gene,PMID_20887961_Patient_2,OMIM:600920,1,True
+present + absent + gene,PMID_17646629_index_patient_II_3,OMIM:607259,9,True
+present + absent + gene,PMID_21236492_Individual_P10,OMIM:614199,4,True
+present + absent + gene,PMID_31853710_II_2,OMIM:621095,7,True
+present + absent + gene,PMID_37895315_Patient_1_HTP1301,OMIM:621248,1,True
+present + absent + gene,PMID_25802881_P43,OMIM:103580,1,True
+present + absent + gene,PMID_24736735_G111,OMIM:175700,4,True
+present + absent + gene,PMID_39191256_T_14,OMIM:620996,3608,False
+present + absent + gene,PMID_32710489_Group_1_Patient_7,OMIM:620155,8335,False
+present + absent + gene,PMID_25704603_Family_M328_individual_IV_1,OMIM:616269,6267,False
+present + absent + gene,PMID_38158856_Patient_4_Family_III,OMIM:621566,7548,False
+present + absent + gene,PMID_10077612_Family_A_IV_14,OMIM:142900,1,True
+present + absent + gene,PMID_33578420_1_year_old_female,OMIM:620528,2,True
+present + absent + gene,PMID_36103875_Individual_1,OMIM:620502,5091,False
+present + absent + gene,PMID_37875108_Patient_3,OMIM:301115,2126,False
+present + absent + gene,PMID_31021519_SATB2_10_from_Zarate_et_al_2018a,OMIM:612313,3,True
+present + absent + gene,PMID_31021519_SATB2_54_from_Zarate_et_al_2018a,OMIM:612313,1,True
+present + absent + gene,PMID_25959430_individual_IV_2_family_A,OMIM:602875,2,True
+present + absent + gene,PMID_41125872_Pathogenic_06,OMIM:621457,7028,False
+present + absent + gene,PMID_37768732_Family_2_Patient_2,OMIM:621280,8,True
+present + absent + gene,PMID_40683276_Family_7_Patient_17,OMIM:621333,6390,False
+present + absent + gene,PMID_25802881_M10,OMIM:612463,1,True
+present + absent + gene,PMID_39369315_Participant_4,OMIM:620851,1,True
+present + absent + gene,PMID_12632326_subject_1,OMIM:606217,1277,False
+present + absent + gene,PMID_32765928_Case_3,OMIM:151100,1,True
+present + absent + gene,PMID_40856104_Participant_2_1,OMIM:621382,6622,False
+present + absent + gene,PMID_31239556_individual_34,OMIM:615502,65,True
+present + absent + gene,PMID_10939567_Patient_EMD5_III_3,OMIM:181350,3,True
+present + absent + gene,PMID_9312167_A_I_2,OMIM:179800,1292,True
+present + absent + gene,PMID_24259288_III_10,OMIM:300868,1,True
+present + absent + gene,PMID_36256512_F10_II_2,OMIM:620938,23,True
+present + absent + gene,PMID_38404363_Family_1_II_3,OMIM:621164,1,True
+present + absent + gene,PMID_28611345_case_report,OMIM:614800,4093,True
+present + absent + gene,PMID_21367767_F39_II_3,OMIM:606658,2,True
+present + absent + gene,PMID_30558828_Patient,OMIM:614800,3716,True
+present + absent + gene,PMID_39500882_Patient_3,OMIM:621212,7609,False
+present + absent + gene,PMID_30152016_Patient_5,OMIM:615829,1,True
+present + absent + gene,PMID_24736735_G109_Father,OMIM:175700,1,True
+present + absent + gene,PMID_38430071_F1_II_2,OMIM:621313,102,True
+present + absent + gene,PMID_32631816_Patient_IV_2_1,OMIM:620703,1,True
+present + absent + gene,PMID_30881852_index_case,OMIM:161200,1,True
+present + absent + gene,PMID_38977784_PKMR471_IV_4,OMIM:621182,39,True
+present + absent + gene,PMID_38503300_Individual_4,OMIM:620807,6469,False
+present + absent + gene,PMID_37541189_Individual_12,OMIM:620688,6016,False
+present + absent + gene,PMID_36586412_Individual_5,OMIM:301111,464,True
+present + absent + gene,PMID_33744911_III_9,OMIM:621078,1,True
+present + absent + gene,PMID_14569098_F1_individual_4,OMIM:162000,1,True
+present + absent + gene,PMID_30050362_individual_II_3,OMIM:228600,51,True
+present + absent + gene,PMID_31021519_individual_SATB2_100,OMIM:612313,2,True
+present + absent + gene,PMID_34521999_Individual_18,OMIM:617140,70,True
+present + absent + gene,PMID_38325380_Patient_1,OMIM:301118,7962,False
+present + absent + gene,PMID_25477417_F5_1,OMIM:248250,1,True
+present + absent + gene,PMID_36331550_Family_20_Patient_25,OMIM:620540,5,True
+present + absent + gene,PMID_38740982_Family_4_Individual_4,OMIM:618089,619,True
+present + absent + gene,PMID_36074124_1_01687,OMIM:620570,4863,False
+present + absent + gene,PMID_31337854_Patient_39,OMIM:122470,1,True
+present + absent + gene,PMID_28782633_Family_1_11_year_old_son_P9,OMIM:620670,4670,False
+present + absent + gene,PMID_21660509_PKDF1258b,OMIM:601869,1,True
+present + absent + gene,PMID_36929019_F2_II4,OMIM:621331,6029,False
+present + absent + gene,PMID_36303223_Proband_6_from_PMID_12112661,OMIM:272300,1,True
+present + absent + gene,PMID_39390489_Patient_1,OMIM:620401,3,True
+present + absent + gene,PMID_36307226_Proband_8,OMIM:620537,1,True
+present + absent + gene,PMID_37951597_Family_3_Subject_2,OMIM:620785,7280,False
+present + absent + gene,PMID_30622725_patient,OMIM:614800,2018,True
+present + absent + gene,PMID_37876076_patient,OMIM:616900,2,True
+present + absent + gene,PMID_22305531_IV_2,OMIM:300868,1,True
+present + absent + gene,PMID_39962046_C_II_2,OMIM:621154,5105,False
+present + absent + gene,PMID_36351433_F1_IV_1,OMIM:620908,7776,False
+present + absent + gene,PMID_25477417_F3_1,OMIM:248250,1,True
+present + absent + gene,PMID_22772368_7_III_1,OMIM:614816,3,True
+present + absent + gene,PMID_37951597_Family_23_Subject_1,OMIM:620785,5089,False
+present + absent + gene,PMID_28074573_HC2,OMIM:163950,16,True
+present + absent + gene,PMID_35142290_III_3,OMIM:620999,1463,False
+present + absent + gene,PMID_23714749_Family_5_patient_7,OMIM:256810,16,True
+present + absent + gene,PMID_35618278_IX,OMIM:621248,1,True
+present + absent + gene,PMID_38230350_Proband_P3_family_A_II_3,OMIM:620777,4632,False
+present + absent + gene,PMID_36001342_Patient_III_3,OMIM:618428,22,True
+present + absent + gene,PMID_37075751_Individual_3,OMIM:616462,126,True
+present + absent + gene,PMID_34421895_P1,OMIM:619375,128,True
+present + absent + gene,PMID_29127725_Patient_1,OMIM:174300,36,True
+present + absent + gene,PMID_15976030_kindred_A_patient_8,OMIM:609549,3606,False
+present + absent + gene,PMID_22541559_individual_M_192_V_3,OMIM:611091,1,True
+present + absent + gene,PMID_37943617_Patient_4_IV_5,OMIM:621068,7501,False
+present + absent + gene,PMID_37584719_Patient_P10,OMIM:620815,67,True
+present + absent + gene,PMID_36695497_Individual_6,OMIM:620731,1,True
+present + absent + gene,PMID_36135717_Patient_1,OMIM:621194,2589,False
+present + absent + gene,PMID_32980981_Individual_III_2,OMIM:621295,1,True
+present + absent + gene,PMID_31527767_III_12,OMIM:129600,1,True
+present + absent + gene,PMID_24721225_Patient_III_1,OMIM:301111,23,True
+present + absent + gene,PMID_38508705_Case_8,OMIM:621500,5068,False
+present + absent + gene,PMID_24736735_G070,OMIM:175700,5,True
+present + absent + gene,PMID_37071997_Subject_I12,OMIM:620489,5208,False
+present + absent + gene,PMID_34890546_M120_Mayo_R1097,OMIM:621164,1,True
+present + absent + gene,PMID_37256937_Patient_5,OMIM:621539,5081,False
+present + absent + gene,PMID_38404363_Family_1_III_1,OMIM:621164,1,True
+present + absent + gene,PMID_36553465_P10,OMIM:606574,6,True
+present + absent + gene,PMID_34950897_Patient_5,OMIM:615829,1800,True
+present + absent + gene,PMID_39117932_individual_12,OMIM:609322,3,True
+present + absent + gene,PMID_31643139_Patient_3,OMIM:616831,1,True
+present + absent + gene,PMID_39069253_individual_10_Weiss_et_al,OMIM:618619,5,True
+present + absent + gene,PMID_34521999_Individual_13,OMIM:617140,27,True
+present + absent + gene,PMID_35603789_Patient_3_D24N_D24N,OMIM:621512,45,True
+present + absent + gene,PMID_39315527_Family_15_Al_Kasbi_et_al_IV_1,OMIM:621354,6789,False
+present + absent + gene,PMID_36067010_Family_3_Patient_5,OMIM:620504,7300,False
+present + absent + gene,PMID_24164096_patient,OMIM:159950,48,True
+present + absent + gene,PMID_37154409_BII_2,OMIM:606658,2,True
+present + absent + gene,PMID_31057532_Family_A_individual_A_II_1,OMIM:616873,1,True
+present + absent + gene,PMID_7517574_EFA,OMIM:620813,1,True
+present + absent + gene,PMID_20799361_Patient_2,OMIM:611590,17,True
+present + absent + gene,PMID_23714749_Family_7_patient_10,OMIM:256810,106,True
+present + absent + gene,PMID_39306721_Family_10_Individual_15,OMIM:621060,6672,False
+present + absent + gene,PMID_39315527_Family_9_IV_1,OMIM:621354,5837,False
+present + absent + gene,PMID_26981933_Family_B_individual_B7,OMIM:616873,3,True
+present + absent + gene,PMID_16865293_Family_2_individual_9Y11M,OMIM:216400,1,True
+present + absent + gene,PMID_38991538_Individual_28_UDN135254,OMIM:620851,1,True
+present + absent + gene,PMID_16965330_patient_9,OMIM:240300,1,True
+present + absent + gene,PMID_37843397_TR6,OMIM:151660,1,True
+present + absent + gene,PMID_37063705_F1_3,OMIM:621424,5,True
+present + absent + gene,PMID_34415117_patient_2,OMIM:615032,1,True
+present + absent + gene,PMID_37947183_Family_F7_individual_P10,OMIM:620771,7288,False
+present + absent + gene,PMID_38430071_F1_II_1,OMIM:621313,34,True
+present + absent + gene,PMID_25835445_2_II_4,OMIM:615582,12,True
+present + absent + gene,PMID_19800048_UW87,OMIM:300804,3038,True
+present + absent + gene,PMID_30612693_Individual_13,OMIM:618443,1889,True
+present + absent + gene,PMID_39191256_A_9,OMIM:620996,3608,False
+present + absent + gene,PMID_21358634_Family_13,OMIM:132800,954,False
+present + absent + gene,PMID_23222957_Family_7_7_1,OMIM:242840,1,True
+present + absent + gene,PMID_38626355_UNC_186_II1,OMIM:620984,5150,False
+present + absent + gene,PMID_25477417_F8_1,OMIM:248250,1,True
+present + absent + gene,PMID_36189931_20,OMIM:130050,1,True
+present + absent + gene,PMID_34974531_Case_22,OMIM:620943,4,True
+present + absent + gene,PMID_30580808_Patient_8,OMIM:618362,6990,False
+present + absent + gene,PMID_39233737_Patient_1,OMIM:621481,7271,False
+present + absent + gene,PMID_16571880_cohort,OMIM:610042,1,True
+present + absent + gene,PMID_21217753_Fam_1_III_8,OMIM:613795,1,True
+present + absent + gene,PMID_36777704_Patient_1,OMIM:122470,1,True
+present + absent + gene,PMID_28103835_proband_IV_3,OMIM:305400,5,True
+present + absent + gene,PMID_24355708_IHG25357_individual_1,OMIM:215470,1,True
+present + absent + gene,PMID_33235621_Case_report,OMIM:610168,4,True
+present + absent + gene,PMID_32376980_Patient_29,OMIM:618164,349,True
+present + absent + gene,PMID_40442284_RNU5B_1_Individual_1,OMIM:621302,10,True
+present + absent + gene,PMID_27939640_individual_P6,OMIM:617333,5616,True
+present + absent + gene,PMID_37963460_Family_4_individual_III_2,OMIM:620852,7459,False
+present + absent + gene,PMID_20375004_3_I_1,OMIM:184900,6211,False
+present + absent + gene,PMID_28065471_PIII_1,OMIM:617403,4802,True
+present + absent + gene,PMID_25480986_individual_B_1,OMIM:275400,1,True
+present + absent + gene,PMID_34890546_M1629_Mayo_II_1,OMIM:621164,1,True
+present + absent + gene,PMID_40259859_Family_2_II_1,OMIM:621260,5796,False
+present + absent + gene,PMID_38118446_F2_I_3,OMIM:620888,6402,False
+present + absent + gene,PMID_23335590_Subject_3269,OMIM:304110,1,True
+present + absent + gene,PMID_38325380_Patient_10,OMIM:301118,7329,False
+present + absent + gene,PMID_38950322_P1,OMIM:620960,7195,False
+present + absent + gene,PMID_41716553_Patient_1,OMIM:613670,22,True
+present + absent + gene,PMID_11950863_Individual_I_3,OMIM:311200,1,True
+present + absent + gene,PMID_38118446_F10_I_12,OMIM:617988,1,True
+present + absent + gene,PMID_37656279_Pedigree_A_II_3,OMIM:620510,6697,False
+present + absent + gene,PMID_39480921_Patient_11,OMIM:621034,5968,False
+present + absent + gene,PMID_40519748_Family_2_individual_III_4,OMIM:621499,5061,False
+present + absent + gene,PMID_15266616_138,OMIM:147791,599,True
+present + absent + gene,PMID_16021330_LDJP1_1,OMIM:620681,2,True
+present + absent + gene,PMID_24498630_ISR1,OMIM:246200,523,True
+present + absent + gene,PMID_36331550_Family_19_Patient_24,OMIM:620540,10,True
+present + absent + gene,PMID_32376980_Patient_33_also_see_Urreizti_et_al_AJMG_2016_patient_P6_for_phenotypic_description,OMIM:618164,732,True
+present + absent + gene,PMID_23714749_Family_9_patient_13,OMIM:256810,19,True
+present + absent + gene,PMID_37947183_Family_F6_individual_P9,OMIM:620771,5965,False
+present + absent + gene,PMID_38579670_Individual_8,OMIM:620806,5108,False
+present + absent + gene,PMID_36965478_Individual_6,OMIM:620515,6478,False
+present + absent + gene,PMID_28984260_child,OMIM:232700,2,True
+present + absent + gene,PMID_19768645_Patient_2,OMIM:151100,1,True
+present + absent + gene,PMID_37761890_35,OMIM:616362,195,True
+present + absent + gene,PMID_37349293_Patient_1,OMIM:620565,7237,False
+present + absent + gene,PMID_40267907_Family_10,OMIM:621381,6546,False
+present + absent + gene,PMID_31021519_individual_SATB2_95,OMIM:612313,72,True
+present + absent + gene,PMID_38325380_Patient_14,OMIM:301118,7121,False
+present + absent + gene,PMID_19896112_P2,OMIM:610042,1,True
+present + absent + gene,PMID_36136088_Family_1_II_1,OMIM:620911,6241,False
+present + absent + gene,PMID_35904126_Proband_8,OMIM:620450,6136,False
+present + absent + gene,PMID_41125872_Pathogenic_19,OMIM:621456,5089,False
+present + absent + gene,PMID_40856104_Participant_10_8,OMIM:621382,6720,False
+present + absent + gene,PMID_35618278_XIII,OMIM:621248,1,True
+present + absent + gene,PMID_2107739_sister_II_5,OMIM:621417,1051,False
+present + absent + gene,PMID_28862745_PD_Case_5,OMIM:616840,1,True
+present + absent + gene,PMID_38531365_Individual_2,OMIM:621325,5952,False
+present + absent + gene,PMID_19807739_Patient_2,OMIM:240300,1,True
+present + absent + gene,PMID_36549593_Id5,OMIM:621421,43,True
+present + absent + gene,PMID_33674768_Patient_59_This_study,OMIM:300867,230,True
+present + absent + gene,PMID_34521999_Individual_38,OMIM:617140,47,True
+present + absent + gene,PMID_10749987_Family_B_patient_B1,OMIM:604377,1,True
+present + absent + gene,PMID_22772368_5_III_1,OMIM:614816,1,True
+present + absent + gene,PMID_30968594_individual_25,OMIM:201910,206,True
+present + absent + gene,PMID_28007989_F1_II_3,OMIM:616457,1,True
+present + absent + gene,PMID_24791903_Patient_1,OMIM:615829,1,True
+present + absent + gene,PMID_18385497_Patient_1,OMIM:620952,6297,False
+present + absent + gene,PMID_34612517_F3_II_3,OMIM:617478,1,True
+present + absent + gene,PMID_32480058_Case_F1P1_original_pedigree_A_IX_2,OMIM:618052,2388,False
+present + absent + gene,PMID_31721432_patient_4,OMIM:615032,1,True
+present + absent + gene,PMID_39209701_Patient_2,OMIM:621232,1813,False
+present + absent + gene,PMID_37660254_Patient_4,OMIM:620669,6399,False
+present + absent + gene,PMID_36303223_Proband_15_from_PMID_12001203,OMIM:272300,1,True
+present + absent + gene,PMID_19776401_Patient_1_1,OMIM:243700,5,True
+present + absent + gene,PMID_36662884_P7,OMIM:621097,1,True
+present + absent + gene,PMID_35310830_Individual_III_2,OMIM:619806,5185,False
+present + absent + gene,PMID_39480921_Patient_12,OMIM:621034,7313,False
+present + absent + gene,PMID_39306721_Family_15_Individual_21,OMIM:621060,372,False
+present + absent + gene,PMID_17110937_Patient_7,OMIM:610842,1,True
+present + absent + gene,PMID_39721588_Individual_16,OMIM:621372,5250,False
+present + absent + gene,PMID_23495017_Patient_8,OMIM:614332,6591,False
+present + absent + gene,PMID_38858457_F5_individual_5,OMIM:620923,1,True
+present + absent + gene,PMID_21696388_IV_6,OMIM:606693,1,True
+present + absent + gene,PMID_37843397_Patient_1_7,OMIM:151660,4,True
+present + absent + gene,PMID_24951643_Patient_5,OMIM:615120,62,True
+present + absent + gene,PMID_32376980_Patient_19,OMIM:618164,226,True
+present + absent + gene,PMID_40683276_Family_9_Patient_20,OMIM:621333,5290,False
+present + absent + gene,PMID_32376980_Patient_45,OMIM:618164,813,True
+present + absent + gene,PMID_19818506_Patient_3,OMIM:608415,1,True
+present + absent + gene,PMID_29050398_P1,OMIM:620540,1,True
+present + absent + gene,PMID_10077612_Family_A_IV_20,OMIM:142900,1,True
+present + absent + gene,PMID_26805781_Family_6_Subject_6_II_1,OMIM:616878,1,True
+present + absent + gene,PMID_32765928_Case_2,OMIM:151100,1,True
+present + absent + gene,PMID_36253531_Family_2_probed,OMIM:621237,3529,False
+present + absent + gene,PMID_38531365_Individual_8,OMIM:621325,5002,False
+present + absent + gene,PMID_38413582_Family_4_individual_II_2,OMIM:620793,1,True
+present + absent + gene,PMID_22241092_Patient_CDL266,OMIM:122470,1,True
+present + absent + gene,PMID_25802881_M39,OMIM:612463,2,True
+present + absent + gene,PMID_17968484_Patient_4,OMIM:210200,33,True
+present + absent + gene,PMID_38479391_Individual_12,OMIM:621049,5059,False
+present + absent + gene,PMID_39306721_Family_21_Individual_28,OMIM:621060,5095,False
+present + absent + gene,PMID_19683336_Patient_8,OMIM:256500,1,True
+present + absent + gene,PMID_31569402_Family_2_Patient_I,OMIM:609192,8,True
+present + absent + gene,PMID_41130203_F1_II_1,OMIM:621460,6136,False
+present + absent + gene,PMID_18513678_individual_5030,OMIM:260300,77,True
+present + absent + gene,PMID_34976470_fetus_one,OMIM:301127,6,True
+present + absent + gene,PMID_37148315_Family_2_Proband_II_1,OMIM:621471,1813,False
+present + absent + gene,PMID_39978342_P22,OMIM:621185,2890,False
+present + absent + gene,PMID_23913798_Patient_1,OMIM:620458,1,True
+present + absent + gene,PMID_26833330_F1_II3,OMIM:616829,1,True
+present + absent + gene,PMID_36182950_Patient_85,OMIM:615032,1,True
+present + absent + gene,PMID_25168959_Patient_L43,OMIM:614608,1,True
+present + absent + gene,PMID_29379883_Family_1_patient_1,OMIM:616907,1,True
+present + absent + gene,PMID_21358634_Family_4,OMIM:132800,954,False
+present + absent + gene,PMID_38411716_Case_2,OMIM:305400,1,True
+present + absent + gene,PMID_41130203_F5_II_3,OMIM:621460,2675,False
+present + absent + gene,PMID_27536553_Patient_4,OMIM:256810,1,True
+present + absent + gene,PMID_4045952_IV_13,OMIM:301310,1,True
+present + absent + gene,PMID_31898322_case_20_son_of_19,OMIM:615582,823,True

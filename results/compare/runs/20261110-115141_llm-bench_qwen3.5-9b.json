@@ -1,0 +1,134 @@
+{
+ "metrics": {
+  "llm_paired": {
+   "ranker + LLM re-rank": {
+    "top1_delta": 0.01,
+    "top1_ci": [
+     0.0,
+     0.03333333333333333
+    ],
+    "top10_delta": 0.0,
+    "top10_ci": [
+     0.0,
+     0.0
+    ],
+    "mrr_delta": 0.005,
+    "mrr_ci": [
+     0.0,
+     0.016666666666666666
+    ],
+    "moved_up": 1,
+    "moved_down": 0,
+    "cases": 100
+   },
+   "LLM alone": {
+    "top1_delta": -0.16,
+    "top1_ci": [
+     -0.2872340425531915,
+     -0.0392156862745098
+    ],
+    "top10_delta": -0.33,
+    "top10_ci": [
+     -0.46153846153846156,
+     -0.21153846153846154
+    ],
+    "mrr_delta": -0.21244047619047618,
+    "mrr_ci": [
+     -0.3289508312120672,
+     -0.09843834820287498
+    ],
+    "moved_up": 4,
+    "moved_down": 39,
+    "cases": 100
+   }
+  },
+  "requests": {
+   "requests": 0,
+   "retries": 0,
+   "cache_hits": 145,
+   "would_send": 0,
+   "offline_misses": 0,
+   "sec_per_request": 0.0
+  },
+  "llm": {
+   "model": "qwen3.5:9b",
+   "task": "phenopacket",
+   "cases": 100,
+   "failed_calls": 0,
+   "stopped_early": "",
+   "sec_per_call": 0.0,
+   "requests": 0,
+   "cache_hits": 145,
+   "reranked": 45,
+   "ranker_top1": 0.23,
+   "ranker_top3": 0.35,
+   "ranker_top10": 0.45,
+   "ranker_mrr": 0.303,
+   "rerank_top1": 0.24,
+   "rerank_top3": 0.35,
+   "rerank_top10": 0.45,
+   "rerank_mrr": 0.308,
+   "direct_top1": 0.07,
+   "direct_top3": 0.11,
+   "direct_top10": 0.12,
+   "direct_mrr": 0.09,
+   "rerank_parse_rate": 1.0,
+   "faithfulness": 0.44,
+   "direct_parse_rate": 1.0,
+   "direct_mapped": 0.753
+  }
+ },
+ "files": [
+  "results/compare/llm_rerank_qwen3.5-9b.csv"
+ ],
+ "settings": {
+  "sample": 300,
+  "seed": 13,
+  "rounds": 5,
+  "llm_cases": 100,
+  "hpo": "hp/releases/2026-09-01",
+  "annotations": "2026-09-02",
+  "prefixes": [
+   "OMIM"
+  ],
+  "common": null,
+  "prior_weight": 1.0,
+  "absent_weight": 0.5,
+  "absent_min_freq": 0.8,
+  "use_onset": false,
+  "use_sex": false,
+  "model": "qwen3.5:9b",
+  "endpoint": "http://localhost:11434/v1/chat/completions",
+  "max_tokens": 4096,
+  "extra": {
+   "reasoning_effort": "none"
+  },
+  "offline": false
+ },
+ "id": "20261110-115141_llm-bench_qwen3.5-9b",
+ "command": "llm-bench",
+ "argv": [
+  "--common",
+  "none",
+  "--note",
+  "Qwen3.5 9b, 100, CIs",
+  "--llm",
+  "--llm-endpoint",
+  "http://localhost:11434/v1/chat/completions",
+  "--llm-model",
+  "qwen3.5:9b",
+  "--llm-max-tokens",
+  "4096",
+  "--llm-extra",
+  "{\"reasoning_effort\": \"none\"}",
+  "llm-bench",
+  "--llm-cases",
+  "100",
+  "--out",
+  "results/compare"
+ ],
+ "note": "Qwen3.5 9b, 100, CIs",
+ "started": "2026-11-10 11:51:41",
+ "status": "ok",
+ "seconds": 4.3
+}

@@ -1,0 +1,39 @@
+run       20261110-083623_medpix-context_qwen3.5-9b
+started   2026-11-10 08:36:23
+command   medpix-context
+note      Qwen3.5 9b image context + verify
+status    stopped (Ctrl-C)
+duration  0.5 min
+argv      python -m hoofbeats --common none --note 'Qwen3.5 9b image context + verify' --context-model qwen3.5:9b --context-endpoint http://localhost:11434/v1/chat/completions --context-extra '{"reasoning_effort": "none"}' --context-max-tokens 4096 --context-verify medpix-context --medpix data/medpix-src/MedPix-2-0 --orphadata-xml data/kb/ORPHA_ICD10_mapping_en.xml --cases MPX1033,MPX1043,MPX1063,MPX1075,MPX1067,MPX1109,MPX1115,MPX1135,MPX1123,MPX1152,MPX1159,MPX1154,MPX1169,MPX1165,MPX1164,MPX1191,MPX1174,MPX1194,MPX1195,MPX1229,MPX1227,MPX1231,MPX1259,MPX1301,MPX1309,MPX1279,MPX1321,MPX1318,MPX1366,MPX1381,MPX1371,MPX1355,MPX1429,MPX1419,MPX1454,MPX1433,MPX1463,MPX1442,MPX1473,MPX1495 --conditions text,context,verified,definite,reference --max-images 2 --images-per-call 2 --out results/compare
+
+split         test
+limit         20
+seed          13
+max_images    2
+hpo           hp/releases/2026-09-01
+annotations   2026-09-02
+prefixes      ['OMIM', 'ORPHA']
+common        None
+prior_weight  1.0
+absent_weight 0.5
+absent_min_freq0.8
+use_onset     False
+use_sex       False
+context_model qwen3.5:9b
+context_endpointhttp://localhost:11434/v1/chat/completions
+context_verifyTrue
+conditions    ['text', 'context', 'verified', 'definite', 'reference']
+images_per_call2
+
+========================================================================
+console output
+========================================================================
+
+[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 12820 rare + 0 common diseases
+[llm] image context (Stage A) by qwen3.5:9b via http://localhost:11434/v1/chat/completions: --context-model; each finding checked with a second request (--context-verify)
+[medpix-context] 40 cases with images and a knowledge-base diagnosis (chosen); up to 2 images each; Stage 1 with rules + numbers
+
+========================================================================
+metrics (also in the .json file)
+========================================================================
+{}

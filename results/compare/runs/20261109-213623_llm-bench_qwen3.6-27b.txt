@@ -1,0 +1,88 @@
+run       20261109-213623_llm-bench_qwen3.6-27b
+started   2026-11-09 21:36:23
+command   llm-bench
+note      Qwen3.6 27b, high
+status    partial (stopped early: 3 failed cases in a row)
+duration  0.1 min
+argv      python -m hoofbeats --common none --note 'Qwen3.6 27b, high' --llm --llm-endpoint http://localhost:11434/v1/chat/completions --llm-model qwen3.6:27b --llm-max-tokens 16384 --llm-extra '{"reasoning_effort": "high"}' llm-bench --llm-cases 30 --out results/compare
+
+sample        300
+seed          13
+rounds        5
+llm_cases     30
+hpo           hp/releases/2026-09-01
+annotations   2026-09-02
+prefixes      ['OMIM']
+common        None
+prior_weight  1.0
+absent_weight 0.5
+absent_min_freq0.8
+use_onset     False
+use_sex       False
+model         qwen3.6:27b
+endpoint      http://localhost:11434/v1/chat/completions
+max_tokens    16384
+extra         {'reasoning_effort': 'high'}
+offline       False
+
+========================================================================
+console output
+========================================================================
+
+[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 8465 rare + 0 common diseases
+[data] 223 evaluable cases; sending the first 30 to the model
+[llm] qwen3.6:27b via http://localhost:11434/v1/chat/completions; 0 cached replies in results/compare/llm_cache
+
+[llm] PMID_30315159_Patient_5: qwen3.6:27b: HTTP 404 {"error":{"message":"model 'qwen3.6:27b' not found","type":"not_found_error","param":null,"code":null}}
+
+[llm] 1/30
+[llm] PMID_20358602_Patient_C8: qwen3.6:27b: HTTP 404 {"error":{"message":"model 'qwen3.6:27b' not found","type":"not_found_error","param":null,"code":null}}
+
+[llm] 2/30
+[llm] PMID_18551513_8: qwen3.6:27b: HTTP 404 {"error":{"message":"model 'qwen3.6:27b' not found","type":"not_found_error","param":null,"code":null}}
+
+[llm] stopping early: 3 failed cases in a row
+
+qwen3.6:27b on 1 evaluable cases (rows in results/compare/llm_rerank_qwen3.6-27b.csv):
+| ranking | Top-1 | Top-3 | Top-10 | MRR |
+|---|---|---|---|---|
+| ranker alone | 0.000 | 0.000 | 0.000 | 0.000 |
+| ranker + LLM re-rank | 0.000 | 0.000 | 0.000 | 0.000 |
+[llm] requests sent 3 (retries 0), answered from cache 0, 0.01 s per request
+[compare] summary appended to results/compare/llm_compare.csv
+
+========================================================================
+metrics (also in the .json file)
+========================================================================
+{
+ "requests": {
+  "requests": 3,
+  "retries": 0,
+  "cache_hits": 0,
+  "would_send": 0,
+  "offline_misses": 0,
+  "sec_per_request": 0.01
+ },
+ "llm": {
+  "model": "qwen3.6:27b",
+  "task": "phenopacket",
+  "cases": 1,
+  "failed_calls": 3,
+  "stopped_early": "3 failed cases in a row",
+  "sec_per_call": 0.01,
+  "requests": 3,
+  "cache_hits": 0,
+  "reranked": 0,
+  "ranker_top1": 0.0,
+  "ranker_top3": 0.0,
+  "ranker_top10": 0.0,
+  "ranker_mrr": 0.0,
+  "rerank_top1": 0.0,
+  "rerank_top3": 0.0,
+  "rerank_top10": 0.0,
+  "rerank_mrr": 0.0
+ }
+}
+
+files written:
+  results/compare/llm_rerank_qwen3.6-27b.csv

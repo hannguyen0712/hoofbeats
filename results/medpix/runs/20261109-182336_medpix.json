@@ -1,0 +1,66 @@
+{
+ "metrics": {
+  "medpix": {
+   "model": "none",
+   "task": "medpix",
+   "cases": 671,
+   "labeled": 192,
+   "failed_calls": 0,
+   "rank_text_top1": 0.021,
+   "rank_text_top3": 0.052,
+   "rank_text_top10": 0.099,
+   "rank_text_mrr": 0.047,
+   "rank_text_learned_top1": 0.021,
+   "rank_text_learned_top3": 0.047,
+   "rank_text_learned_top10": 0.094,
+   "rank_text_learned_mrr": 0.046,
+   "rank_radiologist_top1": 0.042,
+   "rank_radiologist_top3": 0.099,
+   "rank_radiologist_top10": 0.161,
+   "rank_radiologist_mrr": 0.083
+  }
+ },
+ "files": [
+  "results/medpix/medpix.csv"
+ ],
+ "settings": {
+  "split": "all",
+  "max_images": 4,
+  "only_labeled": false,
+  "limit": null,
+  "hpo": "hp/releases/2026-09-01",
+  "annotations": "2026-09-02",
+  "prefixes": [
+   "OMIM",
+   "ORPHA"
+  ],
+  "common": null,
+  "prior_weight": 1.0,
+  "absent_weight": 0.5,
+  "absent_min_freq": 0.8,
+  "use_onset": false,
+  "use_sex": false,
+  "weights": "results/train/weights.json"
+ },
+ "id": "20261109-182336_medpix",
+ "command": "medpix",
+ "argv": [
+  "--common",
+  "none",
+  "--weights",
+  "results/train/weights.json",
+  "--note",
+  "medpix text, learned weights",
+  "medpix",
+  "--medpix",
+  "data/medpix-src/MedPix-2-0",
+  "--orphadata-xml",
+  "data/kb/ORPHA_ICD10_mapping_en.xml",
+  "--out",
+  "results/medpix"
+ ],
+ "note": "medpix text, learned weights",
+ "started": "2026-11-09 18:23:36",
+ "status": "ok",
+ "seconds": 12.2
+}

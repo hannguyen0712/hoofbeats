@@ -1,0 +1,54 @@
+{
+ "metrics": {},
+ "files": [],
+ "settings": {
+  "sample": 300,
+  "seed": 13,
+  "rounds": 5,
+  "llm_cases": 30,
+  "hpo": "hp/releases/2026-09-01",
+  "annotations": "2026-09-02",
+  "prefixes": [
+   "OMIM"
+  ],
+  "common": null,
+  "prior_weight": 1.0,
+  "absent_weight": 0.5,
+  "absent_min_freq": 0.8,
+  "use_onset": false,
+  "use_sex": false,
+  "model": "qwen3.6:27b",
+  "endpoint": "http://localhost:11434/v1/chat/completions",
+  "max_tokens": 16384,
+  "extra": {
+   "reasoning_effort": "high"
+  },
+  "offline": false
+ },
+ "id": "20261109-221014_llm-bench_qwen3.6-27b",
+ "command": "llm-bench",
+ "argv": [
+  "--common",
+  "none",
+  "--note",
+  "Qwen3.6 27b, high",
+  "--llm",
+  "--llm-endpoint",
+  "http://localhost:11434/v1/chat/completions",
+  "--llm-model",
+  "qwen3.6:27b",
+  "--llm-max-tokens",
+  "16384",
+  "--llm-extra",
+  "{\"reasoning_effort\": \"high\"}",
+  "llm-bench",
+  "--llm-cases",
+  "30",
+  "--out",
+  "results/compare"
+ ],
+ "note": "Qwen3.6 27b, high",
+ "started": "2026-11-09 22:10:14",
+ "status": "stopped (Ctrl-C)",
+ "seconds": 54.2
+}

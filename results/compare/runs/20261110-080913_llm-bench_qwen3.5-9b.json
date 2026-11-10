@@ -1,0 +1,92 @@
+{
+ "metrics": {
+  "requests": {
+   "requests": 42,
+   "retries": 0,
+   "cache_hits": 3,
+   "would_send": 0,
+   "offline_misses": 0,
+   "sec_per_request": 25.7
+  },
+  "llm": {
+   "model": "qwen3.5:9b",
+   "task": "phenopacket",
+   "cases": 30,
+   "failed_calls": 0,
+   "stopped_early": "",
+   "sec_per_call": 25.7,
+   "requests": 42,
+   "cache_hits": 3,
+   "reranked": 15,
+   "ranker_top1": 0.4,
+   "ranker_top3": 0.433,
+   "ranker_top10": 0.5,
+   "ranker_mrr": 0.426,
+   "rerank_top1": 0.4,
+   "rerank_top3": 0.433,
+   "rerank_top10": 0.5,
+   "rerank_mrr": 0.426,
+   "direct_top1": 0.1,
+   "direct_top3": 0.1,
+   "direct_top10": 0.1,
+   "direct_mrr": 0.1,
+   "rerank_parse_rate": 1.0,
+   "faithfulness": 0.376,
+   "direct_parse_rate": 1.0,
+   "direct_mapped": 0.774
+  }
+ },
+ "files": [
+  "results/compare/llm_rerank_qwen3.5-9b.csv"
+ ],
+ "settings": {
+  "sample": 300,
+  "seed": 13,
+  "rounds": 5,
+  "llm_cases": 30,
+  "hpo": "hp/releases/2026-09-01",
+  "annotations": "2026-09-02",
+  "prefixes": [
+   "OMIM"
+  ],
+  "common": null,
+  "prior_weight": 1.0,
+  "absent_weight": 0.5,
+  "absent_min_freq": 0.8,
+  "use_onset": false,
+  "use_sex": false,
+  "model": "qwen3.5:9b",
+  "endpoint": "http://localhost:11434/v1/chat/completions",
+  "max_tokens": 4096,
+  "extra": {
+   "reasoning_effort": "none"
+  },
+  "offline": false
+ },
+ "id": "20261110-080913_llm-bench_qwen3.5-9b",
+ "command": "llm-bench",
+ "argv": [
+  "--common",
+  "none",
+  "--note",
+  "Qwen3.5 9b, no thinking",
+  "--llm",
+  "--llm-endpoint",
+  "http://localhost:11434/v1/chat/completions",
+  "--llm-model",
+  "qwen3.5:9b",
+  "--llm-max-tokens",
+  "4096",
+  "--llm-extra",
+  "{\"reasoning_effort\": \"none\"}",
+  "llm-bench",
+  "--llm-cases",
+  "30",
+  "--out",
+  "results/compare"
+ ],
+ "note": "Qwen3.5 9b, no thinking",
+ "started": "2026-11-10 08:09:13",
+ "status": "ok",
+ "seconds": 1085.8
+}

@@ -542,6 +542,66 @@ class Tests(unittest.TestCase):
             self.r.absent_min_freq = 0.0
         self.assertEqual(old.shape, same.shape)
 
+    def test_reliability(self):
+        from dataclasses import replace
+        from hoofbeats.model import mix, parse_reliability, source_reliability
+        img = [Finding("HP:0001250", Status.PRESENT, "image_context"), Finding("HP:0000098", Status.ABSENT, "image:MPX1_2")]
+        c = Case("x", P("HP:0007359") + img, ["OMIM:1"])
+        without = replace(c, findings=c.findings[:1])
+        full = self.r.score(c).log_scores
+        try:
+            self.r.reliability = {"image_context": 0.0, "image": 0.0}       # p = 0: the finding changes nothing
+            self.assertTrue(np.allclose(self.r.score(c).log_scores, self.r.score(without).log_scores))
+            self.r.reliability = {"image_context": 1.0, "image": 1.0}       # p = 1: same as no reliability
+            self.assertTrue(np.allclose(self.r.score(c).log_scores, full))
+            self.r.reliability = {"image_context": 0.3, "image": 0.3}
+            half = self.r.score(c).log_scores
+            d = self.r.diseases[int(np.argmax(np.abs(full - self.r.score(without).log_scores)))]
+            j = self.r.d_index[d]
+            lo, hi = sorted((full[j], self.r.score(without).log_scores[j]))
+            self.assertTrue(lo - 1e-9 <= half[j] <= hi + 1e-9)               # in between, on the moved disease
+            for d in self.r.diseases[:5]:                                     # score() and contributions() agree
+                self.assertAlmostEqual(sum(x.log_lr for x in self.r.contributions(c, d)), half[self.r.d_index[d]], places=5)
+            pc = {x.hpo_id: x.reliability for x in self.r.contributions(c, "OMIM:1")}
+            self.assertEqual(pc["HP:0001250"], 0.3)
+            claims = [cl.text for _, _, cls in explain(self.r, c, self.r.score(c), 3) for cl in cls]
+            self.assertTrue(any("30% reliability" in t for t in claims) or not claims)
+        finally:
+            self.r.reliability = {}
+        # a fused finding counts as its most reliable source; unknown kinds use "*" (default 1)
+        t = {"image_context": 0.2, "*": 0.9}
+        self.assertEqual(source_reliability("note;image_context", {"image_context": 0.2}), 1.0)
+        self.assertEqual(source_reliability("image_context", t), 0.2)
+        self.assertEqual(source_reliability("lab:Ammonia", t), 0.9)
+        self.assertEqual(source_reliability("anything", {}), 1.0)
+        self.assertEqual(mix(10.0, 0.5), 5.5)
+        self.assertEqual(parse_reliability('{"image": 0.15}'), {"image": 0.15})
+        self.assertEqual(parse_reliability(None), {})
+        with self.assertRaises(ValueError):
+            parse_reliability('{"image": 1.5}')
+        # measured on one set of cases, saved, read back for others; --exclude-cases reads a run's CSV or ids
+        from hoofbeats.__main__ import read_case_ids, write_reliability
+        d = Path(tempfile.mkdtemp())
+        (d / "run.csv").write_text("case,rank\nMPX1,3\nMPX2,\n")
+        self.assertEqual(read_case_ids(str(d / "run.csv")), {"MPX1", "MPX2"})
+        self.assertEqual(read_case_ids("MPX1, MPX3"), {"MPX1", "MPX3"})
+        self.assertEqual(read_case_ids(None), set())
+        self.assertAlmostEqual(write_reliability(d / "rel.json", "image", 3, 20, 5), 0.15)
+        self.assertEqual(parse_reliability(str(d / "rel.json")), {"image": 0.15})
+        self.assertIsNone(write_reliability(d / "none.json", "image", 0, 0, 5))
+
+    def test_paired_table(self):
+        # moves count only if they involve the top 10; CIs are paired and resample diseases
+        from hoofbeats.__main__ import paired_table
+        base = [1, 5, 12820, 3, None, 2]
+        new = [1, 2, 12795, 15, 4, 2]       # 5->2 up, 12820->12795 ignored, 3->15 down, None->4 up
+        out = paired_table("base", base, [("new", new)], ["A", "B", "C", "D", "E", "F"], "test_paired")["new"]
+        self.assertEqual((out["moved_up"], out["moved_down"]), (2, 1))
+        self.assertAlmostEqual(out["top10_delta"], 0.0)
+        self.assertAlmostEqual(out["top1_delta"], 0.0)
+        lo, hi = out["mrr_ci"]
+        self.assertTrue(lo <= out["mrr_delta"] <= hi)
+
     def test_quota_errors(self):
         from hoofbeats.llm import quota_info
         body = json.dumps([{"error": {"code": 429, "message": "quota", "details": [
@@ -1412,6 +1472,25 @@ class TestImageContext(unittest.TestCase):
         self.assertAlmostEqual(rows["context"]["context_recall"], 1 / 3)   # low ALP; not hyperammonemia, ectopia lentis
         named = medpix_context_case(self.case(), ["context"], FakeVision(names_diagnosis=True), self.r, self.ext)[0]
         self.assertTrue(named["context_named_diagnosis"])
+
+    def test_context_without_history(self):
+        # --context-no-history: the describing model never sees the history; Stage 1 still reads it
+        from hoofbeats.context import medpix_context_case
+        from hoofbeats.__main__ import image_agreement
+        seen = []
+
+        class Spy(FakeVision):
+            def chat(self, user, system="", images=()):
+                seen.append(user)
+                return super().chat(user, system, images)
+        c = self.case()
+        self.assertTrue(c.meta.get("history"))
+        for no_history in (False, True):
+            seen.clear()
+            rows = medpix_context_case(c, ["text", "context"], Spy(), self.r, self.ext, max_images=1,
+                                       agreement=image_agreement, no_history=no_history)
+            self.assertEqual(any("Clinical question" in u for u in seen), not no_history)
+            self.assertEqual({x["condition"] for x in rows}, {"text", "context"})
 
     def test_check_keeps_only_confirmed_findings(self):
         from hoofbeats.__main__ import image_agreement

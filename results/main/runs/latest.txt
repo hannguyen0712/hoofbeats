@@ -1,0 +1,144 @@
+run       20261019-154507_benchmark
+started   2026-10-19 15:45:07
+command   benchmark
+note      ranker baseline
+status    ok
+duration  0.1 min
+argv      python -m hoofbeats --common none --note 'ranker baseline' benchmark --sample 500 --out results/main
+
+sample        500
+seed          13
+rounds        5
+llm_cases     50
+hpo           hp/releases/2026-09-01
+annotations   2026-09-02
+prefixes      ['OMIM']
+common        None
+prior_weight  1.0
+
+========================================================================
+console output
+========================================================================
+
+[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 8465 rare + 0 common diseases
+[data] 500 cases, 290 diseases, 357 evaluable
+
+| condition | Top-1 | Top-3 | Top-10 | MRR | evaluable Top-1 |
+|---|---|---|---|---|---|
+| present only | 0.180 | 0.278 | 0.342 | 0.242 | 0.252 |
+| present + absent | 0.146 | 0.218 | 0.282 | 0.196 | 0.204 |
+| present + absent, NO leakage control | 0.478 | 0.570 | 0.648 | 0.540 | 0.429 |
+| present + absent + gene | 0.330 | 0.392 | 0.474 | 0.379 | 0.462 |
+
+Weight on absent evidence (evaluable cases):
+| weight | Top-1 | Top-10 |
+|---|---|---|
+| 0 | 0.252 | 0.479 |
+| 0.25 | 0.252 | 0.465 |
+| 0.5 | 0.246 | 0.443 |
+| 1 | 0.204 | 0.395 |
+
+Calibration on held-out diseases: temperature 11.58, ECE 0.127, Top-1 when answering the 50% most confident: 0.165
+
+========================================================================
+metrics (also in the .json file)
+========================================================================
+{
+ "data": {
+  "cases": 500,
+  "diseases": 290,
+  "evaluable": 357
+ },
+ "conditions": {
+  "present only": {
+   "top1": 0.18,
+   "top3": 0.278,
+   "top10": 0.342,
+   "mrr": 0.24168511810791246,
+   "evaluable": {
+    "top1": 0.25210084033613445,
+    "top3": 0.38935574229691877,
+    "top10": 0.4789915966386555,
+    "mrr": 0.3384208125555438
+   }
+  },
+  "present + absent": {
+   "top1": 0.146,
+   "top3": 0.218,
+   "top10": 0.282,
+   "mrr": 0.19631171456913563,
+   "evaluable": {
+    "top1": 0.20448179271708683,
+    "top3": 0.30532212885154064,
+    "top10": 0.3949579831932773,
+    "mrr": 0.27487258359199646
+   }
+  },
+  "present + absent, NO leakage control": {
+   "top1": 0.478,
+   "top3": 0.57,
+   "top10": 0.648,
+   "mrr": 0.5396396067380625,
+   "evaluable": {
+    "top1": 0.42857142857142855,
+    "top3": 0.5126050420168067,
+    "top10": 0.5966386554621849,
+    "mrr": 0.48833565863035683
+   }
+  },
+  "present + absent + gene": {
+   "top1": 0.33,
+   "top3": 0.392,
+   "top10": 0.474,
+   "mrr": 0.37901412306292104,
+   "evaluable": {
+    "top1": 0.46218487394957986,
+    "top3": 0.5490196078431373,
+    "top10": 0.6638655462184874,
+    "mrr": 0.5307266959398365
+   }
+  }
+ },
+ "absent_weight": {
+  "0": {
+   "top1": 0.25210084033613445,
+   "top3": 0.38935574229691877,
+   "top10": 0.4789915966386555,
+   "mrr": 0.3384208125555438
+  },
+  "0.25": {
+   "top1": 0.25210084033613445,
+   "top3": 0.36694677871148457,
+   "top10": 0.4649859943977591,
+   "mrr": 0.32948921200112913
+  },
+  "0.5": {
+   "top1": 0.24649859943977592,
+   "top3": 0.3389355742296919,
+   "top10": 0.4425770308123249,
+   "mrr": 0.31558472706549195
+  },
+  "1": {
+   "top1": 0.20448179271708683,
+   "top3": 0.30532212885154064,
+   "top10": 0.3949579831932773,
+   "mrr": 0.27487258359199646
+  }
+ },
+ "calibration": {
+  "temperature": 11.580887961204972,
+  "ece": 0.1266734074513047,
+  "reliability": [
+   {
+    "bin": 0,
+    "confidence": 0.0032478523912149817,
+    "accuracy": 0.12992125984251968,
+    "n": 254
+   }
+  ],
+  "top1_confident_half": 0.16535433070866143
+ }
+}
+
+files written:
+  results/main/benchmark.csv

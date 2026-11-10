@@ -264,6 +264,42 @@ def patient_onset_classes(ont: Ontology, meta: dict) -> set[int]:
     return set()
 
 
+# reliability: how much a finding counts depends on how often findings from its source are real
+# A finding that is real with probability p has likelihood ratio p * LR + (1 - p) * 1: with p = 1 it counts fully,
+# with p = 0 it is ignored, in between it is pulled toward "no information". p comes from measured precision (e.g.
+# image findings against the radiologist), not from training. Unlisted sources count fully (p = 1).
+def source_kind(source: str) -> str:
+    # "lab:Ammonia" -> "lab", "image:MPX1_2" -> "image", "image_context" -> "image_context"
+    return source.split(":", 1)[0].strip()
+
+
+def source_reliability(source: str, table: dict[str, float]) -> float:
+    # a fused finding lists every source that reported it ("note;image_context"); the most reliable one counts,
+    # since a trusted source reporting it makes it as likely to be real as that source's findings are
+    if not table:
+        return 1.0
+    kinds = [source_kind(x) for x in (source or "").split(";") if x.strip()] or [""]
+    return max(min(max(float(table.get(k, table.get("*", 1.0))), 0.0), 1.0) for k in kinds)
+
+
+def parse_reliability(spec: str | None) -> dict[str, float]:
+    # --reliability: JSON text or a JSON file, {"image_context": 0.15, "image": 0.15}; "*" sets the default
+    if not spec:
+        return {}
+    import json
+    text = Path(spec).read_text(encoding="utf-8") if Path(spec).is_file() else spec
+    table = {str(k): float(v) for k, v in json.loads(text).items()}
+    bad = [k for k, v in table.items() if not 0.0 <= v <= 1.0]
+    if bad:
+        raise ValueError(f"--reliability: values must be between 0 and 1 ({', '.join(bad)})")
+    return table
+
+
+def mix(lr, p):
+    # likelihood ratio of a finding that is real with probability p
+    return lr if p >= 1.0 else p * lr + (1.0 - p)
+
+
 # ranker
 @dataclass
 class Contribution:
@@ -273,6 +309,7 @@ class Contribution:
     kb_term: str | None = None     # disease-side term that matched
     kb_freq: float | None = None
     refs: tuple[str, ...] = ()
+    reliability: float = 1.0       # chance the finding is real; the LR was mixed toward 1 by this (see source_reliability)
 
 
 @dataclass
@@ -337,6 +374,7 @@ class LRRanker:
                                    for d in self.diseases]) if db.prior else np.zeros(len(self.diseases))
 
         self.use_onset, self.use_sex = False, False
+        self.reliability: dict[str, float] = {}       # source kind -> p (parse_reliability); empty = all count fully
         self._onset_P = np.vstack([self._onset_dist(d) for d in self.diseases]) if db.onset else None
         has = self._onset_P is not None and self._onset_P.sum(axis=1) > 0
         self._onset_bg = self._onset_P[has].mean(axis=0) if has is not False and np.any(has) else None
@@ -422,10 +460,20 @@ class LRRanker:
     def _terms(self, case: Case, status: Status) -> list[str]:
         return list(dict.fromkeys(r for r in map(self.ont.resolve, case.terms(status)) if r))
 
+    def _reliability(self, case: Case, status: Status) -> dict[str, float]:
+        # resolved term -> p; a term reported by several findings takes the most reliable one
+        out = {}
+        for f in case.findings:
+            t = self.ont.resolve(f.hpo_id) if f.status == status else None
+            if t:
+                out[t] = max(out.get(t, 0.0), source_reliability(f.source, self.reliability))
+        return out
+
     def score(self, case: Case, exclude: frozenset[str] = frozenset()) -> Ranking:
         # exclude = references to ignore for this case (leakage control)
         n = len(self.diseases)
         s = np.zeros(n)
+        rel_p, rel_a = self._reliability(case, Status.PRESENT), self._reliability(case, Status.ABSENT)
         for t in self._terms(case, Status.PRESENT):
             anc = [self.t_index[u] for u in self.ont.ancestors(t) if u in self.t_index]
             lr = np.full(n, self.lr_floor)
@@ -433,7 +481,7 @@ class LRRanker:
                 lr = np.maximum((self.M[anc].toarray() / self.bg[anc][:, None]).max(axis=0), self.lr_floor)
             if t in self.t_index:
                 lr[self.NEG[self.t_index[t]].toarray().ravel()] = self.lr_floor
-            s += np.log(self._unscope(t, lr))
+            s += np.log(self._unscope(t, mix(lr, rel_p.get(t, 1.0))))
         for t in self._terms(case, Status.ABSENT):
             i = self.t_index.get(t)
             if i is None:
@@ -443,7 +491,7 @@ class LRRanker:
             row = self.M[i]
             ok = row.data >= self.absent_min_freq
             lr[row.indices[ok]] = (1 - row.data[ok]) / (1 - bg)
-            s += self.absent_weight * np.log(self._unscope(t, np.maximum(lr, self.lr_floor)))
+            s += self.absent_weight * np.log(self._unscope(t, mix(np.maximum(lr, self.lr_floor), rel_a.get(t, 1.0))))
         if self.use_genes:
             for g in case.genes:
                 for d in self.db.gene_diseases.get(g, ()):
@@ -481,6 +529,7 @@ class LRRanker:
         # per-finding log-LR for one disease (matches score())
         freq, refs, neg = self.implied(d, exclude)
         lacks = set().union(*(self.ont.descendants(t) for t in neg)) if neg else set()
+        rel_p, rel_a = self._reliability(case, Status.PRESENT), self._reliability(case, Status.ABSENT)
         out = []
         for t in self._terms(case, Status.PRESENT):
             if not self.in_scope(t, d):
@@ -492,17 +541,19 @@ class LRRanker:
                     best, u_best = freq[u] / self.bg_of(u), u
             if t in lacks:
                 best, u_best = self.lr_floor, None
-            out.append(Contribution(t, Status.PRESENT, math.log(best), u_best, freq.get(u_best),
-                                    tuple(sorted(refs.get(u_best, ())))))
+            p = rel_p.get(t, 1.0)
+            out.append(Contribution(t, Status.PRESENT, math.log(mix(best, p)), u_best, freq.get(u_best),
+                                    tuple(sorted(refs.get(u_best, ()))), p))
         for t in self._terms(case, Status.ABSENT):
             if t not in self.t_index or not self.in_scope(t, d):
                 continue
             bg = min(self.bg_of(t), 0.99)
             counts = t in freq and freq[t] >= self.absent_min_freq
             lr = (1 - freq[t]) / (1 - bg) if counts else (1 / (1 - bg) if t in lacks and t not in freq else 1.0)
-            out.append(Contribution(t, Status.ABSENT, self.absent_weight * math.log(max(lr, self.lr_floor)),
+            p = rel_a.get(t, 1.0)
+            out.append(Contribution(t, Status.ABSENT, self.absent_weight * math.log(mix(max(lr, self.lr_floor), p)),
                                     t if counts else None, freq.get(t) if counts else None,
-                                    tuple(sorted(refs.get(t, ()))) if counts else ()))
+                                    tuple(sorted(refs.get(t, ()))) if counts else (), p))
         return out
 
     def calibrate(self, score_sets: list[np.ndarray], gold_idx: list[int]) -> float:
@@ -548,6 +599,8 @@ def explain(r: LRRanker, case: Case, ranking: Ranking, k=5, exclude=frozenset(),
                 txt = f"Lacks '{pt}', which {name} shows in ~{c.kb_freq:.0%} of cases. LR {lr:.2f}"
             else:
                 txt = f"Lacks '{pt}', consistent with {name}. LR {lr:.2f}"
+            if c.reliability < 1.0:      # the LR above already includes it
+                txt += f" (finding counted at {c.reliability:.0%} reliability)"
             refs = f" [{', '.join(c.refs)}]" if c.refs else ""
             claims.append(Claim(d, txt + refs, c.hpo_id, c.status, c.kb_term, c.kb_freq, c.refs))
         out.append((d, p, claims))

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 import random
 import re
 from pathlib import Path
@@ -130,7 +131,7 @@ CONTEXT_CONDS = ("context", "verified", "definite")     # conditions that need t
 
 
 def medpix_context_case(c, conds, ctx_llm, r: LRRanker, ext, max_images=2, per_call=1, agreement=None,
-                        reader=None) -> list[dict]:
+                        reader=None, no_history=False) -> list[dict]:
     # one MedPix case under each condition: the same Stage 1 (parse_case) and the same ranker, only the
     # image_context text differs. agreement(r, predicted, reference) -> (precision, recall) scores the image context
     # against the radiologist's findings. "context" and "verified" share one description: "verified" keeps only the
@@ -143,7 +144,10 @@ def medpix_context_case(c, conds, ctx_llm, r: LRRanker, ext, max_images=2, per_c
             **{k: det[k] for k in ("age", "sex") if det.get(k)}}
     texts, ctx = {}, {}
     if any(x in conds for x in CONTEXT_CONDS):
-        parts = image_context(ctx_llm, c, max_images, per_call, verify="verified" in conds)
+        # no_history: the vision model gets the images, age and sex but not the history (the "clinical question"),
+        # to tell findings it sees from findings it expects from the history; Stage 1 still reads the history
+        seen = replace(c, meta={**c.meta, "history": ""}) if no_history else c
+        parts = image_context(ctx_llm, seen, max_images, per_call, verify="verified" in conds)
         texts = {"context": "\n\n".join(x.unchecked for x in parts if x.unchecked),
                  "verified": "\n\n".join(x.text for x in parts if x.text),
                  "definite": "\n\n".join(x.definite for x in parts if x.definite)}
@@ -155,7 +159,8 @@ def medpix_context_case(c, conds, ctx_llm, r: LRRanker, ext, max_images=2, per_c
             ctx[cond] = {"context_named_diagnosis": bool(info["masked"]),
                          "context_parsed": bool(parts) and all(x.parsed for x in parts),
                          "context_cut_off": any(x.cut_off for x in parts),
-                         "context_precision": prec, "context_recall": rec, "context": text[:3000]}
+                         "context_precision": prec, "context_recall": rec, "context": text[:3000],
+                         "context_pred": len(got), "context_agree": round((prec or 0) * len(got))}
         if "verified" in conds:
             ctx["verified"].update({"findings_checked": sum(x.checked for x in parts),
                                     "findings_kept": sum(x.kept for x in parts)})
@@ -207,6 +212,11 @@ def cmd_medpix_context(a, hb):
         if not cases:
             raise SystemExit("none of the listed cases has images on disk")
     else:
+        skip = hb.read_case_ids(a.exclude_cases)
+        if skip:
+            n = len(cases)
+            cases = [c for c in cases if c.case_id not in skip]
+            print(f"[medpix-context] {n - len(cases)} cases left out (--exclude-cases)")
         if not cases:
             raise SystemExit(f"no MedPix cases with images and a knowledge-base diagnosis under {a.medpix} "
                              "(clone the full repository; see README)")
@@ -217,14 +227,15 @@ def cmd_medpix_context(a, hb):
     if bad:
         raise SystemExit(f"unknown condition(s) {', '.join(bad)}; choose from {', '.join(MM_CONDITIONS)}")
     ctx_llm = context_llm(hb, a) if any(x in conds for x in CONTEXT_CONDS) else None
-    hb.RUN["settings"].update({"conditions": conds, "images_per_call": a.images_per_call, "max_images": a.max_images})
+    hb.RUN["settings"].update({"conditions": conds, "images_per_call": a.images_per_call, "max_images": a.max_images,
+                               "context_no_history": a.context_no_history})
     print(f"[medpix-context] {len(cases)} cases with images and a knowledge-base diagnosis "
           f"({'chosen' if want else a.split + ' split'}); up to {a.max_images} images each; Stage 1 with rules + numbers")
     rows, failed, stopped = [], 0, ""
     for i, c in enumerate(cases, 1):
         try:
             rows += medpix_context_case(c, conds, ctx_llm, r, ext, a.max_images, a.images_per_call,
-                                        agreement=hb.image_agreement)
+                                        agreement=hb.image_agreement, no_history=a.context_no_history)
         except QuotaExhausted as e:      # quota gone: keep finished cases, stop
             stopped = str(e)
             print(f"\n[llm] stopping early: {e}")
@@ -246,7 +257,7 @@ def cmd_medpix_context(a, hb):
     df.to_csv(hb.wrote(path), index=False)
     n_cases = df.case.nunique()
     summary = {"model": ctx_llm.model if ctx_llm is not None else "", "context_model": ctx_llm.model if ctx_llm else "",
-               "task": "medpix-context", "cases": n_cases, "failed_calls": failed, "stopped_early": stopped}
+               "task": "medpix-context" + ("-no-history" if a.context_no_history else ""), "cases": n_cases, "failed_calls": failed, "stopped_early": stopped}
     print(f"\nRank of the MedPix diagnosis by the ranker (Stage 1 findings -> disease scoring), {n_cases} cases"
           + (f"; image context by {ctx_llm.model}" if ctx_llm is not None else "") + f" (rows in {path})\n")
     print("| Stage 1 reads | Top-1 | Top-3 | Top-10 | MRR | findings per case |\n|---|---|---|---|---|---|")
@@ -257,6 +268,11 @@ def cmd_medpix_context(a, hb):
         print(f"| {MM_CONDITIONS[cond]} | {m['top1']:.3f} | {m['top3']:.3f} | {m['top10']:.3f} | {m['mrr']:.3f} "
               f"| {d.findings.mean():.1f} |")
         summary.update({f"{cond}_{k}": round(v, 3) for k, v in m.items()})
+    if "text" in conds and len(conds) > 1:
+        base = df[df.condition == "text"].set_index("case")
+        others = [(MM_CONDITIONS[c], df[df.condition == c].set_index("case")["rank"].reindex(base.index))
+                  for c in conds if c != "text"]
+        hb.paired_table(MM_CONDITIONS["text"], base["rank"], others, base["truth"].astype(str), "medpix_context_paired")
     if n_cases <= 5:     # few cases: where the diagnosis landed in each condition
         num = lambda x: "-" if pd.isna(x) else str(int(x))
         print("\nPer case: rank of the MedPix diagnosis ('-' = not found)")
@@ -276,6 +292,15 @@ def cmd_medpix_context(a, hb):
         print(f"\n{what} vs the radiologist's findings (HPO terms): precision {pct(pre + 'precision')}, "
               f"recall {pct(pre + 'recall')}; contexts that named the diagnosis {pct(pre + 'named_diagnosis')} "
               f"(disease names are never turned into findings); replies parsed {pct(pre + 'parsed')}")
+        if "context_pred" in cx:
+            agree, pred = int(cx.context_agree.fillna(0).sum()), int(cx.context_pred.fillna(0).sum())
+            summary.update({pre + "findings": pred, pre + "findings_agree": agree})
+            print(f"Pooled over all findings: {agree} of {pred} match the radiologist"
+                  + (f" ({agree / pred:.1%})" if pred else ""))
+            if a.reliability_out:      # one file per condition: their findings differ
+                out_p = Path(a.reliability_out)
+                hb.write_reliability(out_p.with_name(f"{out_p.stem}_{cond}{out_p.suffix or '.json'}"),
+                                     "image_context", agree, pred, n_cases)
         if cond == "verified" and "findings_checked" in cx:
             asked, kept = int(cx.findings_checked.sum()), int(cx.findings_kept.sum())
             summary.update({"findings_checked": asked, "findings_kept": kept})
@@ -345,6 +370,11 @@ def add_arguments(p, sub):
     s.add_argument("--seed", type=int, default=13)
     s.add_argument("--max-images", type=int, default=2, help="images per case")
     s.add_argument("--images-per-call", type=int, default=1, help="images described together in one request")
+    s.add_argument("--exclude-cases", help="leave these cases out: a CSV with a case column (e.g. an earlier run) or ids")
+    s.add_argument("--context-no-history", action="store_true",
+                   help="the vision model sees images, age and sex only, not the history (Stage 1 still reads it)")
+    s.add_argument("--reliability-out", help="write each condition's measured image-context reliability, for "
+                                             "--reliability (FILE.json -> FILE_context.json, FILE_verified.json, ...)")
     s.add_argument("--out", default="results")
 
 

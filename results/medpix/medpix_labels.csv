@@ -1,0 +1,692 @@
+U_id,title,truth
+MPX1009,Bladder Diverticulum,
+MPX1024,"Left upper lobe collapse caused by an enlarging, obstructing small cell lung carcinoma.",
+MPX1012,Ovarian torsion,
+MPX1016,Adenocarcinoma of the Lung,
+MPX1035,Occipital Condyle Fractures,
+MPX1031,COPD and chronic ILD secondary to leukemia with acute PAP,
+MPX1034,Congenital Cholesteatoma,
+MPX1048,Pericardial cyst,
+MPX1038,Jefferson Fracture,
+MPX1045,Horseshoe kidney,
+MPX1056,Hepatic fatty infiltration with focal sparing,
+MPX1033,Idiopathic Pulmonary Hemosiderosis,ORPHA:99931
+MPX1058,Pulmonary Embolism,
+MPX1043,Disseminated Coccidioidomycosis,ORPHA:228123
+MPX1064,Chronic Fungal Sinusitis,
+MPX1063,thoracic aortic dissection,ORPHA:229
+MPX1072,Grave's Ophthalmopathy,
+MPX1081,Acute appendicitis,
+MPX1075,Typical Bronchial Carcinoid,ORPHA:100093
+MPX1067,Takayasu&#34;s Arteritis,OMIM:207600;ORPHA:3287
+MPX1073,"biliary leak, status post laparoscopic cholecystectomy",
+MPX1060,L parietal ischemic infarct,
+MPX1106,Atypical Pulmonary Hamartoma,
+MPX1086,Pilocytic astrocytoma,
+MPX1117,"Cerebral infarct, PCA territory, bilateral",
+MPX1108,vertebra plana,
+MPX1109,Achalasia,ORPHA:930
+MPX1121,Lung Metastasis,
+MPX1120,Sialolithiasis resulting in Sialoadenitis,
+MPX1118,Stress fracture Tarsal Navicular Bone,
+MPX1114,Sarcoid,
+MPX1115,"Stage IV Melanoma
+Migration of broken catheter",ORPHA:618
+MPX1122,Crohn's Disease,
+MPX1087,Goldenhar Syndrome,
+MPX1139,Incidental Malrotation and Acute Appendicitis,
+MPX1135,Pheochromocytoma,OMIM:171300
+MPX1136,Situs Inversus Totalis,
+MPX1123,Wilms’ Tumor (nephroblastoma).  Negative left renal involvement.  Negative mesenteric lymph node pathology.,ORPHA:654
+MPX1152,Sarcoidosis.,ORPHA:797
+MPX1159,Burkitt's Lymphoma,OMIM:113970;ORPHA:543
+MPX1154,Cysticercosis,ORPHA:1560
+MPX1169,PHEOCHROMOCYTOMA,OMIM:171300
+MPX1165,"Juvenile Nasopharyngeal Angiofibroma (JNA)
+Diagnosis confirmed at histology after first resection.",ORPHA:289596
+MPX1172,Small Bowel Volvulus,
+MPX1151,Sub-acute thromboembolism of SMA,
+MPX1182,Replaced Right Hepatic Artery,
+MPX1164,Bilateral Wilms Tumor,ORPHA:654
+MPX1186,Intrinsic sclerotic bone dysplasia (likely Osteopetrosis) with fracture,
+MPX1191,Hepatocellular carcinoma with extension to the right atrium,OMIM:114550
+MPX1193,Thyroglossal Duct Cyst,
+MPX1174,Malignant Melanoma,ORPHA:618
+MPX1194,Stage IVB Non-Hodgkin’s lymphoma (Pre B-cell variety) diagnosed by biopsy,OMIM:605027
+MPX1195,"Diprosopus (conjoined) twins, Anencephaly",OMIM:206500;ORPHA:1681;ORPHA:563609
+MPX1197,Pyopneumothorax,
+MPX1205,Left PICA Infarct confirmed with MRI.  MR angiogram images and CT angiogram images demonstrated a patent vertebral system and patent left PICA.  A focal stenosis was detected at the origin of the left posterior inferior cerebellar artery.,
+MPX1212,Acute Subdural Hematoma with temporal bone fracture,
+MPX1201,Metastatic Adenocarcinoma of the Lung,
+MPX1170,Intracerebral hemorrhage (likely related to chronic hypertension),
+MPX1229,Annular Pancreas,OMIM:167750;ORPHA:675
+MPX1214,Endolymphatic Sac Tumor,
+MPX1227,Parosteal Osteogenic Sarcoma,ORPHA:668
+MPX1213,Diffuse cerebral edema - mimic of SAH,
+MPX1231,Osteochondritis Dissecans,ORPHA:2764
+MPX1239,Ivory Vertebral Body,
+MPX1237,Findings consistent with Eagle Syndrome in the proper clinical setting.,
+MPX1235,Partial Anomalous Pulmonary Venous Return,
+MPX1238,Skull cap in anterior abdominal wall with underlying liquified hematoma.,
+MPX1243,Bizarre Parosteal Osteochondromatous Proliferation,
+MPX1255,Swyer-James Syndrome,
+MPX1253,Colorectal adenocarcinoma,
+MPX1254,Reactivation TB,
+MPX1259,Mesenteric carcinoid tumor,ORPHA:100093
+MPX1241,Crohns Disease,
+MPX1270,Oligodendroglioma,
+MPX1278,Bronchiectasis - Bronchial Artery Embolization.,
+MPX1275,"Biloma, after cholecystectomy",
+MPX1261,Horseshoe Kidney (midline renal fusion),
+MPX1272,Adrenal Myelolipoma,
+MPX1264,Large B cell lymphoma of the liver with malignant biliary obstruction,
+MPX1268,Adenocarcinoma,
+MPX1256,Calvarial Hemangioma,
+MPX1269,Primary Epidermoid Splenic Cyst,
+MPX1285,Fracture right mandibular condyle,
+MPX1282,Ameloblastoma,
+MPX1274,Ganglioglioma,
+MPX1289,Persistent Ceco-Abdominal Fecal Fistula,
+MPX1219,"Pancoast’s tumor of chest, Stage IV NSCLC (non-small cell lung cancer)",
+MPX1300,Omental Torsion,
+MPX1301,Metastatic breast cancer,OMIM:114480
+MPX1298,Ascending thoracic aortic aneurysm,
+MPX1309,Juvenile Dermatomyositis,ORPHA:93672
+MPX1279,"Wilms’ tumor, Stage I (Stage III at biopsy) with favorable histology",ORPHA:654
+MPX1297,Killian-Jamieson Diverticulum,
+MPX1317,Early appendicitis,
+MPX1322,Pulmonary Embolus,
+MPX1312,Right aortic arch with aberrant left subclavian artery,
+MPX1334,Large Bowel Obstruction Secondary to Sigmoid Stricture,
+MPX1321,Coarctation of the Aorta,OMIM:120000;ORPHA:1457
+MPX1325,"Liver metastases, from bronchogenic carcinoma",
+MPX1318,Multiple Myeloma   and secondary amyloidosis and history of sarcoidosis,OMIM:254500;ORPHA:29073
+MPX1333,Right MCA Infarction,
+MPX1342,"Rabdomyosarcoma, prostate.  botryoid subtype",
+MPX1357,"Unilateral Coronal Synostosis
+Helical CT with 3-D reconstructions.",
+MPX1359,Toxic Megacolon,
+MPX1366,"Fibromuscular Dysplasia, Renal Infarct",ORPHA:93108
+MPX1386,"Orbit ""blow-out"" fracture",
+MPX1387,RSNA-COTD Infected Dermoid Cyst,
+MPX1307,Benign Metastasizing Leiomyoma,
+MPX1375,Cryptococcal Pneumonia,
+MPX1398,Pneumomediastinum from Blast Trauma,
+MPX1402,Crohn’s Disease complicated by partial small bowel obstruction,
+MPX1349,Sand Aspiration,
+MPX1381,Cholangiocarcinoma - radiographic appearance and biopsy,ORPHA:70567
+MPX1389,Os Acromiale,
+MPX1411,Pathology consistent with leiomyosarcoma.,
+MPX1371,Pancreatic Carcinoma,ORPHA:1333
+MPX1408,Medial deviation of internal carotid artery,
+MPX1397,subarachnoid hemorrhage secondary to aneurysm rupture,
+MPX1407,Penetrating orbital trauma,
+MPX1355,Nodular Sclerosing Hodgkin’s Lymphoma,OMIM:236000
+MPX1426,Adrenal Myelolipoma,
+MPX1423,Moderately differntiated adenocarcinoma of stomach (antrum).  Tissue sampling during upper endoscopy.,
+MPX1432,Bilateral sacral fractures,
+MPX1416,Idiopathic Constipation/Retained Stool,
+MPX1429,Glioblastoma multiforme,ORPHA:360
+MPX1419,Moderately Differentiated Adenocarcinoma (Hereditary Nonpolyposis Colon Cancer),ORPHA:1416
+MPX1424,Intralobar Pulmonary Sequestration,
+MPX1457,Burst Fracture of L1,
+MPX1454,Von Meyenburg Complex - Multiple biliary hamartomas,ORPHA:201
+MPX1458,Necrotizing fasciitis,
+MPX1452,Pulmonary valve stenosis,
+MPX1460,Mucus Plug,
+MPX1459,Poorly Differentiated Non-Small Cell Lung Carcinoma,
+MPX1433,Dacryocystocele with dacryocystitis and periorbital cellulitis,ORPHA:141083
+MPX1445,MEDIASTINAL FIBROSIS,
+MPX1463,Optic Neuritis (imaging and clinical findings combined to verify diagnosis),ORPHA:499096
+MPX1442,Wegener Granulomatosis,ORPHA:900
+MPX1473,Usual Interstitial Pneumonia,ORPHA:79126
+MPX1472,Odontogenic Keratocyst,
+MPX1475,Primary Pulmonary Tuberculosis,
+MPX1427,Choledocholithiasis,
+MPX1478,Emphysematous Cystitis,
+MPX1481,Aberrant Right Subclavian Artery,
+MPX1487,Lipomas of the small bowel,
+MPX1489,Duplicated Inferior Vena Cava,
+MPX1496,Fibrous Dysplasia of the Clivus,
+MPX1495,Non-Hodgkins Lymphoma (Large B-cell) of the proximal small bowel,OMIM:605027
+MPX1506,"Fracture dislocation at thoraco-lumbar junction, resulting in spinal cord transection.",
+MPX1507,Prenatal Cytomegalovirus Infection,
+MPX1513,Abdominal aortic aneurysm,OMIM:100070
+MPX1509,Septic Pulmonary Emboli,
+MPX1520,Mucinous Cystadenoma,
+MPX1523,Renal infarct,
+MPX1514,"oropharyngeal (tongue) cancer, squamous cell carcinoma (SCC)",
+MPX1504,Lipohemarthrosis (s/p BKA for IED & shrapnel injury),
+MPX1528,Gastric Rupture - iatrogenic,
+MPX1531,Liposclerosing Myxofibrous Tumor of Bone (LSMFT),
+MPX1548,Iliac vein compression sydrome,
+MPX1547,"Pancreatic adenocarinoma, well-to-moderately differentiated.",
+MPX1538,Pneumocystis jiroveci (P. carinii) Pneumonia,
+MPX1544,Non communicating hydrocephalus due to aqueductal stenosis,
+MPX1549,Craniosynostosis of the metopic suture,ORPHA:3366
+MPX1539,Suspected meningioma,ORPHA:2495
+MPX1519,"Bilateral pleural effusions, bilateral pelvic hematomas, fracture/tract of left iliac, Left 5th rib fracture, thickening of gastric wall - non-specific changes, and post surgical changes to left upper quadrent status post splenectomy.",
+MPX1556,Metastatic Pancreatic Adenocarcinoma,
+MPX1560,Laryngeal Papillomatosis with malignant transformation,
+MPX1563,Left frontal cavernous malformation with DVA.,
+MPX1568,"Sarcoidosis, Abdomen and Liver",ORPHA:797
+MPX1578,Cavernous Angioma,
+MPX1575,Metastatic Squamous Cell Lung Cancer with Underlying Idiopathic Pulmonary Fibrosis,OMIM:178500;ORPHA:2032
+MPX1583,CAVERNOUS HEMANGIOMA,
+MPX1576,Berry Aneurysm,ORPHA:231160
+MPX1582,Renal Cell Carcinoma (clear cell),
+MPX1594,Renal Angiomyolipoma,
+MPX1596,Meningioma,ORPHA:2495
+MPX1592,Hepatic Congestion secondary to Congestive Heart Failure,ORPHA:90062
+MPX1601,Herpes Encephalitis HSV-1,ORPHA:1930
+MPX1610,Intralobar Pulmonary Sequestration,
+MPX1609,Cysticercosis,ORPHA:1560
+MPX1616,Adenocarcinoma,
+MPX1617,Absence of IVC,
+MPX1625,"Amiodarone Liver, increased attenuation (density) on CT",
+MPX1628,Situs Inversus Totalis,
+MPX1643,Optic nerve sheath meningioma.,ORPHA:2495
+MPX1646,Surgical storage of craniotomy fragment pending definitive management,
+MPX1648,Acute appendicitis with an appendicolith,
+MPX1654,landmine,
+MPX1657,Medullary Nephrocalcinosis.,
+MPX1663,Left atrial appendage thrombus,
+MPX1660,Vertebral metastasis on Indium-111 tagged WBC scanning,
+MPX1665,Pancreatic Mucinous Cystic Neoplasm (Mucinous Cystadenoma),
+MPX1671,Arteriovenous Malformation (AVM),
+MPX1673,"Subarachnoid hemorrhage, aneurysm",
+MPX1670,Pulmonary Hamartoma,
+MPX1672,"Acute Stroke, Hemorrhage in Basal Ganglia",
+MPX1674,Bronchopleural Fistula,
+MPX1683,Pheochromocytoma with metastases to the left celiac lymph node,OMIM:171300
+MPX1689,Ureterolithiasis,
+MPX1690,Vertebral Artery Dissection,
+MPX1692,epiploic appendagitis,
+MPX1695,Tuberous Sclerosis,ORPHA:805
+MPX1697,Hodgkin's Lymphoma,OMIM:236000
+MPX1696,Fibrous Dysplasia,
+MPX1702,HCC,
+MPX1699,Metastatic Squamous Cell Carcinoma,
+MPX1705,Pheochromocytoma (Path proven),OMIM:171300
+MPX1708,Patent ductus arteriosus,
+MPX1706,Schistosomiasis Japonicum,
+MPX1711,Portal Vein Thrombosis,
+MPX1713,Pulmonary Sarcoidosis,ORPHA:797
+MPX1716,Patent Ductus Arteriosus,
+MPX1723,Ischemic stoke in right temporal-parietal lobes secondary to emboli from carotid bulb atheroma,
+MPX1731,Meckel's Diverticulum,OMIM:155140
+MPX1735,"1. Myasthenia Gravis
+2. Chronic immunosuppression
+3. S/P Total Thymectomy via median sternotomy",OMIM:254200;OMIM:273750;OMIM:612921;ORPHA:589
+MPX1746,Echinococcal cyst (hydatid disease) of the liver,ORPHA:400
+MPX1744,Extravasation of blood from R common femoral artery and vein.,
+MPX1750,Eosinophilic granuloma,
+MPX1756,"Nephrolithiasis with ""twinkle"" artifact on color Dopler ultrasound",
+MPX1738,Pancoast Tumor (poorly differentiated adenocarcinoma),
+MPX1754,Hypertensive Intracerebral Hemorrhage,
+MPX1755,Calcified pericardium,
+MPX1763,Spleen Maximum Dimensions,
+MPX1769,Calyceal Diverticulum,
+MPX1748,Mixed Germ Cell Testicular Tumor,
+MPX1770,Battered child syndrome. Chronic bilateral subdural hematomas.,
+MPX1771,Crohn's Disease on PET and Tc-99m HMPAO tagged WBC Scanning,
+MPX1774,Bone metastasis from prostate cancer.,OMIM:176807
+MPX1779,"1. Metastatic breast cancer to lungs    
+2. Right side vocal cord paralysis   
+3. Anemia, thrombocytopenia  
+4. Transamnitis",OMIM:114480;OMIM:188000;OMIM:273750;OMIM:273900;OMIM:313900;OMIM:612004;OMIM:612921
+MPX1787,Endobronchial Tumors,
+MPX1792,Congenital Adrenal Hyperplasia,
+MPX1809,Cervical cancer with bilateral hydronephrosis,OMIM:603956
+MPX1793,Granuloma,
+MPX1803,Urothelial Cancer,
+MPX1807,Ovarian Torsion,
+MPX1815,Lymphangioleiomyomatosis (LAM),OMIM:606690;ORPHA:538
+MPX1817,Combined-type Intraductal Papillary Mucinous Neoplasm,
+MPX1832,Pancreatic Divisum,
+MPX1834,Pseudomembranous Colitis,
+MPX1825,Parosteal osteosarcoma,OMIM:259500;ORPHA:668
+MPX1844,Splenic laceration without coil embolization,
+MPX1852,Interstitial Lung Disease,
+MPX1853,orbital osteoid osteoma,
+MPX1856,Ameloblastoma,
+MPX1860,Osteopoikilosis,ORPHA:166119
+MPX1862,Hypertensive Encephalopathy in an eclamptic / hypertensive patient.,
+MPX1865,Esophageal Lipomatosis,
+MPX1873,Coarctation of the Aorta,OMIM:120000;ORPHA:1457
+MPX1875,"Non-small Cell Lung Cancer
+(Large-cell/clear-cell variant)",
+MPX1880,medial deviation of internal carotid artery,
+MPX1886,Thyroid Ophthalmopathy,
+MPX1892,Sarcoidosis,ORPHA:797
+MPX1904,Fibrous tumor of the pleura,
+MPX1900,Renal Angiomyolipoma,
+MPX1905,Heterotopic ossification,
+MPX1902,Colloid cyst,
+MPX1908,Chiari I malformation,OMIM:118420;ORPHA:268882
+MPX1920,Boerhaave's syndrome,
+MPX1922,Stage IIIB Adenocarcinoma,
+MPX1923,Diagnosis:   Thinning and irregularity of the anterior talofibular ligament consistent with previous inversion injury.,
+MPX1924,Mucinous Cystic Neoplasm of the Pancreas,
+MPX1928,Peritoneal Metastasis,
+MPX1936,Osteochondritis Dissecans of the Tarsal Navicular,ORPHA:2764
+MPX1937,Orbital granular cell tumor,
+MPX1938,Nonspecific Interstitial Pneumonitis,ORPHA:79126
+MPX1942,Diffuse Cerebral Edema from cardiac arrest,
+MPX1941,Carotid Cavernous Fistula and ICA Aneurysm,
+MPX1948,Centrilobular Emphysema,
+MPX1950,Duplicated Renal Collecting System,
+MPX1953,"Renal Tubular Acidosis, Medullary Nephrocalcinosis",
+MPX1954,Abdominal wall hematoma following the initiation of therapeutic anticoagultion.,
+MPX1959,Psoas abscess,
+MPX1960,Congenital partial absence of the pericardium.,
+MPX1957,Pneumocystis jiroveci (P. carinii) Pneumonia,
+MPX1965,"Classical Hodgkin's Lymphoma, nodular sclerosing type",OMIM:236000
+MPX1956,Nonketotic Hyperglycemic Hemichorea/Hemiballismus,
+MPX1971,Primary adenocarcinoma of small bowel,
+MPX1986,Nephrolithiasis,
+MPX1984,Pleural Plaques consistent with asbestos exposure,
+MPX1980,Chondroblastoma with secondary aneurysmal bone cyst,
+MPX1993,Small bowel obstruction from inguinal hernia,
+MPX1997,Arteriovenous Malformation (AVM),
+MPX2001,Recurrent pyogenic cholangitis (a.k.a. oriental cholangitis or oriental cholangiohepatitis),
+MPX2002,Partial Anomalous Pulmonary Venous Return,
+MPX2006,Ischemic colitis,
+MPX2009,Angiomyolipomas in tuberous sclerosis,ORPHA:805
+MPX2007,Gorlin Syndrome,
+MPX2012,Staghorn Calculus,
+MPX2016,"Pulmonary manifestations of Neurofibromatosis 1. However, pulmonary fibrosis with bullous formation from smoking related pulmonary diseases can’t be ruled out.",OMIM:162200;ORPHA:636
+MPX2015,Hiatal Hernia,
+MPX2018,Osseous hemangioma - The CT correlation with recent MRI showing serpiginous contrast enhancement within the cortically based lesion and the constellation of CT findings is most consistent with a cortically based osseous hemangioma.,
+MPX2022,Wilms Tumor,ORPHA:654
+MPX2031,Pneumatosis Intestinalis/Portal Venous Gas,
+MPX2028,Acute appendicitis,
+MPX2027,Right preseptal cellulitis and Choroidal Melanoma.,ORPHA:618
+MPX2039,PRIMARY CHOLESTEATOMA,
+MPX2040,Celiac Artery Aneurysm,
+MPX2046,Citrobacter koseri osteomyelitis/discitis,
+MPX2051,Liver metastases from breast cancer,OMIM:114480
+MPX2050,Eosinophilic granuloma of the calvarium,
+MPX2062,Infectious cavitary abcess,
+MPX2065,Arteriovenous Malformation (AVM),
+MPX2055,Ependymoma,ORPHA:251636
+MPX2058,Cervical Cancer - Stage IIIB with ureteral obstruction,OMIM:603956
+MPX2056,Pilocytic Astrocytoma,
+MPX2077,Choroid Plexus Carcinoma,
+MPX2060,Bullet to the clivus.,
+MPX2067,Pseudomyxoma Peritonei,ORPHA:26790
+MPX2057,Embolized Central Venous Catheter,
+MPX2075,Metastatic Colon Cancer,
+MPX2078,"Rapunzel Syndrome, Gastric trichobezoar",
+MPX2049,Gastric pull through,
+MPX2071,"Bronchogenic Carcinoma  with Metastasis to the Liver. 
+Diagnosis confirmed by US guided needle biopsy of the liver lesion and cytopathologic study of the recovered tissue.",
+MPX2073,Ewing Sarcoma,OMIM:612219
+MPX2064,Pneumopericardium,
+MPX2066,Calcaneal Stress Fracture,
+MPX2096,Grade 2 anterior spondylolisthesis at the level of L4/L5.,OMIM:184200
+MPX2094,Azygous Lobe,
+MPX2114,Renal Cell Carcinoma.,
+MPX2119,Superior Vena Cava Syndrome secondary to lung cancer,
+MPX2127,Empty sella syndrome,
+MPX2131,Acute calculous cholecystitis,
+MPX2102,VACTERL Syndrome,
+MPX2133,"Adenocarcinoma of the gastroesophageal junction, no evidence of Barrett esophagus found - Stage: T3N0M0",ORPHA:99976
+MPX2134,OPLL - Ossification of the Posterior Longitudinal Ligament,
+MPX2144,Medial Migration of PE (tympanostomy) Tube,
+MPX2147,Left Lower Lobe Collapse,
+MPX2150,Angiomyolipoma,
+MPX2155,PANCREATIC DUCTAL ADENOCARCINOMA,
+MPX2160,Aortic dissection.,ORPHA:229
+MPX2158,High-grade chondroid neoplasm,
+MPX2166,Suprasellar epidermoid cyst,
+MPX2169,Transient adult jejunojejunal intussusception secondary to IBD (Crohn disease).,
+MPX2171,Pericardial Effusion,
+MPX2174,Tuberous Sclerosis,ORPHA:805
+MPX2173,"Inflammatory Breast Cancer, Metastatic to thoracic spine (Stage IV)",OMIM:114480
+MPX2176,Adenocarcinoma of the gastroesophageal junction,
+MPX2175,"Venous thrombosis of the vein of Galen, straight sinus, and dominant left transverse venous dural sinus.",
+MPX2190,Angioinvasive aspergillosis,ORPHA:1163
+MPX2183,Rectovaginal Fistula,
+MPX2195,cerebellar AVM with PICA aneurysm,
+MPX2201,Enostosis,
+MPX2209,Pancreatic Pseudocyst,
+MPX2216,Thyroid Ophthalmopathy,
+MPX2215,Congenitally Corrected Transposition of the Great Vessels,ORPHA:216694
+MPX2224,Bipartite Patella,
+MPX2230,"Juvenile Angiofibroma, Nasal",ORPHA:93672
+MPX2228,Pulmonary Embolism,
+MPX2233,Congenital Lobar Emphysema- Radiographic findings,OMIM:130710;ORPHA:1928
+MPX2229,Pulmonary Sequestration,
+MPX2235,Retroperitoneal Fibrosis,
+MPX2242,Pulmonary embolism,
+MPX2246,Acute ischemic stroke,
+MPX2244,Pyogenic liver abscess (subcapsular),
+MPX2255,Celiac Artery Aneurysm,
+MPX2258,Atlas fracture,
+MPX2257,jugular foramen mass (unknown; patient underwent surgery and we are awaiting the results of pathologic evaluation),
+MPX2263,Empyema,
+MPX2269,Single Kidney - Renal Agenesis,ORPHA:411709
+MPX2266,Glioblastoma Multiforme,ORPHA:360
+MPX2270,Lemierre’s Syndrome,
+MPX2276,Fibrous dysplasia,
+MPX2275,"Neurofibroma, likely neurofibromatosis type I.",ORPHA:252183
+MPX2278,Anterior mediastinal nonseminomatous germ cell tumor,
+MPX2281,Classic Bosniak Class III complex renal cyst,
+MPX2282,Pulomary Embolism,
+MPX2284,Craniosynostosis; Idiopathic Scaphocephaly,ORPHA:35093
+MPX2286,Aneurysmal Bone Cyst,
+MPX2288,Intraosseous Lipoma,
+MPX2291,Bochdalek hernia,
+MPX2289,Right aortic arch with aberrant left subclavian artery,
+MPX2294,Thromboembolic Stroke,
+MPX2297,Transmesenteric Internal Hernia,
+MPX2292,Acute Appendicitis in Cystic Fibrosis Patient,OMIM:219700;ORPHA:586
+MPX2295,"Angiomyolipoma (sporadic), Cholelithiasis",
+MPX2301,Spinal stenosis,
+MPX2305,Pseudohypoparathyroidism,OMIM:103580;OMIM:603233;OMIM:612462;ORPHA:79443;ORPHA:79444;ORPHA:94089
+MPX2307,Sialadenitits,
+MPX2308,"Non-small cell (squamous cell) carcinoma of the lung (RLL); T3N2M0, corresponding to stage III-A",
+MPX2314,Malignant Embryonal Rhabdomyosarcoma,
+MPX2315,Cerebral Infarction encompassing the left MCA and ACA territories with occlusion of the left ICA.,
+MPX2324,Infected 4th branchial cleft sinus.,
+MPX2325,Situs Inversus with Dextrocardia,ORPHA:1666
+MPX2319,leiomyosarcoma of the inferior vena cava,
+MPX2326,Cortical nephrocalcinosis due to acute renal cortical necrosis,
+MPX2328,Metastatic ductal carcinoma (breast),
+MPX2330,Retropharyngeal abscess,
+MPX2332,PCP pneumonia (Pneumocystis jiroveci pneumonia),
+MPX2335,Benign Adrenal Adenoma,
+MPX2336,Cerebellar hemangioblastoma,ORPHA:252054
+MPX2327,"Subacute infarction, Broca&#39;s area & arcuate fasciculus",
+MPX2338,Pulmonary Arteriovenous Malformation,ORPHA:2038
+MPX2345,Thoracic Neuroblastoma,ORPHA:635
+MPX2344,Medulloblastoma,OMIM:155255;ORPHA:616
+MPX2352,Congenital Bronchial Atresia,
+MPX2350,Crohn's Disease - with ileo-rectal fistualization,
+MPX2354,Diagnosis: L1 Burst Fracture.,
+MPX2358,MYELOLIPOMA,
+MPX2347,"Vein of Galen Malformation, Onyx embolization; and,  embolization into branches of the Pulmonary arteries.",ORPHA:1053
+MPX2355,Cowden's Syndrome,
+MPX2359,Aortic Dissection,ORPHA:229
+MPX2361,Renal cell carcinoma,
+MPX2374,Pulmonary artery pseudoaneurysm secondary to erosion of tumor into the wall of the middle lobar branches of the right pulomary artery and obstruction of superior lobar branches of the right pulmonary artery due to mass effect from the tumor.,
+MPX2379,Round atelectasis,
+MPX2376,Chance Fracture,
+MPX2384,"Methanol intoxication, putamen infarction",
+MPX2387,Synovial sarcoma-biphasic,OMIM:300813
+MPX2385,mucus plug,
+MPX2386,"Diagnosis:  64 y.o. female with recurrent breast cancer with metastasis to lymph nodes and lungs.  Liver mass biopsy reveals adenocarcinoma, with histology consistent with breast tissue.",OMIM:114480
+MPX2389,Intestinal Malrotation,ORPHA:508410
+MPX2388,Cerebellar PICA Infarction,
+MPX2391,Pneumothorax,
+MPX2403,Tuberculosis Pott's  Disease,
+MPX2407,Postpartum Cerebral Angiopathy,
+MPX2421,Tuberous Sclerosis Complex (TSC),ORPHA:805
+MPX2423,Hepatic laceration with biloma.,
+MPX2427,Epidural Hematoma of middle fossa (temporal bone),
+MPX2435,Acute on chronic bilateral subdural hematomas.,
+MPX2439,"Epidural brain abscess, CNS",
+MPX2433,Benign Orbital Calcifications,
+MPX2444,Autosomal Dominant (Adult) Polycystic Kidney Disease (ADPKD),ORPHA:730
+MPX2425,Cerebellar hemangioblastoma,ORPHA:252054
+MPX2446,Colloid  cyst (syn. neuroepithelial cyst),
+MPX2453,Cerebellopontine angle meningioma,ORPHA:2495
+MPX2449,Bronchial Carcinoid,ORPHA:100093
+MPX2442,"Celiac, Abdominal Aorta, & Common Iliac Aneurysms",
+MPX2455,Osteochondroma,
+MPX2448,"Acute on chronic osteomyelitis
+Post-traumatic  changes with deformity after trauma",
+MPX2450,Sarcoidosis,ORPHA:797
+MPX2461,Pneumoscrotum,
+MPX2458,Small Bowel Lymphoma - diffuse large B cell,
+MPX2463,Probable metastatic rhabdomyosarcoma,
+MPX2466,Pulmonary arteriovenous malformations in hereditary hemorrhagic telangiectasia.,ORPHA:2038;ORPHA:774
+MPX2468,Diffuse Rhabdomyosarcoma,
+MPX2471,"Astrocytoma, low-grade, supratentorial",
+MPX2477,Pneumatosis intestinalis (PI),
+MPX2478,Adenocarcinoma (poorly differentiated),
+MPX2479,Bronchiectasis,
+MPX2480,Giant Cell Tumor,
+MPX2481,"Transmesenteric internal hernia, small bowel volvulus",
+MPX2483,Ventriculoperitoneal Shunt Failure secondary to tubing disconnection.,
+MPX2488,Silent Sinus Syndrome,ORPHA:71276
+MPX2494,Pulmonary Embolism,
+MPX2487,Intestinal Malrotation,ORPHA:508410
+MPX2492,Clinically insignificant hiatal hernia.,
+MPX2500,Acute Appendicitis,
+MPX2498,Right aortic arch with aberrant left subclavian artery,
+MPX2506,Pancreatic adenocarcinoma,
+MPX2508,Arteriovenous Fistula (angiographically confirmed),
+MPX2512,Bilateral jumped locked facets,
+MPX2501,Crossed fused ectopia,
+MPX2507,Hepatic adenoma,OMIM:142330
+MPX2515,Ruptured Appendicitis,
+MPX2519,Massive Pulmonary Embolism,
+MPX2518,HSV Encephalitis,ORPHA:1930
+MPX2524,Mature Cystic Teratoma,
+MPX2531,Citrobacter koseri osteomyelitis/discitis,
+MPX2536,"Neurofibromatosis type 1 (NF1), right orbital plexiform neurofibroma, sphenoid wing hypoplasia, possible optic nerve glioma.",OMIM:165550
+MPX2533,glioblastoma,ORPHA:360
+MPX2540,Midgut malrotation with appendicitis,
+MPX2539,Linitis Plastica (gastric cancer),
+MPX2548,Radicular cyst,
+MPX2544,Left Ventricular Non Compaction,
+MPX2550,Ovarian Cancer metastasis,OMIM:167000
+MPX2547,Classic Nodular Sclerosing Hodgkin’s Lymphoma (Stage II),ORPHA:391
+MPX2555,Multiple C1 fractures,
+MPX2558,"Mondini deformity, incomplete partition type I.",
+MPX2562,Perinephric/Subcapsular Hematoma,
+MPX2567,Sjogren's Syndrome with concomitant lymphoma,
+MPX2570,Spigelian hernia,
+MPX2572,Osteoid Osteoma confirmed by radiographic appearance and clinical history,
+MPX2576,"CT guided biopsy of liver revealed pt has  cirrhosis with corresponding portal hypertension.  The biopsy of the liver mass was consistent with focal fat deposit, but inconclusive, and will be re-biopsied for definitive diagnosis",OMIM:215600
+MPX2579,Frontonasal Encephalocele,
+MPX2584,Stage V bilateral Wilms' Tumor,ORPHA:654
+MPX2589,Microcystic meningioma,ORPHA:2495
+MPX2580,Epidermoid Tumor,
+MPX2583,Hiatal Hernia,
+MPX2592,Left-sided Aortic Arch with an Aberrant Right Subclavian Artery,
+MPX2595,Renal Duplicity (duplication),ORPHA:1738;ORPHA:1742;ORPHA:1752;ORPHA:236;ORPHA:261344;ORPHA:264450
+MPX2603,Bicornuate Uterus,
+MPX2604,Renal Cell Carcinoma,
+MPX2606,acute infarct,
+MPX2608,Empyema,
+MPX2610,Renal Cell Carcinoma.,
+MPX2601,Lipomatous hypertrophy of the interatrial septum,
+MPX2607,"Subependymoma, lateral ventricle",ORPHA:251639
+MPX1020,Neuroblastoma with intraspinal extension,ORPHA:635
+MPX1007,Posterior Cerebral Artery Infarction,
+MPX1022,intraosseous lipoma of the distal femur confirmed by MRI,
+MPX1014,Wernicke encephalopathy,
+MPX1028,"Neurofibromatosis Type 1 (NF1) with optic glioma, dural ectasia, thoracic syrinx.",OMIM:162200;ORPHA:636
+MPX1053,Radiation Necrosis,ORPHA:454831
+MPX1049,Capillary Hemangioma,
+MPX1039,Multiple Sclerosis,
+MPX1074,Gluteus minimus partial tear,
+MPX1084,Uveal (Choroidal)Melanoma of the left globe with extension of tumor into the retro-ocular tissues,OMIM:155720
+MPX1089,Sacrococcygeal teratoma,
+MPX1094,Fronto-nasal encephalocele,
+MPX1095,Pontine Glioma probably astrocytoma,
+MPX1102,Primary sclerosing cholangitis,ORPHA:171
+MPX1110,Recurrence of paraganglioma,
+MPX1134,Brain biopsy confirmed patient has glioblastoma multiforme.,ORPHA:360
+MPX1132,Adenomyosis,
+MPX1130,Bicornuate Uterus,
+MPX1129,Brodie’s abscess,
+MPX1141,Desmoplastic infantile Astrocytoma,
+MPX1160,Tear of the Achilles tendon- almost complete (Grade II tear),
+MPX1147,Vestibular (Acoustic) Schwannoma,
+MPX1171,"1) Fronto-nasal encephalocele
+2) Colpocephaly",
+MPX1188,Endometrioma,
+MPX1185,"Lhermitte Duclos disease, Cowden disease",ORPHA:65285
+MPX1124,"Multiple Sclerosis, Quadrantanopsia",
+MPX1184,Brain biopsy confirmed glioblastoma multiforme.,ORPHA:360
+MPX1202,Stroke,
+MPX1199,Carbon Monoxide Poisoning,
+MPX1236,Agenesis of the Corpus Callosum,OMIM:217990;ORPHA:200
+MPX1233,"Osmotic Myelinolysis, Central Pontine Myelinolysis",
+MPX1220,Hemangioblastoma (WHO Grade I),ORPHA:252054
+MPX1247,Thrombosis of the right superior anastomotic vein (vein of Trolard),
+MPX1260,Disruption and tears of the patella tendons bilaterally.,
+MPX1276,Fibrous Dysplasia,
+MPX1251,Chondrosarcoma of the skull base,OMIM:215300
+MPX1249,Intramuscular Hemangioma,
+MPX1295,B-cell Lymphoma,
+MPX1320,Bilateral Optic Gliomas,
+MPX1303,"Metastatic Carcinoma, unknown primary",
+MPX1284,Pilocytic Astrocytoma,
+MPX1335,Acromegaly from pituitary macroadenoma,ORPHA:963
+MPX1324,Infiltrating Ductal Carcinoma,
+MPX1338,Bow Hunter's syndrome,
+MPX1190,Multiple cranial neuropathies,
+MPX1363,Alzheimer disease,OMIM:104300;ORPHA:1020
+MPX1319,Osteochondroma,
+MPX1379,Arteriovenous Malformation,
+MPX1394,Partial Achilles Tendon tear,
+MPX1384,Multiple Myeloma,OMIM:254500;ORPHA:29073
+MPX1401,Biceps tendon dislocation; posterior to subscapularis.,
+MPX1390,"• Osteomyelitis of the head of the left, first metatarsal
+• Osteomyelitis of the medial sesamoid bone
+• Myositis of the plantar muscles of the foot
+• Cellulitis of the plantar aspect of the foot",
+MPX1346,Intraductal Papillary Mucinous Tumor - Branch Type,
+MPX1412,Vertebral Artery Dissection,
+MPX1417,"Hemorrhage in Basal Ganglia, Hypertensive, Acute Stroke",
+MPX1435,Developmental Venous Anomaly (Venous Angioma),
+MPX1420,Ependymoma,ORPHA:251636
+MPX1434,Chordoid Glioma,
+MPX1410,Obstructive Hydrocephalus (at level of Sylvian aqueduct),
+MPX1464,oligodendroglioma,
+MPX1468,Synovial Cyst,
+MPX1467,Heterotopic gray matter,
+MPX1500,ACL Tear with lateral femoral notch sign,
+MPX1503,Osteoid osteoma,
+MPX1515,Spinal meningioma,ORPHA:2495
+MPX1502,Clival chordoma,
+MPX1529,Maple syrup urine disease,OMIM:248600;OMIM:620698;ORPHA:511
+MPX1537,Salter-Harris Fracture,
+MPX1550,Adamantinomatous craniopharyngioma,ORPHA:54595
+MPX1551,Nonossifying fibroma,
+MPX1561,Scheuermann Disease with Kyphosis,OMIM:181440
+MPX1559,Non-displaced transverse fracture of right femoral neck.,
+MPX1570,Parsonage-Turner Syndrome,
+MPX1574,SLAP Lesion of the Glenoid Labrum,
+MPX1581,Colloid cyst.,
+MPX1604,Budd-Chiari Syndrome,OMIM:600880;ORPHA:131
+MPX1608,Dilated Virchow Robin Space,
+MPX1613,"Alexander  Disease, Rosenthal Fiber Encephalopathy",OMIM:203450;ORPHA:329;ORPHA:58
+MPX1631,Crohn Disease,
+MPX1652,Neurofibroma,ORPHA:252183
+MPX1675,Atrial Septal Defect (ASD).Ostium primum.,ORPHA:99106
+MPX1677,COARCTATION,
+MPX1694,Recurrent high-grade astrocytoma,
+MPX1686,Complex Malformation,
+MPX1701,Plantaris Tendon Tear,
+MPX1710,Tophaceous gout,
+MPX1709,Periosteal Chondroma,
+MPX1714,Lateral epicondylitis,
+MPX1722,Avascular Necrosis of Hip,
+MPX1725,Cerebral infarct (L MCA territory),
+MPX1733,Vestibular Schwannoma,
+MPX1751,Osteochondritis Dissecans Stage IV,ORPHA:2764
+MPX1737,Quadriceps tendon rupture,
+MPX1775,Juvenile pilocytic astrocytoma,ORPHA:93672
+MPX1782,Pseudotumor cerebri,ORPHA:238624
+MPX1791,Lipoma Arborescens,
+MPX1796,Intracranial Epidermoid Tumor,
+MPX1788,Creutzfeldt-Jakob Disease,OMIM:123400
+MPX1781,Monostotic Fibrous Dysplasia,
+MPX1810,Avascular Necrosis of femoral heads bilaterally with associated osteoarthritic changes.,ORPHA:86820
+MPX1828,Uterine Leiomyoma,OMIM:150699
+MPX1836,Optic neuritis (NOS),ORPHA:499096
+MPX1838,Herpes Encephalitis (HSV 1),ORPHA:1930
+MPX1851,Renal Oncocytoma,OMIM:553000
+MPX1861,Patellar Tendinosis (Jumper's Knee) with probable partial tear of the patellar tendon.,
+MPX1884,"Breast implant,  rupture, extracapsular silicone",
+MPX1879,"Meningioma, Falx",ORPHA:2495
+MPX1891,cholecystitis,
+MPX1909,meniscal tear,
+MPX1911,Ductal Carcinoma in Situ (DCIS),
+MPX1915,Subependymal Giant Cell Astrocytoma,
+MPX1916,meniscal ossicle,
+MPX1935,Pigmented villonodular synovitis,
+MPX1930,Septo-Optic Dysplasia,ORPHA:3157
+MPX1947,Dermoid cyst,
+MPX1952,Multiple Sclerosis,
+MPX1962,Bilateral avascular necrosis (AVN) of the femoral heads,ORPHA:86820
+MPX1967,Synovial Cyst,
+MPX1998,Tuberous Sclerosis,ORPHA:805
+MPX1996,"Autosomal Dominant ""Adult"" Polycystic Kidney Disease (ADPKD).  
+
+Family Hx revealed PT's father with history of HTN, RF, and subarachnoid hemmorhage.",ORPHA:730
+MPX2004,"Meningioma, WHO Grade 1",ORPHA:2495
+MPX2000,Myxopapillary Ependymomas,ORPHA:251643
+MPX2008,Avascular Necrosis of the Femoral Heads,ORPHA:86820
+MPX2019,Spontaneous osteonecrosis of the knee,
+MPX2021,Tethered spinal cord with terminal spinal lipoma.,
+MPX2030,Hyperostosis Frontalis Interna,ORPHA:77296
+MPX2033,Parasellar Meningioma and arachnoid cyst,ORPHA:2495
+MPX2041,Plantar Fibromatosis (Ledderhose Disease),ORPHA:199251
+MPX2043,HILL-SACHS DEFORMITY WITH ASSOCIATED BANKART LESION,
+MPX2069,Osteochondritis dissecans.,ORPHA:2764
+MPX2084,Chondrosarcoma metastatic to Brain,OMIM:215300
+MPX2087,Metastatic Disease (Presumed Breast),
+MPX2083,Cervical Cord hemangioblastoma,ORPHA:252054
+MPX2093,Kohler's Disease,
+MPX2128,Enchondroma,
+MPX2112,Hydroxyapatite deposition disease,
+MPX2097,"1. Mid-substance anterior cruciate ligament tear.
+2. Lateral capsular avulsion consistent with Segond fracture.
+3. Partial thickness tear of medial collateral ligament.",OMIM:273750;OMIM:612921
+MPX2141,Epidural Lipomatosis,
+MPX2142,Meningioma of planum sphenoidale,ORPHA:2495
+MPX2139,Myxopapillary ependymoma.,ORPHA:251643
+MPX2146,Chiari II Malformation,OMIM:207950
+MPX2185,Anaplastic astrocytoma - WHO Grade 3,
+MPX2199,Takayasu Arteritis,OMIM:207600;ORPHA:3287
+MPX2193,Tendon Xanthomas in Familial Hypercholesterolemia,
+MPX2204,"Quadriceps tendon rupture, Medial retinacular tear",
+MPX2218,Bicuspid Aortic Valve with Aortic Stenosis and Aortic Dilatation.,ORPHA:402075
+MPX2225,"Osteochondritis Dissecans, juvenile-type",ORPHA:2764
+MPX2234,Chiari I Malformation,OMIM:118420;ORPHA:268882
+MPX2236,"Spongioform Encephalopathy, Presumed variant Creutzfeldt-Jacob Disease",
+MPX2239,Choroid Plexus Papilloma,OMIM:260500;ORPHA:2807
+MPX2260,Cerebral Cavernous Malformation,ORPHA:221061
+MPX2261,"Multiple Myeloma
+Diagnosis was confirmed by biopsy of humeral lesion and bone marrow aspirate.",OMIM:254500;ORPHA:29073
+MPX2272,Epidermoid Inclusion Cyst,
+MPX2300,Anterior Cruciate Ligament Disruption,
+MPX2312,Septo-Optic Dysplasia,ORPHA:3157
+MPX2316,Meniscal Tear (radiologic and athroscopic confirmation),
+MPX2322,Arachnoid Cyst,
+MPX2317,benign cystic teratoma,
+MPX2351,Osteochondritis dissecans,ORPHA:2764
+MPX2349,Optic Nerve Glioma,
+MPX2367,Hill-Sach’s lesion with underlying subcortical bone contusion and subchondral cyst formation consistent with chronicity.,
+MPX2372,Giant Cell Tumor,
+MPX2390,Leukoaraiosis,
+MPX2399,PANK 2 (Hallervorden-Spatz) PKAN (Pantothenate Kinase Associated Neurodegeneration),ORPHA:157850
+MPX2402,Myxopapillary Ependymoma,ORPHA:251643
+MPX2441,Sturge-Weber Syndrome,OMIM:185300;ORPHA:3205
+MPX2454,Chance Fracture T11,
+MPX2428,Intradural Extramedullary Meningioma.,ORPHA:2495
+MPX2456,Enchondroma,
+MPX2460,Sparsely granulated growth hormone adenoma,
+MPX2469,"Retinal lymphoma, large B-cell type",
+MPX2482,Canavan Disease,
+MPX2485,Achilles tendon tear,
+MPX2497,Medulloblastoma confirmed by pathology.,OMIM:155255;ORPHA:616
+MPX2502,Stress fracture right femoral neck.,
+MPX2514,"L5-S1 disk herniation with sequestered disk material in the spinal canal, compressing the cauda equina and causing myelopathic symptoms",
+MPX2521,"Ulnar Collateral Ligament Tear, Stener Lesion",
+MPX2527,macrodystrophia lipomatosa,
+MPX2528,MYXOID LIPOSARCOMA,OMIM:613488
+MPX2532,Cavernous Malformation (preferred name),
+MPX2557,Avascular necrosis (AVN) of femoral heads bilaterally,ORPHA:86820
+MPX2554,Autosomal Recessive Polycystic Kidney Disease,ORPHA:731
+MPX2574,Hypoplastic A1 segment of ACA,
+MPX2563,"Right Vertebral Artery Dissection, Lateral Medullary Syndrome (Wallenberg Syndrome)",
+MPX2586,Cuneiform Stress Fracture,
+MPX2594,Isolated Posterior Cruciate Ligament Tear,

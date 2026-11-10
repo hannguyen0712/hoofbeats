@@ -1,0 +1,182 @@
+run       20261110-102829_medpix_qwen3.5-9b
+started   2026-11-10 10:28:29
+command   medpix
+note      Qwen images, calibration 80
+status    ok
+duration  15.1 min
+argv      python -m hoofbeats --common none --note 'Qwen images, calibration 80' --llm --llm-endpoint http://localhost:11434/v1/chat/completions --llm-model qwen3.5:9b --llm-max-tokens 4096 --llm-extra '{"reasoning_effort": "none"}' medpix --medpix data/medpix-src/MedPix-2-0 --orphadata-xml data/kb/ORPHA_ICD10_mapping_en.xml --only-labeled --exclude-cases results/compare/medpix_qwen3.5-9b.csv --limit 80 --max-images 2 --images-per-call 2 --out results/calib --reliability-out results/calib/rel_qwen_image.json
+
+split         all
+max_images    2
+only_labeled  True
+limit         80
+hpo           hp/releases/2026-09-01
+annotations   2026-09-02
+prefixes      ['OMIM', 'ORPHA']
+common        None
+prior_weight  1.0
+absent_weight 0.5
+absent_min_freq0.8
+use_onset     False
+use_sex       False
+model         qwen3.5:9b
+endpoint      http://localhost:11434/v1/chat/completions
+max_tokens    4096
+extra         {'reasoning_effort': 'none'}
+offline       False
+
+========================================================================
+console output
+========================================================================
+
+[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 12820 rare + 0 common diseases
+[medpix] 40 cases left out (--exclude-cases)
+[llm] qwen3.5:9b via http://localhost:11434/v1/chat/completions; 0 cached replies in results/calib/llm_cache
+
+[medpix] 1/80 cases read
+[medpix] 2/80 cases read
+[medpix] 3/80 cases read
+[medpix] 4/80 cases read
+[medpix] 5/80 cases read
+[medpix] 6/80 cases read
+[medpix] 7/80 cases read
+[medpix] 8/80 cases read
+[medpix] 9/80 cases read
+[medpix] 10/80 cases read
+[medpix] 11/80 cases read
+[medpix] 12/80 cases read
+[medpix] 13/80 cases read
+[medpix] 14/80 cases read
+[medpix] 15/80 cases read
+[medpix] 16/80 cases read
+[medpix] 17/80 cases read
+[medpix] 18/80 cases read
+[medpix] 19/80 cases read
+[medpix] 20/80 cases read
+[medpix] 21/80 cases read
+[medpix] 22/80 cases read
+[medpix] 23/80 cases read
+[medpix] 24/80 cases read
+[medpix] 25/80 cases read
+[medpix] 26/80 cases read
+[medpix] 27/80 cases read
+[medpix] 28/80 cases read
+[medpix] 29/80 cases read
+[medpix] 30/80 cases read
+[medpix] 31/80 cases read
+[medpix] 32/80 cases read
+[medpix] 33/80 cases read
+[medpix] 34/80 cases read
+[medpix] 35/80 cases read
+[medpix] 36/80 cases read
+[medpix] 37/80 cases read
+[medpix] 38/80 cases read
+[medpix] 39/80 cases read
+[medpix] 40/80 cases read
+[medpix] 41/80 cases read
+[medpix] 42/80 cases read
+[medpix] 43/80 cases read
+[medpix] 44/80 cases read
+[medpix] 45/80 cases read
+[medpix] 46/80 cases read
+[medpix] 47/80 cases read
+[medpix] 48/80 cases read
+[medpix] 49/80 cases read
+[medpix] 50/80 cases read
+[medpix] 51/80 cases read
+[medpix] 52/80 cases read
+[medpix] 53/80 cases read
+[medpix] 54/80 cases read
+[medpix] 55/80 cases read
+[medpix] 56/80 cases read
+[medpix] 57/80 cases read
+[medpix] 58/80 cases read
+[medpix] 59/80 cases read
+[medpix] 60/80 cases read
+[medpix] 61/80 cases read
+[medpix] 62/80 cases read
+[medpix] 63/80 cases read
+[medpix] 64/80 cases read
+[medpix] 65/80 cases read
+[medpix] 66/80 cases read
+[medpix] 67/80 cases read
+[medpix] 68/80 cases read
+[medpix] 69/80 cases read
+[medpix] 70/80 cases read
+[medpix] 71/80 cases read
+[medpix] 72/80 cases read
+[medpix] 73/80 cases read
+[medpix] 74/80 cases read
+[medpix] 75/80 cases read
+[medpix] 76/80 cases read
+[medpix] 77/80 cases read
+[medpix] 78/80 cases read
+[medpix] 79/80 cases read
+[medpix] 80/80 cases read
+[cache] 80 new image reads, 80 total -> results/calib/medpix_image_reads_qwen3.5-9b.jsonl
+[medpix] 80 cases (all), 80 with a diagnosis the ranker knows; median findings from history/exam 1, from radiologist report 1
+
+| input | Top-1 | Top-3 | Top-10 | MRR |
+|---|---|---|---|---|
+| history + exam text | 0.025 | 0.050 | 0.087 | 0.045 |
+| text + radiologist image findings (upper bound) | 0.037 | 0.075 | 0.100 | 0.069 |
+| LLM image findings only | 0.000 | 0.025 | 0.025 | 0.016 |
+| text + LLM image findings | 0.037 | 0.062 | 0.087 | 0.059 |
+
+LLM image findings vs radiologist: precision 27.8%, recall 27.5%; unparsed replies 0; 11.12 s per request
+Pooled over all findings: 18 of 67 match the radiologist (26.9%)
+[reliability] image: 18 of 67 findings match the radiologist (26.9%), 80 cases -> results/calib/rel_qwen_image.json
+              measured on these cases only: use it with --reliability on other cases
+[llm] requests sent 80 (retries 0), answered from cache 0, 11.12 s per request
+[compare] summary appended to results/calib/llm_compare.csv
+
+Review and correct diagnosis labels in results/calib/medpix_labels.csv (pass back with --labels).
+
+========================================================================
+metrics (also in the .json file)
+========================================================================
+{
+ "medpix": {
+  "model": "qwen3.5:9b",
+  "task": "medpix",
+  "cases": 80,
+  "labeled": 80,
+  "failed_calls": 0,
+  "rank_text_top1": 0.025,
+  "rank_text_top3": 0.05,
+  "rank_text_top10": 0.087,
+  "rank_text_mrr": 0.045,
+  "rank_radiologist_top1": 0.037,
+  "rank_radiologist_top3": 0.075,
+  "rank_radiologist_top10": 0.1,
+  "rank_radiologist_mrr": 0.069,
+  "rank_image_top1": 0.0,
+  "rank_image_top3": 0.025,
+  "rank_image_top10": 0.025,
+  "rank_image_mrr": 0.016,
+  "rank_multimodal_top1": 0.037,
+  "rank_multimodal_top3": 0.062,
+  "rank_multimodal_top10": 0.087,
+  "rank_multimodal_mrr": 0.059,
+  "image_precision": 0.278,
+  "image_recall": 0.275,
+  "unparsed_images": 0,
+  "sec_per_call": 11.12,
+  "requests": 80,
+  "cache_hits": 0,
+  "image_findings": 67,
+  "image_findings_agree": 18,
+  "image_precision_pooled": 0.2687
+ },
+ "requests": {
+  "requests": 80,
+  "retries": 0,
+  "cache_hits": 0,
+  "would_send": 0,
+  "offline_misses": 0,
+  "sec_per_request": 11.12
+ }
+}
+
+files written:
+  results/calib/medpix_qwen3.5-9b.csv

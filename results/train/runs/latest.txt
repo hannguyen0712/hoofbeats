@@ -1,0 +1,104 @@
+run       20261109-165926_train
+started   2026-11-09 16:59:26
+command   train
+note      train, all, kb-size
+status    ok
+duration  0.9 min
+argv      python -m hoofbeats --common none --note 'train, all, kb-size' train --sample 0 --l2 0.001 0.01 0.1 1 --kb-size --out results/train --weights-out results/train/weights_kbsize.json
+
+sample        0
+seed          13
+hpo           hp/releases/2026-09-01
+annotations   2026-09-02
+prefixes      ['OMIM']
+common        None
+prior_weight  1.0
+absent_weight 0.5
+absent_min_freq0.8
+use_onset     False
+use_sex       False
+
+========================================================================
+console output
+========================================================================
+
+[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 8465 rare + 0 common diseases
+[train] phenopacket: 1969 cases, 495 disease/paper groups, 50 candidates per case, 5 folds
+[train] features 250/1969
+[train] features 500/1969
+[train] features 750/1969
+[train] features 1000/1969
+[train] features 1250/1969
+[train] features 1500/1969
+[train] features 1750/1969
+[train] features 1969/1969
+[train] fold 1/5: 1596 train, 373 test cases, l2 0.001
+[train] fold 2/5: 1566 train, 403 test cases, l2 0.001
+[train] fold 3/5: 1589 train, 380 test cases, l2 0.001
+[train] fold 4/5: 1553 train, 416 test cases, l2 0.001
+[train] fold 5/5: 1572 train, 397 test cases, l2 0.001
+
+Held-out diseases and papers (5-fold), truth in the top 50 for 1275/1969 cases (re-scoring cannot help the rest):
+| scoring | Top-1 | Top-3 | Top-10 | MRR |
+|---|---|---|---|---|
+| default weights | 0.287 | 0.386 | 0.503 | 0.359 |
+| learned weights | 0.328 | 0.449 | 0.544 | 0.407 |
+Top-1 change +4.1 points (95% CI +2.4 to +5.8)
+
+Final weights (all cases, l2 0.001); fold spread shows how stable each one is:
+| evidence | default | learned | fold min | fold max |
+|---|---|---|---|---|
+(relative to an exact present match; fitted temperature 5.98)
+| present_exact | 1.00 | 1.00 | 1.00 | 1.00 |
+| present_partial | 1.00 | 0.16 | 0.15 | 0.20 |
+| present_unexplained | -3.00 | 0.00 | 0.00 | 0.00 |
+| absent_hallmark | 0.50 | 0.65 | 0.56 | 0.76 |
+| absent_other | 0.00 | 0.00 | 0.00 | 0.00 |
+| absent_excluded | 0.50 | 0.50 | 0.50 | 0.50 |
+| log_annotations | 0.00 | -2.00 | -2.00 | -2.00 |
+| log_references | 0.00 | 2.00 | 1.91 | 2.00 |
+| gene | 0.00 | 0.00 | 0.00 | 0.00 |
+[train] weights -> results/train/weights_kbsize.json  (use with --weights results/train/weights_kbsize.json)
+
+========================================================================
+metrics (also in the .json file)
+========================================================================
+{
+ "train": {
+  "dataset": "phenopacket",
+  "cases": 1969,
+  "candidates": 50,
+  "candidate_recall": 0.6475368207211782,
+  "default": {
+   "top1": 0.28694768918232605,
+   "top3": 0.38649060436769933,
+   "top10": 0.5027932960893855,
+   "mrr": 0.3592092085522948
+  },
+  "learned": {
+   "top1": 0.32757745048247844,
+   "top3": 0.4489588623666836,
+   "top10": 0.5444388014220416,
+   "mrr": 0.4065314645512177
+  },
+  "top1_change": 0.04062976130015236,
+  "top1_change_ci": [
+   0.02353305697588176,
+   0.0582323826753766
+  ]
+ },
+ "weights": {
+  "present_exact": 0.16724811052930103,
+  "present_partial": 0.027379494528326363,
+  "present_unexplained": 0.0,
+  "absent_hallmark": 0.10840056210411574,
+  "absent_other": 0.0,
+  "absent_excluded": 0.08362405526465051,
+  "log_annotations": -0.33449622105860205,
+  "log_references": 0.33449622105860205,
+  "gene": 0.0
+ }
+}
+
+files written:
+  results/train/weights_kbsize.json

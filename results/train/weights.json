@@ -1,0 +1,39 @@
+{
+ "weights": {
+  "present_exact": 0.1395719690432753,
+  "present_partial": 0.00913651212753189,
+  "present_unexplained": 0.0,
+  "absent_hallmark": 0.10295955339199328,
+  "absent_other": 0.0,
+  "absent_excluded": 0.06978598452163765,
+  "log_annotations": 0.0,
+  "log_references": 0.0,
+  "gene": 0.0
+ },
+ "meta": {
+  "absent_weight": 0.5,
+  "absent_min_freq": 0.8,
+  "dataset": "phenopacket",
+  "kb_size": false,
+  "cases": 1969,
+  "candidates": 50,
+  "l2": 0.001,
+  "folds": 5,
+  "seed": 13,
+  "hpo": "hp/releases/2026-09-01",
+  "annotations": "2026-09-02",
+  "trained": "2026-11-09 16:35",
+  "cv_default": {
+   "top1": 0.28694768918232605,
+   "top3": 0.38649060436769933,
+   "top10": 0.5027932960893855,
+   "mrr": 0.3592092085522948
+  },
+  "cv_learned": {
+   "top1": 0.3057389537836465,
+   "top3": 0.4179786693753174,
+   "top10": 0.5236160487557135,
+   "mrr": 0.38167144921040996
+  }
+ }
+}
