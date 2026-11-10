@@ -3,7 +3,7 @@
 Page 1: patient details -> page 2: the clinician enters the findings -> page 3: the diagnosis lists, with the
 evidence behind each suggestion -> page 4: the source document with the evidence highlighted.
 """
-import html, json, os, re, subprocess, sys, time
+import csv, html, io, json, os, re, subprocess, sys, time
 from pathlib import Path
 from urllib.parse import quote as urlquote
 import streamlit as st
@@ -21,6 +21,11 @@ GRADE = {"Verified": ("Verified", "#047857", "#D1FAE5"), "KB only": ("Literature
          "Patient only": ("Record", "#B45309", "#FEF3C7")}
 SECTIONS = {"supports": "What fits", "against": "What does not fit",
             "expected_but_missing": "Usually present, not recorded", "vs_runner_up": "Why it ranks above the next disease"}
+UPLOADS = Path("results/uploads")                    # images uploaded with a case
+MODALITIES = ["X-ray", "CT", "MRI", "Ultrasound", "Photo", "Other"]
+FORM = {"case_id": "", "age": None, "sex": "unknown", "setting": "", "example": "", "note": "", "present": [],
+        "absent": [], "other_terms": [], "labs": [], "vitals": {}, "genes": "", "image_report": "", "images": [],
+        "image_findings": []}
 DOC_NAMES = {"note_text": "Clinical note", "image_context": "Imaging report", "structured_data": "Lab results and other entered values"}
 
 st.set_page_config(page_title="Diagnosis support", layout="wide")
@@ -52,8 +57,11 @@ st.markdown("""<style>
 
 ss = st.session_state
 ss.setdefault("page", "patient")
-ss.setdefault("form", {"case_id": "", "age": None, "sex": "unknown", "setting": "", "example": "",
-                       "note": "", "present": [], "absent": [], "labs": [], "vitals": {}, "genes": ""})
+ss.setdefault("form", dict(FORM))
+for _k, _v in FORM.items():
+    ss.form.setdefault(_k, _v)
+for _k in ("rep_v", "img_v", "lab_v"):    # bumped after an upload is read, to clear that upload box
+    ss.setdefault(_k, 0)
 
 
 def go(page):
@@ -96,9 +104,58 @@ def lab_names():
     return sorted(r[0] for r in rows[1:])
 
 
+def save_upload(up, case_id):
+    folder = UPLOADS / (case_id or "unsaved")
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / re.sub(r"[^A-Za-z0-9._-]+", "_", up.name)
+    path.write_bytes(up.getvalue())
+    return str(path.resolve())
+
+
+def guess_modality(name):
+    n = name.lower()
+    for key, m in (("xr", "X-ray"), ("x-ray", "X-ray"), ("xray", "X-ray"), ("ct", "CT"), ("mr", "MRI"), ("mri", "MRI"),
+                   ("us", "Ultrasound"), ("echo", "Ultrasound"), ("photo", "Photo")):
+        if re.search(rf"(^|[^a-z]){re.escape(key)}([^a-z]|$)", n):
+            return m
+    return "Other"
+
+
+def labs_from_csv(data):
+    # a lab results file -> rows for the lab table. Columns (any case): test/name, value/result, unit,
+    # ref_low + ref_high or "normal from"/"normal to", or one "reference range" column such as 20-60
+    def num(x):
+        try:
+            return float(str(x).strip())
+        except (TypeError, ValueError):
+            return None
+    norm = lambda x: re.sub(r"[^a-z0-9]+", " ", x.lower()).strip()
+    known = {}
+    for n in lab_names():                       # "Alanine Aminotransferase (ALT)" also matches "ALT"
+        for alias in (n, re.sub(r"\s*\([^)]*\)", "", n), *re.findall(r"\(([^)]+)\)", n)):
+            known.setdefault(norm(alias), n)
+    rows, unknown = [], []
+    for row in csv.DictReader(io.StringIO(data.decode("utf-8-sig", errors="replace"))):
+        row = {(k or "").strip().lower(): (v or "").strip() for k, v in row.items()}
+        get = lambda *ks: next((row[k] for k in ks if row.get(k)), "")
+        name, value = get("test", "name", "analyte", "lab"), num(get("value", "result"))
+        if not name or value is None:
+            continue
+        lo, hi = num(get("ref_low", "normal from", "low")), num(get("ref_high", "normal to", "high"))
+        m = re.match(r"\s*([\d.]+)\s*[-–]\s*([\d.]+)", get("reference range", "range", "ref", "normal range"))
+        if m and (lo is None or hi is None):
+            lo, hi = float(m[1]), float(m[2])
+        if norm(name) not in known:
+            unknown.append(name)
+            continue
+        rows.append({"name": known[norm(name)], "value": value, "unit": get("unit", "units") or None,
+                     "ref_low": lo, "ref_high": hi})
+    return rows, unknown
+
+
 def stepper(active):
     order = ["patient", "clinical", "results"]
-    labels = [("1. Patient", "Who is the patient"), ("2. Findings", "Symptoms, notes, labs"),
+    labels = [("1. Patient", "Who is the patient"), ("2. Findings", "Notes, symptoms, images, labs"),
               ("3. Diagnosis", "Likely diseases, evidence, next test")]
     idx = order.index(active) if active in order else 2
     st.markdown("<div class='stepper'>" + "".join(
@@ -134,9 +191,17 @@ def page_patient():
             f["example"] = ex
             if ex:
                 c = load_json(ex, {})
+                by_id = {v: k for k, v in hpo_terms().items()}
+                terms = c.get("hpo_terms", [])
+                pick = lambda st_: [by_id[t["id"]] for t in terms if t.get("status", "present") == st_ and t["id"] in by_id]
                 f.update(case_id=c.get("case_id", ""), age=c.get("age"), sex=c.get("sex") or "unknown",
                          note=c.get("note_text", ""), labs=c.get("labs", []), vitals=c.get("vitals") or {},
-                         genes=", ".join(c.get("genes", [])), present=[], absent=[])
+                         genes=", ".join(c.get("genes", [])), present=pick("present"), absent=pick("absent"),
+                         other_terms=[t for t in terms if t.get("status", "present") not in ("present", "absent")
+                                      or t["id"] not in by_id],
+                         image_report=c.get("image_context", ""), image_findings=c.get("image_findings", []),
+                         images=[{"path": str((Path(ex).parent / i["path"]).resolve()), "modality": i.get("modality") or "Other"}
+                                 for i in c.get("images", [])])
             st.rerun()
     with st.form("patient"):
         c1, c2, c3 = st.columns(3)
@@ -164,23 +229,80 @@ def page_clinical():
     st.title("Findings")
     st.caption(f"Patient {f['case_id']}" + (f" · {who}" if who else "") + (f" · {f['setting']}" if f["setting"] else ""))
     names = hpo_terms()
-    with st.form("clinical"):
+
+    with st.container(border=True):
         st.markdown("**Clinical note**")
-        note = st.text_area("Clinical note", value=f["note"], height=220, label_visibility="collapsed",
-                            placeholder="History, examination, imaging and anything else, in your own words. "
+        note = st.text_area("Clinical note", value=f["note"], height=200, label_visibility="collapsed",
+                            placeholder="History, examination and anything else, in your own words. "
                                         "Negations such as 'no chest pain' are understood.")
         c1, c2 = st.columns(2)
         present = c1.multiselect("Symptoms or signs present (type to search)", list(names), default=f["present"])
         absent = c2.multiselect("Checked and absent", list(names), default=f["absent"])
+        if f["other_terms"]:
+            st.caption(f"Also kept from the example: {len(f['other_terms'])} finding(s) marked as family history or uncertain.")
+
+    with st.container(border=True):
+        st.markdown("**Imaging** (optional)")
+        i1, i2 = st.columns([3, 2])
+        with i1:
+            report = st.text_area("Imaging or radiology report", value=f["image_report"], height=150,
+                                  key=f"report_{ss.rep_v}",
+                                  placeholder="Paste the report, e.g. 'MRI brain: multiple cortical tubers ...'")
+            txt = st.file_uploader("...or upload the report as a text file", type=["txt", "md"], key=f"rep_up_{ss.rep_v}")
+            if txt is not None:
+                f["image_report"] = txt.getvalue().decode("utf-8-sig", errors="replace")
+                ss.rep_v += 1
+                st.rerun()
+        with i2:
+            ups = st.file_uploader("Images (X-ray, CT, MRI, ultrasound, photos)", type=["png", "jpg", "jpeg", "webp"],
+                                   accept_multiple_files=True, key=f"img_up_{ss.img_v}")
+            if ups:
+                have = {x["path"] for x in f["images"]}
+                for up in ups:
+                    path = save_upload(up, f["case_id"])
+                    if path not in have:
+                        f["images"].append({"path": path, "modality": guess_modality(up.name)})
+                ss.img_v += 1
+                st.rerun()
+        if f["images"]:
+            cols = st.columns(4)
+            for k, im in enumerate(list(f["images"])):
+                with cols[k % 4]:
+                    if Path(im["path"]).exists():
+                        st.image(im["path"], use_container_width=True)
+                    st.caption(Path(im["path"]).name)
+                    m = st.selectbox("Type", MODALITIES, key=f"mod-{im['path']}",
+                                     index=MODALITIES.index(im["modality"]) if im["modality"] in MODALITIES else 5)
+                    im["modality"] = m
+                    if st.button("Remove", key=f"rm-{im['path']}", use_container_width=True):
+                        f["images"].remove(im)
+                        st.rerun()
+            st.caption("Images are described by a local image model when one is running (on Sol); the description is "
+                       "then read like the report above. On this computer they are kept with the case but not described.")
+
+    with st.container(border=True):
         st.markdown("**Lab results** (optional)")
         labs = st.data_editor(f["labs"] or [{"name": None, "value": None, "unit": None, "ref_low": None, "ref_high": None}],
-                              num_rows="dynamic", use_container_width=True, key="labs_editor",
+                              num_rows="dynamic", use_container_width=True, key=f"labs_editor_{ss.lab_v}",
                               column_config={"name": st.column_config.SelectboxColumn("Test", options=lab_names()),
                                              "value": st.column_config.NumberColumn("Value"),
                                              "unit": st.column_config.TextColumn("Unit"),
                                              "ref_low": st.column_config.NumberColumn("Normal from"),
                                              "ref_high": st.column_config.NumberColumn("Normal to")})
-        st.markdown("**Vital signs** (optional)")
+        lab_csv = st.file_uploader("...or upload a lab results file (.csv with columns test, value, unit, reference range)",
+                                   type=["csv"], key=f"lab_up_{ss.lab_v}")
+        if lab_csv is not None:
+            rows, unknown = labs_from_csv(lab_csv.getvalue())
+            f["labs"] = [r for r in labs if r.get("name")] + rows
+            ss.lab_msg = (f"Added {len(rows)} lab result(s) from {lab_csv.name}."
+                          + (f" Not recognised, so not added: {', '.join(unknown)}." if unknown else ""))
+            ss.lab_v += 1
+            st.rerun()
+        if ss.get("lab_msg"):
+            st.caption(ss.lab_msg)
+
+    with st.container(border=True):
+        st.markdown("**Vital signs and genes** (optional)")
         v = f["vitals"] or {}
         v1, v2, v3, v4, v5 = st.columns(5)
         bp = v1.text_input("Blood pressure", value=v.get("bp") or "", placeholder="120/80")
@@ -188,23 +310,28 @@ def page_clinical():
         hr = v3.number_input("Heart rate", value=v.get("hr"), placeholder="72")
         rr = v4.number_input("Breathing rate", value=v.get("rr"), placeholder="16")
         spo2 = v5.number_input("SpO2 %", value=v.get("spo2"), placeholder="98")
-        genes = st.text_input("Known gene results (optional)", value=f["genes"], placeholder="e.g. FBN1")
-        b1, b2 = st.columns([1, 4])
-        back = b1.form_submit_button("← Back")
-        submit = b2.form_submit_button("Evaluate →", type="primary")
+        genes = st.text_input("Known gene results", value=f["genes"], placeholder="e.g. FBN1")
+
+    b1, b2 = st.columns([1, 4])
+    back = b1.button("← Back")
+    submit = b2.button("Evaluate →", type="primary")
     if back:
+        f.update(note=note, present=present, absent=absent, image_report=report, genes=genes)
         go("patient")
     if submit:
-        if not (note.strip() or present or absent or any(r.get("name") for r in labs)):
-            st.error("Please enter a note, some findings or a lab result.")
+        if not (note.strip() or report.strip() or present or absent or f["images"] or any(r.get("name") for r in labs)):
+            st.error("Please enter a note, an imaging report, some findings, an image or a lab result.")
             return
-        f.update(note=note, present=present, absent=absent, genes=genes,
+        f.update(note=note, present=present, absent=absent, genes=genes, image_report=report,
                  labs=[r for r in labs if r.get("name") and r.get("value") is not None],
                  vitals={k: x for k, x in {"bp": bp.strip() or None, "temp_c": temp, "hr": hr, "rr": rr,
                                            "spo2": spo2}.items() if x not in (None, "")})
-        case = {"case_id": f["case_id"], "note_text": note, "age": f["age"], "sex": f["sex"],
+        case = {"case_id": f["case_id"], "note_text": note, "image_context": report.strip(), "age": f["age"],
+                "sex": f["sex"],
                 "hpo_terms": [{"id": names[n], "status": "present"} for n in present] +
-                             [{"id": names[n], "status": "absent"} for n in absent],
+                             [{"id": names[n], "status": "absent"} for n in absent] + f["other_terms"],
+                "image_findings": f["image_findings"],
+                "images": [{"path": x["path"], "modality": x["modality"]} for x in f["images"]],
                 "labs": [{k: x for k, x in r.items() if x not in (None, "")} for r in f["labs"]],
                 "genes": [g.strip().upper() for g in genes.split(",") if g.strip()],
                 "details": {"setting": f["setting"]} if f["setting"] else {}, "policy": "local_only"}
@@ -312,6 +439,18 @@ def page_results():
     st.markdown(f"<div class='patient'><b>Patient {html.escape(data['case'])}</b> <span class='muted'>"
                 f"{('· ' + who) if who else ''} · {len(present)} findings present, {len(absent)} absent</span><br>{chips}</div>",
                 unsafe_allow_html=True)
+    if data.get("images"):
+        with st.expander(f"Images ({len(data['images'])})", expanded=False):
+            if data.get("images_described_by"):
+                st.caption(f"Described by {data['images_described_by']}; the description is part of the imaging report.")
+            elif data.get("images_note"):
+                st.warning(data["images_note"])
+            cols = st.columns(4)
+            for k, im in enumerate(data["images"]):
+                with cols[k % 4]:
+                    if Path(im["path"]).exists():
+                        st.image(im["path"], use_container_width=True)
+                    st.caption(f"{im['modality']} · {im['name']}")
     with st.expander(f"Check what was read from the record ({len(data['findings'])} findings)"
                      + (f" · {len(data['dropped'])} removed by you" if data["dropped"] else "")):
         st.caption("If something was read wrongly, remove it and the diagnosis updates.")
@@ -477,8 +616,9 @@ def page_results():
                         st.rerun()
         st.divider()
         if st.button("Start a new patient", use_container_width=True):
-            ss.form = {"case_id": "", "age": None, "sex": "unknown", "setting": "", "example": "",
-                       "note": "", "present": [], "absent": [], "labs": [], "vitals": {}, "genes": ""}
+            ss.form = {k: (list(v) if isinstance(v, list) else dict(v) if isinstance(v, dict) else v)
+                       for k, v in FORM.items()}
+            ss.pop("lab_msg", None)
             go("patient")
 
 
@@ -496,6 +636,11 @@ def page_evidence():
     st.markdown(f"Finding: **{html.escape(ev['title'])}**. The highlighted words are where it was read from.")
     spans = [sp for lst in data["lists"].values() for d in lst for i in d["pack"] if i.get("kind") == "patient"
              for sp in i.get("spans", []) if sp["field"] == ev["field"] and sp["start"] == ev["start"]][:1]
+    if ev["field"] == "image_context" and data.get("images"):
+        cols = st.columns(6)
+        for k, im in enumerate(data["images"]):
+            if Path(im["path"]).exists():
+                cols[k % 6].image(im["path"], caption=im["modality"], use_container_width=True)
     body = highlight(text, spans, target=ev["start"])
     components.html(f"""
       <style>
