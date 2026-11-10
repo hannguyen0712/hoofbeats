@@ -715,18 +715,27 @@ def simulate(r: LRRanker, c: Case, policy: str, rounds: int, seed: int):
 def cmd_sequential(a):
     r = load_kb(a)
     cases = [c for c in pick_cases(r, a.phenopackets, None, seed=a.seed)
-             if len(c.present) >= 2 and evaluable(r, c)][: a.sample]
+             if len(c.present) >= 2 and evaluable(r, c)][: a.sample or None]   # 0 = all
     print(f"[data] {len(cases)} evaluable cases, {a.rounds} questions each\n")
     print("| policy | Top-1 start | Top-1 end | Top-10 start | Top-10 end | answered |\n|---|---|---|---|---|---|")
-    rows = []
+    from .report import boot_ci
+    rows, gain, grp = [], {}, [c.truth[0] for c in cases]
     for pol in ("eig", "frequent", "random"):
         res = [simulate(r, c, pol, a.rounds, a.seed) for c in cases]
         s, e = topk([x[0][0] for x in res]), topk([x[0][-1] for x in res])
         rate = sum(x[1] for x in res) / (len(res) * a.rounds)
+        gain[pol] = np.array([(x[0][-1] == 1) - (x[0][0] == 1) for x in res], float)   # Top-1 change per case
         print(f"| {pol} | {s['top1']:.3f} | {e['top1']:.3f} | {s['top10']:.3f} | {e['top10']:.3f} | {rate:.0%} |")
         note("sequential", **{pol: {"start": s, "end": e, "answered": rate}})
         rows += [{"policy": pol, "case": c.case_id, "truth": c.truth[0], "round": i, "rank": rk, "answered": ans}
                  for c, (ranks, ans) in zip(cases, res) for i, rk in enumerate(ranks)]
+    # paired 95% CIs (resampling diseases): each policy's Top-1 gain, and EIG against the baselines
+    print("\n| comparison | Top-1 change, pts (95% CI) |\n|---|---|")
+    pairs = [(p, gain[p]) for p in gain] + [(f"eig - {p}", gain["eig"] - gain[p]) for p in ("frequent", "random")]
+    for name, d in pairs:
+        lo, hi = boot_ci(d, groups=grp)
+        print(f"| {name} | {100 * d.mean():+.1f} ({100 * lo:+.1f} to {100 * hi:+.1f}) |")
+        note("sequential_ci", **{name: {"delta": float(d.mean()), "lo": lo, "hi": hi}})
     Path(a.out).mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).to_csv(wrote(Path(a.out) / "sequential.csv"), index=False)
 
