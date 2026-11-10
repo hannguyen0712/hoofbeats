@@ -186,7 +186,7 @@ class MedGemma:
             req = urllib.request.Request(self.endpoint, json.dumps(body).encode(), headers)
             try:
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                    return json.loads(resp.read())["choices"][0]["message"]["content"] or ""
+                    return reply_text(json.loads(resp.read()))
             except TimeoutError:        # a failed request (benchmarks skip the case), not a crash
                 self.errors += 1
                 raise RuntimeError(f"{self.model}: no reply within {self.timeout:.0f} s. A slow CPU or a reply stuck "
@@ -257,6 +257,16 @@ def chat_many(llm, calls: list[dict], workers: int = 8) -> list[str]:
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(workers) as pool:
         return list(pool.map(lambda c: llm.chat(**c), calls))
+
+
+def reply_text(resp: dict) -> str:
+    # the answer text of an OpenAI-style reply. Thinking models served by Ollama/vLLM put their thinking in a
+    # separate field ("reasoning" / "reasoning_content") and can leave "content" empty when they stop while still
+    # thinking; then the thinking is the only text there is, and the JSON parser looks for an answer in it.
+    # <think>...</think> blocks inside content are dropped.
+    msg = (resp.get("choices") or [{}])[0].get("message") or {}
+    text = re.sub(r"(?s)<think>.*?</think>", "", msg.get("content") or "").strip()
+    return text or (msg.get("reasoning") or msg.get("reasoning_content") or "")
 
 
 def _json(text: str, opener: str):
