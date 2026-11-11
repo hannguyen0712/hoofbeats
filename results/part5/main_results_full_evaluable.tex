@@ -1,0 +1,19 @@
+\begin{table}[t]
+\centering\small
+\begin{tabular}{lrrrrr}
+\toprule
+Condition & Top-1 & Top-3 & Top-5 & Top-10 & MRR \\
+\midrule
+present + absent & 28.7 & 38.6 & 43.5 & 50.3 & 35.9 \\
+present only & 28.1 & 39.0 & 43.3 & 50.1 & 35.7 \\
+present + all absent, weight 1 (old rule) & 24.9 & 34.8 & 38.7 & 44.7 & 31.9 \\
+present + absent, NO leakage control & 66.0 & 74.8 & 77.4 & 81.4 & 71.5 \\
+present + absent + gene & 51.5 & 61.4 & 65.3 & 70.4 & 58.0 \\
+present + absent + onset & 28.0 & 39.1 & 43.7 & 50.1 & 35.7 \\
+present + absent + sex & 28.8 & 38.6 & 43.6 & 50.3 & 36.0 \\
+present + absent + onset + sex & 28.2 & 39.2 & 43.8 & 50.0 & 35.8 \\
+\bottomrule
+\end{tabular}
+\caption{Ranking on Phenopacket Store (evaluable cases (the true disease keeps annotations after its own paper is removed), n=1969). Percentages.}
+\label{tab:rank-full-ev}
+\end{table}
