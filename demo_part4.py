@@ -174,7 +174,7 @@ def key_points(pack):
     # plain-language summary straight from the evidence pack (no model): the strongest findings that fit,
     # and the usual features that are not recorded
     p_for = {i.hpo_id: i.id for i in pack.values() if i.kind == "patient"}
-    fits, missing = [], []
+    fits, missing, against = [], [], []
     for i in pack.values():
         if i.kind != "knowledge":
             continue
@@ -185,10 +185,15 @@ def key_points(pack):
             lr = float(lr.group(1)) if lr else 1.0
             fits.append({"finding": name, "freq": int(freq.group(1)) if freq else None, "strength": strength(lr),
                          "lr": lr, "ids": [x for x in (p_for.get(i.hpo_id), i.id) if x]})
+        elif i.role == "against":                               # evidence that counts against the disease
+            lr = re.search(r"LR ([\d.]+)", i.text)
+            against.append({"finding": name, "freq": int(freq.group(1)) if freq else None,
+                            "lr": float(lr.group(1)) if lr else None, "absent": i.text.startswith("Lacks"),
+                            "ids": [x for x in (p_for.get(i.hpo_id), i.id) if x]})
         elif i.role == "missing":
             missing.append({"finding": name, "freq": int(freq.group(1)) if freq else None, "ids": [i.id]})
     fits.sort(key=lambda x: -x["lr"])
-    return fits, missing
+    return fits, missing, against
 
 
 details = raw.get("details") or {}
@@ -212,12 +217,12 @@ for label, lst in lists.items():
         pack = g.build_pack(r, case, d, p, ex, runner, claims)
         trace, source = explain_with_model(pack, d, p, runner)
         kept, removed = g.check_trace(trace, pack, r, case, [r.db.names[d], r.db.names[runner]])
-        fits, missing = key_points(pack)
+        fits, missing, against = key_points(pack)
         print(f"{label} {n}. {r.db.names[d]} ({d}) {prob(d, p):.1%} | {source} | kept {sum(len(v) for v in kept.values())}, "
               f"removed {len(removed)}")
         out["lists"][label].append({"id": d, "name": r.db.names[d], "probability": prob(d, p), "ranker_score": p,
                                     "runner_up": runner, "runner_up_name": r.db.names[runner],
-                                    "explanation_source": source, "fits": fits, "missing": missing,
+                                    "explanation_source": source, "fits": fits, "missing": missing, "against": against,
                                     "pack": [item_json(i) for i in pack.values()], "explanation": kept,
                                     "removed": removed, "tests": tests["diseases"].get(d)})
 
