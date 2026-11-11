@@ -2804,5 +2804,63 @@ class TestIntake(unittest.TestCase):
         self.assertTrue((self.root / "many" / "diagnose" / "m0.json").exists())
 
 
+class TestPart5(unittest.TestCase):
+    # eval_part5.py: tables built from saved benchmark / sequential CSVs
+
+    def setUp(self):
+        import eval_part5
+        self.e = eval_part5
+        self.tmp = Path(tempfile.mkdtemp())
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_hits_and_rr_count_missing_rank_as_miss(self):
+        ranks = [1, 4, None, 12]
+        self.assertEqual(self.e.hits(ranks, 1).tolist(), [1, 0, 0, 0])
+        self.assertEqual(self.e.hits(ranks, 5).tolist(), [1, 1, 0, 0])
+        self.assertAlmostEqual(self.e.rr(ranks).sum(), 1 + 1 / 4 + 1 / 12)
+
+    def test_summarize_means_and_interval(self):
+        s = self.e.summarize([1, 2, 3, 6, None], ["a", "b", "c", "d", "e"])
+        self.assertEqual(s["n"], 5)
+        self.assertAlmostEqual(s["top1"], 0.2)
+        self.assertAlmostEqual(s["top3"], 0.6)
+        self.assertAlmostEqual(s["top5"], 0.6)
+        self.assertAlmostEqual(s["top10"], 0.8)
+        self.assertLessEqual(s["top3_lo"], s["top3"])
+        self.assertGreaterEqual(s["top3_hi"], s["top3"])
+
+    def test_benchmark_table_pairs_cases_and_filters_evaluable(self):
+        rows = [("present + absent", "c1", "D1", 1, True), ("present + absent", "c2", "D2", 5, True),
+                ("present + absent", "c3", "D3", 2, False),
+                ("other", "c3", "D3", 1, False), ("other", "c1", "D1", 1, True), ("other", "c2", "D2", 1, True)]
+        csv = self.tmp / "benchmark.csv"
+        import pandas as pd
+        pd.DataFrame(rows, columns=["condition", "case", "truth", "rank", "evaluable"]).to_csv(csv, index=False)
+        t = self.e.benchmark_table(csv, evaluable_only=False)
+        self.assertAlmostEqual(t.loc["present + absent", "top1"], 1 / 3)
+        self.assertAlmostEqual(t.loc["other", "d_top1"], 2 / 3)       # c2 and c3 become hits, matched by case
+        t = self.e.benchmark_table(csv, evaluable_only=True)
+        self.assertEqual(int(t.loc["other", "n"]), 2)
+        self.assertAlmostEqual(t.loc["other", "d_top1"], 0.5)
+
+    def test_sequential_answered_is_total_over_rounds(self):
+        # the CSV repeats each case's total of answered questions on every round
+        rows = []
+        for pol, ans, end in (("eig", 2, 1), ("random", 0, 3)):
+            for case, truth in (("c1", "D1"), ("c2", "D2")):
+                rows += [(pol, case, truth, 0, 3, ans), (pol, case, truth, 1, 2, ans), (pol, case, truth, 2, end, ans)]
+        csv = self.tmp / "sequential.csv"
+        import pandas as pd
+        pd.DataFrame(rows, columns=["policy", "case", "truth", "round", "rank", "answered"]).to_csv(csv, index=False)
+        t = self.e.sequential_table(csv)
+        self.assertAlmostEqual(t.loc["eig", "answered"], 1.0)        # 2 of 2 questions
+        self.assertAlmostEqual(t.loc["random", "answered"], 0.0)
+        self.assertAlmostEqual(t.loc["eig", "top1_end"], 1.0)
+        self.assertAlmostEqual(t.loc["eig", "vs_random"], 1.0)
+
+
 if __name__ == "__main__":
     unittest.main()
