@@ -47,10 +47,10 @@ for path in cases:
     kept, removed = g.check_trace(trace, pack, r, case, names)
     for sec, v in kept.items():
         for x in v:
-            grades[x["grade"]] += 1
+            grades[" + ".join(x.get("sources") or [x["grade"]])] += 1
             sections[sec] += 1
             rows.append({"case": path, "disease": d, "disease_name": r.db.names[d], "evidence": ev(x["text"]), "section": sec, "text": x["text"], "ok": True,
-                         "grade": x["grade"], "reason": ""})
+                         "grade": x["grade"], "sources": x.get("sources", []), "reason": ""})
     for x in removed:
         by_check[x["reason"][:2]] += 1
         rows.append({"case": path, "disease": d, "disease_name": r.db.names[d], "evidence": ev(x["text"]), "section": x["section"], "text": x["text"], "ok": False,
@@ -71,7 +71,7 @@ print(f"\nmodel: {MODEL}  | prompt {VERSION} | {stats['cases']} cases in {time.t
 print(f"sentences written: {stats['written']}, kept {stats['kept']} ({stats['kept'] / w:.1%}), "
       f"removed {stats['removed']} ({stats['removed'] / w:.1%})")
 print("removed by:", dict(by_check))
-print("grades of kept:", dict(grades))
+print("evidence types of kept:", dict(grades))
 print("kept per section:", dict(sections))
 print("\nexamples removed:")
 for row in [x for x in rows if not x["ok"]][:10]:

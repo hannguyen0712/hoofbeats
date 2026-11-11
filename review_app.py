@@ -17,8 +17,18 @@ EXAMPLES = {"": "(start empty)",
             "examples/marfan_note.json": "Tall teenager with lens problems (genetics clinic)",
             "examples/tsc_imaging.json": "Child with seizures and brain imaging (neurology)",
             "examples/wilson_labs.json": "Young adult with liver and movement problems (hepatology)"}
-GRADE = {"Verified": ("Verified", "#047857", "#D1FAE5"), "KB only": ("Literature", "#1D4ED8", "#DBEAFE"),
-         "Patient only": ("Record", "#B45309", "#FEF3C7")}
+# where a piece of evidence comes from, shown on every checked sentence and in the evidence popovers
+SOURCE_STYLE = {"patient record": ("Patient record", "#B45309", "#FEF3C7"),
+                "HPO annotation": ("HPO annotation", "#1D4ED8", "#DBEAFE"),
+                "ranker calculation": ("Ranker calculation", "#6D28D9", "#EDE9FE"),
+                "PubMed passage": ("PubMed passage", "#047857", "#D1FAE5")}
+OLD_GRADES = {"Verified": ["patient record", "HPO annotation"], "KB only": ["HPO annotation"],
+              "Patient only": ["patient record"]}          # results saved before Nov 11
+
+
+def source_chips(sources):
+    return "".join(f"<span class='pill' style='color:{fg};background:{bg}'>{lab}</span>"
+                   for lab, fg, bg in (SOURCE_STYLE.get(x, (x, "#334155", "#E2E8F0")) for x in sources))
 SECTIONS = {"supports": "What fits", "against": "What does not fit",
             "expected_but_missing": "Usually present, not recorded", "vs_runner_up": "Why it ranks above the next disease"}
 UPLOADS = Path("results/uploads")                    # images uploaded with a case
@@ -396,9 +406,14 @@ def evidence_links(ids, pack, key):
                     go("evidence")
             if not item.get("spans"):
                 st.caption("Entered directly as a finding.")
+        elif item.get("source") == "ranker contributions":
+            st.markdown(f"**Calculated by the ranker** from the HPO annotations of both diseases: "
+                        f"{html.escape(plain(item.get('text', '')))}", unsafe_allow_html=True)
         else:
-            st.markdown(f"**From the medical literature:** {html.escape(plain(item.get('text', '')))}",
-                        unsafe_allow_html=True)
+            src = item.get("source") or ""
+            where = ("**From a retrieved PubMed passage:**" if src == "PubMed" else
+                     "**From the HPO annotations** (disease features curated from the papers listed):")
+            st.markdown(f"{where} {html.escape(plain(item.get('text', '')))}", unsafe_allow_html=True)
             name = re.search(r"'([^']+)'", item.get("text", ""))
             for ref in [r for r in item.get("refs", []) if r.startswith("PMID")][:4]:
                 st.link_button(f"📚 Open {ref} on PubMed", literature_link(ref, name.group(1) if name else ""),
@@ -500,6 +515,10 @@ def page_results():
                 freq = f" · in {x['freq']}% of people with it" if x["freq"] is not None else ""
                 with st.popover(f"{x['finding']}{freq} · {x['strength']} evidence", use_container_width=True):
                     evidence_links(x["ids"], pack, f"{d['id']}-fit{k}")
+            if d.get("against"):
+                st.markdown("<span class='muted'>Counts against: " + ", ".join(
+                    (f"no {html.escape(x['finding'].lower())} (usually present, {x['freq']}%)" if x["absent"] and x["freq"]
+                     else html.escape(x["finding"].lower())) for x in d["against"][:3]) + "</span>", unsafe_allow_html=True)
             if d["missing"]:
                 st.markdown("<span class='muted'>Usually seen but not recorded: " +
                             ", ".join(f"{html.escape(x['finding'].lower())} ({x['freq']}%)" for x in d["missing"][:3]) +
@@ -523,7 +542,8 @@ def page_results():
             with st.expander("Full explanation"):
                 src = "written by a local language model" if d["explanation_source"] == "model" else "written from the evidence"
                 st.caption(f"Every statement was checked against its evidence ({src}); {len(d['removed'])} failed and "
-                           "are hidden. Green: patient record and literature · blue: literature · amber: patient record.")
+                           "are hidden. \"Evidence-linked\" means each statement cites evidence that names the same finding "
+                           "and numbers; the tags say where that evidence comes from.")
                 for sec, title in SECTIONS.items():
                     sents = d["explanation"].get(sec, [])
                     if not sents:
@@ -531,10 +551,10 @@ def page_results():
                     st.markdown(f"**{title}**")
                     for j, x in enumerate(sents):
                         s = x["text"]
-                        lab, fg, bg = GRADE[x["grade"]]
+                        srcs = x.get("sources") or OLD_GRADES.get(x["grade"], [])
                         a, b = st.columns([6, 1])
-                        a.markdown(f"<span class='pill' style='color:{fg};background:{bg}'>{lab}</span> "
-                                   f"{html.escape(plain(s))}", unsafe_allow_html=True)
+                        a.markdown(f"{html.escape(plain(s))}<br><span class='muted'>Evidence-linked · </span>"
+                                   f"{source_chips(srcs)}", unsafe_allow_html=True)
                         with b.popover("Evidence"):
                             evidence_links([c.strip() for c in s[s.rfind("[") + 1:s.rfind("]")].split(",")], pack,
                                            f"{d['id']}-{sec}{j}")

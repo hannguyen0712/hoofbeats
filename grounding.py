@@ -43,14 +43,16 @@ def patient_items(r, case, claims):
 def knowledge_items(r, case, d, claims, ex, start=1):
     """Make one K item for each knowledge claim."""
     items = {}
-    lr_of = {c.hpo_id: c.log_lr for c in r.contributions(case, d, ex)}
+    lr_of = {c.hpo_id: c.log_lr for c in r.contributions(case, d, ex)}   # signed: > 0 supports d, < 0 counts against
     n = start
     for cl in claims:
         ok, reason = verify_claim(r, case, cl, ex)
         if not ok:
             print(" dropped", cl.text, "->", reason)
             continue
-        role = "for" if cl.patient_term else "against"
+        # the sign of the finding's contribution decides the role: every claim has a patient term, so the term alone
+        # cannot (a lacking hallmark with LR 0.45 is evidence against the disease)
+        role = "for" if lr_of.get(cl.patient_term, 0.0) > 0 else "against"
         kid = f"K{n}"
         text = cl.text.split(" [")[0]
         items[kid] = Item(
@@ -250,7 +252,8 @@ def names_of(r, item):
     return [n.lower() for n in out if n]
 
 
-def check_sentence(s, pack, r, case, disease_names=()):
+def check_sentence_basic(s, pack, r, case, disease_names=()):
+    # the original V1-V4 (Oct-Nov 10), kept to compare with the stricter checker
     ids = cites(s)
     body = strip_cites(s).lower()
     # V1: cites something, and every cited ID is in this disease's pack
@@ -286,13 +289,13 @@ def check_sentence(s, pack, r, case, disease_names=()):
     return {"ok": True, "grade": grade, "reason": ""}
 
 
-def check_trace(trace, pack, r, case, disease_names=()):
+def check_trace(trace, pack, r, case, disease_names=(), strict=True):
     kept, removed = {s: [] for s in trace}, []
     for sec, sents in trace.items():
         for s in sents:
-            res = check_sentence(s, pack, r, case, disease_names)
+            res = check_sentence(s, pack, r, case, disease_names, section=sec, strict=strict)
             if res["ok"]:
-                kept[sec].append({"text": s, "grade": res["grade"]})
+                kept[sec].append({"text": s, "grade": res["grade"], "sources": res.get("sources", [])})
             else:
                 removed.append({"section": sec, "text": s, "reason": res["reason"]})
     return kept, removed
@@ -353,3 +356,186 @@ def make_prompt_v3(r, d, p, pack, runner):
         lines.append(f"[{i.id}]{tag} {i.text}")
     runner_text = f"{r.db.names[runner]} ({runner})" if runner else "none"
     return PROMPT_V2.format(name=r.db.names[d], did=d, prob=f"{p:.1%}", runner=runner_text, evidence="\n".join(lines))
+
+
+# ---------------- checks, version 2 (Nov 11)
+# V1 citations, V5 section, V2 record status (negation scoped to the finding; not recorded vs absent; family and
+# uncertain), V3 names the finding, V4 typed numbers (a frequency must be a frequency, an LR an LR), V6 nothing beyond
+# the evidence (certainty or causal wording, another disease, a finding no cited item covers).
+SECTION_ROLES = {"supports": {"for"}, "against": {"against"}, "expected_but_missing": {"missing"},
+                 "vs_runner_up": {"compare"}}
+SOURCE_TYPE = {"HPO Annotations": "HPO annotation", "ranker contributions": "ranker calculation",
+               "PubMed": "PubMed passage"}
+NOT_RECORDED = re.compile(r"\b(?:not|never)\b(?:\W+\w+){0,3}?\W+(?:mention|record|report|document|note|describ|list)\w*"
+                          r"|\bno (?:mention|record|report)\b|\bunrecorded\b|\bundocumented\b", re.I)
+AFTER_ABSENT = r"(?:\W+\w+){0,3}?\W+(?:absent|not present|negative|not seen|not found|not observed|ruled out)\b"
+FAMILY_WORDS = re.compile(r"\b(family|familial|mother|father|parents?|siblings?|brother|sister|aunt|uncle|cousin|"
+                          r"grand\w*|relatives?|maternal|paternal)\b", re.I)
+HEDGE_WORDS = re.compile(r"\b(possible|possibly|suspected|uncertain|unclear|may|might|probable|probably|questionable|"
+                         r"query)\b|\?", re.I)
+OVERCLAIM = re.compile(r"\b(proves?|proven|proof|confirm\w*|diagnostic|diagnoses|diagnosed|definitive\w*|definite\w*|"
+                       r"certain|certainly|conclusive\w*|establish\w*|pathognomonic|rules? out|excludes|causes?|caused|"
+                       r"causing|due to|because|results? (?:from|in)|leads? to|led to|always|guarantee\w*|must|"
+                       r"clearly|undoubtedly)\b", re.I)
+PERCENT = re.compile(r"(\d+(?:\.\d+)?)\s*(?:%|percent\b)", re.I)
+LR_BEFORE = re.compile(r"(?:\blr\b|likelihood ratio|\bratio\b|\bagainst\b|\bvs\b|\bversus\b|compared with)\W{0,3}"
+                       r"(?:\w+\W+){0,3}$", re.I)
+_EXT, _NAMES = {}, {}
+
+
+def says_absent(body, name):
+    n = re.escape(name)
+    return bool(re.search(NEGATION.pattern + r"(?:\W+\w+){0,4}?\W+" + n, body, re.I)
+                or re.search(n + AFTER_ABSENT, body, re.I))
+
+
+def source_type(item):
+    return "patient record" if item.kind == "patient" else SOURCE_TYPE.get(item.source, item.source or "knowledge base")
+
+
+def quantities(items):
+    text = " ".join(i.text for i in items)
+    pct = set(re.findall(r"(\d+(?:\.\d+)?)%", text))
+    lrs = set(re.findall(r"\bLR (\d+(?:\.\d+)?)", text))
+    lrs |= {x for pair in re.findall(r"likelihood ratio (\d+(?:\.\d+)?) against (\d+(?:\.\d+)?)", text) for x in pair}
+    return pct, lrs
+
+
+def _extractor(r):
+    if id(r) not in _EXT:
+        from hoofbeats.data import Extractor
+        _EXT[id(r)] = Extractor(r.ont)
+    return _EXT[id(r)]
+
+
+def _disease_index(r):
+    # knowledge-base disease names (8+ letters), indexed by first word, to spot a disease the evidence doesn't name
+    if id(r) not in _NAMES:
+        idx = {}
+        for name in set(r.db.names.values()):
+            low = name.lower()
+            if len(low) >= 8:
+                idx.setdefault(re.split(r"\W+", low)[0], []).append(low)
+        _NAMES[id(r)] = idx
+    return _NAMES[id(r)]
+
+
+def other_diseases(body, r, allowed):
+    idx, found = _disease_index(r), set()
+    for m in re.finditer(r"\w+", body):
+        for name in idx.get(m.group(0), ()):
+            if body.startswith(name, m.start()) and name not in allowed:
+                end = m.start() + len(name)
+                if end == len(body) or not body[end].isalnum():
+                    found.add(name)
+    return {x for x in found if not any(x != y and x in y for y in found | allowed)}     # longest names only
+
+
+def _strip_names(text, names):
+    for n in sorted(names, key=len, reverse=True):
+        text = re.sub(re.escape(n), " ", text, flags=re.I)
+    return text
+
+
+def _residual(body, items, r, disease_names):
+    # the sentence without the disease names and without the cited findings' own names and quoted phrases, so that
+    # words inside a name ("... due to ...", a disease called "Hypertelorism") are not read as claims
+    phrases = set(disease_names) | {q for i in items for q in re.findall(r"'([^']+)'", i.text)}
+    phrases |= {n for i in items for n in names_of(r, i)}
+    return _strip_names(body, phrases)
+
+
+def _terms(r, text):
+    return {r.ont.resolve(f.hpo_id) for f in _extractor(r).findings(text) if r.ont.resolve(f.hpo_id)}
+
+
+def unsupported_findings(body, items, r, disease_names):
+    # findings the sentence names that no cited item covers (the cited term, a term in the cited text, or a
+    # broader / narrower term of one of those)
+    said = _terms(r, _strip_names(body, disease_names))
+    if not said:
+        return []
+    allowed = {r.ont.resolve(i.hpo_id) for i in items if i.hpo_id} - {None}
+    allowed |= _terms(r, _strip_names(" ".join(i.text for i in items), disease_names))
+    out = []
+    for t in said:
+        if t in allowed or any(t in r.ont.ancestors(a) or a in r.ont.ancestors(t) for a in allowed):
+            continue
+        out.append(r.ont.name(t))
+    return out
+
+
+def check_sentence(s, pack, r, case, disease_names=(), section=None, strict=True):
+    if not strict:
+        return check_sentence_basic(s, pack, r, case, disease_names)
+    ids = cites(s)
+    body = strip_cites(s).lower()
+    # V1: cites something, and every cited ID is in this disease's pack
+    if not ids:
+        return {"ok": False, "reason": "V1: no citation"}
+    missing = [i for i in ids if i not in pack]
+    if missing:
+        return {"ok": False, "reason": f"V1: {', '.join(missing)} not in the evidence"}
+    items = [pack[i] for i in ids]
+    # V5: each cited knowledge item belongs to the section the sentence is in
+    if section in SECTION_ROLES:
+        wrong = [i for i in items if i.kind == "knowledge" and i.role not in SECTION_ROLES[section]]
+        if wrong:
+            return {"ok": False, "reason": f"V5: {wrong[0].id} is '{wrong[0].role}' evidence, not '{section}'"}
+    # V2: patient findings as recorded; negation tied to the finding; not recorded is not absent
+    status_now = {r.ont.resolve(f.hpo_id): f.status.value for f in case.findings}
+    for it in items:
+        names = names_of(r, it)
+        if it.kind == "patient":
+            if status_now.get(it.hpo_id) != it.status:
+                return {"ok": False, "reason": f"V2: {it.id} is no longer in the record as {it.status}"}
+            if it.status == "absent" and not any(says_absent(body, n) for n in names):
+                return {"ok": False, "reason": f"V2: {it.id} is absent but the sentence does not say that finding is absent"}
+            if it.status == "present" and any(negated(body, n) for n in names):
+                return {"ok": False, "reason": f"V2: {it.id} is present but the sentence says it is not"}
+            if it.status == "family" and not FAMILY_WORDS.search(body):
+                return {"ok": False, "reason": f"V2: {it.id} is in the family history but the sentence does not say so"}
+            if it.status == "uncertain" and not HEDGE_WORDS.search(body):
+                return {"ok": False, "reason": f"V2: {it.id} is uncertain but the sentence states it as fact"}
+        elif it.role == "missing" and not NOT_RECORDED.search(body):
+            if any(says_absent(body, n) for n in names):
+                return {"ok": False, "reason": f"V2: {it.id} is not recorded, but the sentence says the patient lacks it"}
+            return {"ok": False, "reason": f"V2: {it.id} is not recorded, but the sentence does not say so"}
+    # V3: the sentence names the finding of each cited item that has one (whole words)
+    for it in items:
+        names = names_of(r, it)
+        if names and not any(re.search(r"(?<!\w)" + re.escape(n) + r"(?!\w)", body) for n in names):
+            return {"ok": False, "reason": f"V3: does not name the finding of {it.id}"}
+    # V4: numbers, by kind: a percentage must be a frequency in the cited items, a number after LR / likelihood
+    # ratio / against must be one of their LRs, any other number must appear in them
+    pct, lrs = quantities(items)
+    ev = " ".join(it.text for it in items)
+    ev = re.sub(r"\d+(?:\.\d+)?%|\bLR \d+(?:\.\d+)?|likelihood ratio \d+(?:\.\d+)? against \d+(?:\.\d+)?", " ", ev)
+    allowed = set(NUMBER.findall(_strip_names(ev, disease_names)))     # numbers that are neither a frequency nor an LR
+    text = _strip_names(body, disease_names)
+    pairs = {pair for it in items for pair in re.findall(r"likelihood ratio (\d+(?:\.\d+)?) against (\d+(?:\.\d+)?)", it.text)}
+    for a, b in re.findall(r"(\d+(?:\.\d+)?)\s*(?:against|vs\.?|versus|compared with)\s*(\d+(?:\.\d+)?)", text):
+        if (a, b) not in pairs:          # this disease's LR first, the runner-up's second
+            return {"ok": False, "reason": f"V4: '{a} against {b}' is not a likelihood-ratio pair in the cited evidence"}
+    for m in NUMBER.finditer(text):
+        num, after, before = m.group(0), text[m.end():m.end() + 9], text[max(0, m.start() - 30):m.start()]
+        if re.match(r"\s*(?:%|percent\b)", after):
+            if num not in pct:
+                return {"ok": False, "reason": f"V4: {num}% is not a frequency in the cited evidence"}
+        elif LR_BEFORE.search(before):
+            if num not in lrs:
+                return {"ok": False, "reason": f"V4: {num} is not a likelihood ratio in the cited evidence"}
+        elif num not in allowed:
+            return {"ok": False, "reason": f"V4: {num} is not in the cited evidence"}
+    # V6: nothing beyond the evidence
+    rest = _residual(body, items, r, disease_names)
+    w = OVERCLAIM.search(rest)
+    if w:
+        return {"ok": False, "reason": f"V6: claims more than the evidence shows ('{w.group(0)}')"}
+    others = other_diseases(rest, r, {n.lower() for n in disease_names})
+    if others:
+        return {"ok": False, "reason": f"V6: names a disease that is not in the evidence ({sorted(others)[0]})"}
+    extra = unsupported_findings(body, items, r, disease_names)
+    if extra:
+        return {"ok": False, "reason": f"V6: mentions '{extra[0]}', which no cited item covers"}
+    return {"ok": True, "grade": "Evidence-linked", "sources": sorted({source_type(i) for i in items}), "reason": ""}
