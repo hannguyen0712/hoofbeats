@@ -1,4 +1,0 @@
-[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 8465 rare + 0 common diseases
-[data] 223 evaluable cases; sending the first 100 to the model
-[llm] qwen3.5:9b via http://localhost:11434/v1/chat/completions; 341 cached replies in results/compare/llm_cache
-[llm] 1/100[llm] 2/100[llm] 3/100[llm] 4/100[llm] 5/100[llm] 6/100[llm] 7/100[llm] 8/100[llm] 9/100[llm] 10/100[llm] 11/100[llm] 12/100[llm] 13/100[llm] 14/100[llm] 15/100[llm] 16/100[llm] 17/100[llm] 18/100

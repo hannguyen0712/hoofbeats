@@ -1,18 +1,18 @@
-run       20261110-115227_medpix_qwen3.5-9b
-started   2026-11-10 11:52:27
-command   medpix
-note      Qwen images, CIs
+run       20261110-115355_llm-bench_qwen3.5-9b
+started   2026-11-10 11:53:55
+command   llm-bench
+note      Qwen3.5 9b, 100, shuffled
 status    ok
-duration  0.1 min
-argv      python -m hoofbeats --common none --note 'Qwen images, CIs' --llm --llm-endpoint http://localhost:11434/v1/chat/completions --llm-model qwen3.5:9b --llm-max-tokens 4096 --llm-extra '{"reasoning_effort": "none"}' medpix --medpix data/medpix-src/MedPix-2-0 --orphadata-xml data/kb/ORPHA_ICD10_mapping_en.xml --only-labeled --limit 40 --max-images 2 --images-per-call 2 --out results/compare
+duration  39.1 min
+argv      python -m hoofbeats --common none --note 'Qwen3.5 9b, 100, shuffled' --llm --llm-endpoint http://localhost:11434/v1/chat/completions --llm-model qwen3.5:9b --llm-max-tokens 4096 --llm-extra '{"reasoning_effort": "none"}' llm-bench --llm-cases 100 --rerank-shuffle --out results/compare
 
-split         all
-max_images    2
-only_labeled  True
-limit         40
+sample        300
+seed          13
+rounds        5
+llm_cases     100
 hpo           hp/releases/2026-09-01
 annotations   2026-09-02
-prefixes      ['OMIM', 'ORPHA']
+prefixes      ['OMIM']
 common        None
 prior_weight  1.0
 absent_weight 0.5
@@ -29,180 +29,211 @@ offline       False
 console output
 ========================================================================
 
-[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 12820 rare + 0 common diseases
+[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 8465 rare + 0 common diseases
+[data] 223 evaluable cases; sending the first 100 to the model
 [llm] qwen3.5:9b via http://localhost:11434/v1/chat/completions; 341 cached replies in results/compare/llm_cache
 
-[medpix] 1/40 cases read
-[medpix] 2/40 cases read
-[medpix] 3/40 cases read
-[medpix] 4/40 cases read
-[medpix] 5/40 cases read
-[medpix] 6/40 cases read
-[medpix] 7/40 cases read
-[medpix] 8/40 cases read
-[medpix] 9/40 cases read
-[medpix] 10/40 cases read
-[medpix] 11/40 cases read
-[medpix] 12/40 cases read
-[medpix] 13/40 cases read
-[medpix] 14/40 cases read
-[medpix] 15/40 cases read
-[medpix] 16/40 cases read
-[medpix] 17/40 cases read
-[medpix] 18/40 cases read
-[medpix] 19/40 cases read
-[medpix] 20/40 cases read
-[medpix] 21/40 cases read
-[medpix] 22/40 cases read
-[medpix] 23/40 cases read
-[medpix] 24/40 cases read
-[medpix] 25/40 cases read
-[medpix] 26/40 cases read
-[medpix] 27/40 cases read
-[medpix] 28/40 cases read
-[medpix] 29/40 cases read
-[medpix] 30/40 cases read
-[medpix] 31/40 cases read
-[medpix] 32/40 cases read
-[medpix] 33/40 cases read
-[medpix] 34/40 cases read
-[medpix] 35/40 cases read
-[medpix] 36/40 cases read
-[medpix] 37/40 cases read
-[medpix] 38/40 cases read
-[medpix] 39/40 cases read
-[medpix] 40/40 cases read
-[cache] 0 new image reads, 40 total -> results/compare/medpix_image_reads_qwen3.5-9b.jsonl
-[medpix] 40 cases (all), 40 with a diagnosis the ranker knows; median findings from history/exam 2, from radiologist report 1
+[llm] 1/100
+[llm] 2/100
+[llm] 3/100
+[llm] 4/100
+[llm] 5/100
+[llm] 6/100
+[llm] 7/100
+[llm] 8/100
+[llm] 9/100
+[llm] 10/100
+[llm] 11/100
+[llm] 12/100
+[llm] 13/100
+[llm] 14/100
+[llm] 15/100
+[llm] 16/100
+[llm] 17/100
+[llm] 18/100
+[llm] 19/100
+[llm] 20/100
+[llm] 21/100
+[llm] 22/100
+[llm] 23/100
+[llm] 24/100
+[llm] 25/100
+[llm] 26/100
+[llm] 27/100
+[llm] 28/100
+[llm] 29/100
+[llm] 30/100
+[llm] 31/100
+[llm] 32/100
+[llm] 33/100
+[llm] 34/100
+[llm] 35/100
+[llm] 36/100
+[llm] 37/100
+[llm] 38/100
+[llm] 39/100
+[llm] 40/100
+[llm] 41/100
+[llm] 42/100
+[llm] 43/100
+[llm] 44/100
+[llm] 45/100
+[llm] 46/100
+[llm] 47/100
+[llm] 48/100
+[llm] 49/100
+[llm] 50/100
+[llm] 51/100
+[llm] 52/100
+[llm] 53/100
+[llm] 54/100
+[llm] 55/100
+[llm] 56/100
+[llm] 57/100
+[llm] 58/100
+[llm] 59/100
+[llm] 60/100
+[llm] 61/100
+[llm] 62/100
+[llm] 63/100
+[llm] 64/100
+[llm] 65/100
+[llm] 66/100
+[llm] 67/100
+[llm] 68/100
+[llm] 69/100
+[llm] 70/100
+[llm] 71/100
+[llm] 72/100
+[llm] 73/100
+[llm] 74/100
+[llm] 75/100
+[llm] 76/100
+[llm] 77/100
+[llm] 78/100
+[llm] 79/100
+[llm] 80/100
+[llm] 81/100
+[llm] 82/100
+[llm] 83/100
+[llm] 84/100
+[llm] 85/100
+[llm] 86/100
+[llm] 87/100
+[llm] 88/100
+[llm] 89/100
+[llm] 90/100
+[llm] 91/100
+[llm] 92/100
+[llm] 93/100
+[llm] 94/100
+[llm] 95/100
+[llm] 96/100
+[llm] 97/100
+[llm] 98/100
+[llm] 99/100
+[llm] 100/100
 
-| input | Top-1 | Top-3 | Top-10 | MRR |
+qwen3.5:9b on 100 evaluable cases (rows in results/compare/llm_rerank_qwen3.5-9b_shuffled.csv):
+| ranking | Top-1 | Top-3 | Top-10 | MRR |
 |---|---|---|---|---|
-| history + exam text | 0.025 | 0.075 | 0.125 | 0.064 |
-| text + radiologist image findings (upper bound) | 0.075 | 0.125 | 0.200 | 0.111 |
-| LLM image findings only | 0.000 | 0.000 | 0.000 | 0.004 |
-| text + LLM image findings | 0.050 | 0.075 | 0.125 | 0.077 |
+| ranker alone | 0.230 | 0.350 | 0.450 | 0.303 |
+| ranker + LLM re-rank | 0.230 | 0.330 | 0.450 | 0.298 |
+| LLM alone | 0.070 | 0.110 | 0.120 | 0.090 |
+Re-ranked 45 cases (the others had the truth outside the top 10); replies parsed: 100%; explanation sentences kept after checking: 49%
+LLM-alone answers matched to a knowledge-base disease: 75%
 
-Against history + exam text, same cases (95% CI resampling diseases; moves count only if they involve the top 10):
+Against ranker alone, same cases (95% CI resampling diseases; moves count only if they involve the top 10):
 | condition | Top-1, pts | Top-10, pts | MRR x100 | moved up | moved down |
 |---|---|---|---|---|---|
-| text + radiologist image findings (upper bound) | +5.0 (+0.0 to +13.2) | +7.5 (+0.0 to +15.4) | +4.7 (+0.3 to +10.9) | 4 | 1 |
-| LLM image findings only | -2.5 (-8.1 to +0.0) | -12.5 (-23.7 to -2.7) | -6.0 (-12.6 to -1.1) | 0 | 5 |
-| text + LLM image findings | +2.5 (+0.0 to +8.1) | +0.0 (+0.0 to +0.0) | +1.3 (-0.3 to +4.3) | 1 | 1 |
-
-LLM image findings vs radiologist: precision 14.6%, recall 16.7%; unparsed replies 0; 0.0 s per request
-Pooled over all findings: 5 of 28 match the radiologist (17.9%)
-[llm] requests sent 0 (retries 0), answered from cache 0, 0.0 s per request
+| ranker + LLM re-rank | +0.0 (-2.7 to +3.2) | +0.0 (+0.0 to +0.0) | -0.5 (-2.6 to +1.8) | 4 | 5 |
+| LLM alone | -16.0 (-28.7 to -3.9) | -33.0 (-46.2 to -21.2) | -21.2 (-32.9 to -9.8) | 4 | 39 |
+(shortlist shown to the LLM in a random order: compare with the unshuffled run on the same cases)
+[llm] requests sent 45 (retries 0), answered from cache 100, 51.99 s per request
 [compare] summary appended to results/compare/llm_compare.csv
-
-Review and correct diagnosis labels in results/compare/medpix_labels.csv (pass back with --labels).
 
 ========================================================================
 metrics (also in the .json file)
 ========================================================================
 {
- "medpix_paired": {
-  "text + radiologist image findings (upper bound)": {
-   "top1_delta": 0.05,
+ "llm_paired": {
+  "ranker + LLM re-rank": {
+   "top1_delta": 0.0,
    "top1_ci": [
-    0.0,
-    0.13157894736842105
-   ],
-   "top10_delta": 0.075,
-   "top10_ci": [
-    0.0,
-    0.15384615384615385
-   ],
-   "mrr_delta": 0.046707604122395364,
-   "mrr_ci": [
-    0.002905485550613379,
-    0.10851606391763959
-   ],
-   "moved_up": 4,
-   "moved_down": 1,
-   "cases": 40
-  },
-  "LLM image findings only": {
-   "top1_delta": -0.025,
-   "top1_ci": [
-    -0.08108108108108109,
-    0.0
-   ],
-   "top10_delta": -0.125,
-   "top10_ci": [
-    -0.23684210526315788,
-    -0.02702702702702703
-   ],
-   "mrr_delta": -0.060132629750218915,
-   "mrr_ci": [
-    -0.125739011645769,
-    -0.011107311162367479
-   ],
-   "moved_up": 0,
-   "moved_down": 5,
-   "cases": 40
-  },
-  "text + LLM image findings": {
-   "top1_delta": 0.025,
-   "top1_ci": [
-    0.0,
-    0.08108108108108109
+    -0.026785714285714284,
+    0.031578947368421054
    ],
    "top10_delta": 0.0,
    "top10_ci": [
     0.0,
     0.0
    ],
-   "mrr_delta": 0.013371983749267093,
+   "mrr_delta": -0.005250000000000001,
    "mrr_ci": [
-    -0.0031520997386324367,
-    0.042911590829320855
+    -0.02569822846198993,
+    0.01759240965394062
    ],
-   "moved_up": 1,
-   "moved_down": 1,
-   "cases": 40
+   "moved_up": 4,
+   "moved_down": 5,
+   "cases": 100
+  },
+  "LLM alone": {
+   "top1_delta": -0.16,
+   "top1_ci": [
+    -0.2872340425531915,
+    -0.0392156862745098
+   ],
+   "top10_delta": -0.33,
+   "top10_ci": [
+    -0.46153846153846156,
+    -0.21153846153846154
+   ],
+   "mrr_delta": -0.21244047619047618,
+   "mrr_ci": [
+    -0.3289508312120672,
+    -0.09843834820287498
+   ],
+   "moved_up": 4,
+   "moved_down": 39,
+   "cases": 100
   }
  },
- "medpix": {
-  "model": "qwen3.5:9b",
-  "task": "medpix",
-  "cases": 40,
-  "labeled": 40,
-  "failed_calls": 0,
-  "rank_text_top1": 0.025,
-  "rank_text_top3": 0.075,
-  "rank_text_top10": 0.125,
-  "rank_text_mrr": 0.064,
-  "rank_radiologist_top1": 0.075,
-  "rank_radiologist_top3": 0.125,
-  "rank_radiologist_top10": 0.2,
-  "rank_radiologist_mrr": 0.111,
-  "rank_image_top1": 0.0,
-  "rank_image_top3": 0.0,
-  "rank_image_top10": 0.0,
-  "rank_image_mrr": 0.004,
-  "rank_multimodal_top1": 0.05,
-  "rank_multimodal_top3": 0.075,
-  "rank_multimodal_top10": 0.125,
-  "rank_multimodal_mrr": 0.077,
-  "image_precision": 0.146,
-  "image_recall": 0.167,
-  "unparsed_images": 0,
-  "sec_per_call": 0.0,
-  "requests": 0,
-  "cache_hits": 0,
-  "image_findings": 28,
-  "image_findings_agree": 5,
-  "image_precision_pooled": 0.1786
- },
  "requests": {
-  "requests": 0,
+  "requests": 45,
   "retries": 0,
-  "cache_hits": 0,
+  "cache_hits": 100,
   "would_send": 0,
   "offline_misses": 0,
-  "sec_per_request": 0.0
+  "sec_per_request": 51.99
+ },
+ "llm": {
+  "model": "qwen3.5:9b",
+  "task": "phenopacket-shuffled",
+  "cases": 100,
+  "failed_calls": 0,
+  "stopped_early": "",
+  "sec_per_call": 51.99,
+  "requests": 45,
+  "cache_hits": 100,
+  "reranked": 45,
+  "ranker_top1": 0.23,
+  "ranker_top3": 0.35,
+  "ranker_top10": 0.45,
+  "ranker_mrr": 0.303,
+  "rerank_top1": 0.23,
+  "rerank_top3": 0.33,
+  "rerank_top10": 0.45,
+  "rerank_mrr": 0.298,
+  "direct_top1": 0.07,
+  "direct_top3": 0.11,
+  "direct_top10": 0.12,
+  "direct_mrr": 0.09,
+  "rerank_parse_rate": 1.0,
+  "faithfulness": 0.487,
+  "direct_parse_rate": 1.0,
+  "direct_mapped": 0.753
  }
 }
 
 files written:
-  results/compare/medpix_qwen3.5-9b.csv
+  results/compare/llm_rerank_qwen3.5-9b_shuffled.csv
