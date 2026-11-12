@@ -1,0 +1,114 @@
+{
+ "metrics": {
+  "sequential": {
+   "eig": {
+    "start": {
+     "top1": 0.16,
+     "top3": 0.24,
+     "top10": 0.37333333333333335,
+     "mrr": 0.23333834582354504
+    },
+    "end": {
+     "top1": 0.18,
+     "top3": 0.24666666666666667,
+     "top10": 0.3933333333333333,
+     "mrr": 0.2495022974023361
+    },
+    "answered": 0.14266666666666666
+   },
+   "frequent": {
+    "start": {
+     "top1": 0.16,
+     "top3": 0.24,
+     "top10": 0.37333333333333335,
+     "mrr": 0.23333834582354504
+    },
+    "end": {
+     "top1": 0.16666666666666666,
+     "top3": 0.24666666666666667,
+     "top10": 0.37666666666666665,
+     "mrr": 0.2399639345670233
+    },
+    "answered": 0.14
+   },
+   "random": {
+    "start": {
+     "top1": 0.16,
+     "top3": 0.24,
+     "top10": 0.37333333333333335,
+     "mrr": 0.23333834582354504
+    },
+    "end": {
+     "top1": 0.16333333333333333,
+     "top3": 0.23666666666666666,
+     "top10": 0.37666666666666665,
+     "mrr": 0.2342622779573385
+    },
+    "answered": 0.034
+   }
+  },
+  "sequential_ci": {
+   "eig": {
+    "delta": 0.02,
+    "lo": 0.0,
+    "hi": 0.04081793094596328
+   },
+   "frequent": {
+    "delta": 0.006666666666666667,
+    "lo": 0.0,
+    "hi": 0.017361111111111112
+   },
+   "random": {
+    "delta": 0.0033333333333333335,
+    "lo": 0.0,
+    "hi": 0.010638297872340425
+   },
+   "eig - frequent": {
+    "delta": 0.013333333333333334,
+    "lo": -0.006452660242982824,
+    "hi": 0.0341636177997107
+   },
+   "eig - random": {
+    "delta": 0.016666666666666666,
+    "lo": -0.0034602076124567475,
+    "hi": 0.037674469236925086
+   }
+  }
+ },
+ "files": [
+  "results/main/sequential.csv"
+ ],
+ "settings": {
+  "sample": 300,
+  "seed": 13,
+  "rounds": 5,
+  "hpo": "hp/releases/2026-09-01",
+  "annotations": "2026-09-02",
+  "prefixes": [
+   "OMIM"
+  ],
+  "common": null,
+  "prior_weight": 1.0,
+  "absent_weight": 0.5,
+  "absent_min_freq": 0.8,
+  "use_onset": false,
+  "use_sex": false
+ },
+ "id": "20261111-162513_sequential",
+ "command": "sequential",
+ "argv": [
+  "--common",
+  "none",
+  "--note",
+  "Part 5 next-test loop, 300",
+  "sequential",
+  "--sample",
+  "300",
+  "--out",
+  "results/main"
+ ],
+ "note": "Part 5 next-test loop, 300",
+ "started": "2026-11-11 16:25:13",
+ "status": "ok",
+ "seconds": 40.5
+}

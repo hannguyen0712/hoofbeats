@@ -1,0 +1,61 @@
+{
+ "knowledge_base": {
+  "hpo_version": "hp/releases/2026-09-01",
+  "hpo_terms": 20482,
+  "annotations_version": "2026-09-02",
+  "rare_diseases_omim": 8465,
+  "disease_phenotype_annotations": 152141,
+  "diseases_with_a_gene": 6704,
+  "papers_cited_by_annotations": 14063
+ },
+ "phenopacket_store": {
+  "phenopackets_read": 10377,
+  "usable_cases": 10345,
+  "diseases": 778,
+  "genes": 697,
+  "papers": 1751,
+  "cases_with_a_paper": 10345,
+  "median_present_findings": 7,
+  "median_absent_findings": 7,
+  "cases_with_a_gene": 10276,
+  "evaluable_cases": 8322,
+  "known_only_from_own_paper": 2023,
+  "benchmark_sample_500": {
+   "cases": 500,
+   "diseases": 290,
+   "evaluable": 357
+  },
+  "benchmark_sample_all": {
+   "cases": 3006,
+   "diseases": 778,
+   "evaluable": 1969
+  }
+ },
+ "mimic_iv_demo": {
+  "patients": 100,
+  "admissions": 275,
+  "diagnosis_rows": 4506,
+  "distinct_icd_codes": 1472,
+  "lab_events": 107727,
+  "distinct_lab_items": 498,
+  "lab_events_flagged_abnormal": 40275
+ },
+ "medpix": {
+  "source": "results/medpix/medpix.csv",
+  "cases": 671,
+  "images": 2050,
+  "diagnosis_mapped_to_kb": 192,
+  "with_radiologist_findings": 340
+ },
+ "example_case_files": {
+  "files": [
+   "examples/heldout/dm1_note.json",
+   "examples/heldout/fabry_note_labs.json",
+   "examples/heldout/hht_imaging.json",
+   "examples/marfan_note.json",
+   "examples/tsc_imaging.json",
+   "examples/wilson_labs.json"
+  ],
+  "with_note": 5
+ }
+}
