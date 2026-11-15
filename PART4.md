@@ -124,6 +124,8 @@ adjudicated:
    agreement and Cohen's kappa; the unsupported rate before checking and after each checker; unsupported sentences
    accepted; supported sentences rejected; and results by error type.
 
+**Broader terms (Nov 15).** When a finding is matched through a broader annotation, the knowledge item now names thevbroader term the frequency belongs to, and V3 removes a sentence that drops it (21 of the 181 labelled test sentences did). "Not recorded" items now skip any finding the record has in a broader or narrower form. Adversarial set rebuilt with a "broader term dropped" category (1,168 sentences): correct sentences kept 431/437 (98.6%), wrong sentences removed 731/731 (100%; original checks 4.1%). Planted-error results unchanged. The one-annotator labels above were made on the earlier version.
+
 ## Limitations
 
 - "Evidence-linked" means the sentence names the cited finding and its numbers and adds nothing the checks recognise
