@@ -7,18 +7,20 @@ from hoofbeats.data import Extractor, load_phenopackets
 from hoofbeats.intake import load_case
 from hoofbeats.llm import MedGemma
 from hoofbeats.model import explain
+from hoofbeats.workup import ranker_probs
 import grounding as g
 
 MODEL = os.environ.get("LLM_MODEL", "Qwen/Qwen2.5-7B-Instruct")
 ENDPOINT = os.environ.get("LLM_ENDPOINT", "http://127.0.0.1:8000/v1/chat/completions")
 OFFLINE = os.environ.get("LLM_OFFLINE") == "1"
+MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "1500"))   # same in demo_part4.py and walkthrough_part4.py (cache key)
 VERSION = os.environ.get("PROMPT_VERSION", "v1")
 make_prompt = {"v1": g.make_prompt, "v2": g.make_prompt_v2, "v3": g.make_prompt_v3}[VERSION]
 cases = [c for c in Path(sys.argv[1] if len(sys.argv) > 1 else "part4_cases.txt").read_text().split() if c]
 
 r = load_kb(SimpleNamespace(kb="data/kb", common="none", prior_weight=1.0, absent_weight=0.5, absent_min_freq=0.8, use_onset=False, use_sex=False))
 ext = Extractor(r.ont)
-llm = MedGemma(MODEL, ENDPOINT, max_new_tokens=800, timeout=300, cache_dir="results/llm_cache",
+llm = MedGemma(MODEL, ENDPOINT, max_new_tokens=MAX_TOKENS, timeout=300, cache_dir="results/llm_cache",
                extra={"response_format": {"type": "json_object"}}, offline=OFFLINE)
 
 stats, grades, by_check, sections = Counter(), Counter(), Counter(), Counter()
@@ -32,6 +34,7 @@ for path in cases:
     ex = frozenset(case.source_pmids)
     ranking = r.score(case, ex)
     (d, _, p), (runner, _, _) = ranking.top(2)
+    p = float(ranker_probs(ranking)[r.d_index[d]])               # the calibrated % the review screen shows
     claims = explain(r, case, ranking, 1, ex, max_claims=8)[0][2]
     pack = g.build_pack(r, case, d, p, ex, runner, claims)
     names = [r.db.names[d], r.db.names[runner]]

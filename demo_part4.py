@@ -16,6 +16,8 @@ from hoofbeats.intake import load_case
 from hoofbeats.llm import MedGemma
 from hoofbeats.model import Case, explain
 import grounding as g
+from hoofbeats.workup import ranker_probs
+MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "1500"))   # same in llm_part4.py and walkthrough_part4.py (cache key)
 
 ap = argparse.ArgumentParser()
 ap.add_argument("case", nargs="?", default="examples/marfan_note.json")
@@ -38,7 +40,7 @@ VERSION = os.environ.get("PROMPT_VERSION", "v3")
 make_prompt = {"v1": g.make_prompt, "v2": g.make_prompt_v2, "v3": g.make_prompt_v3}[VERSION]
 llm = MedGemma(os.environ.get("LLM_MODEL", "Qwen/Qwen2.5-7B-Instruct"),
                os.environ.get("LLM_ENDPOINT", "http://127.0.0.1:8000/v1/chat/completions"),
-               max_new_tokens=800, timeout=120, cache_dir="results/llm_cache",
+               max_new_tokens=MAX_TOKENS, timeout=120, cache_dir="results/llm_cache",
                extra={"response_format": {"type": "json_object"}}, offline=os.environ.get("LLM_OFFLINE") == "1")
 # Stage A: a vision model describes uploaded images; the description is read like an imaging report
 describer = MedGemma(os.environ["VISION_MODEL"],
@@ -216,7 +218,7 @@ for label, lst in lists.items():
         runner = order[order.index(d) + 1]
         claims = explain(r, case, ranking, order.index(d) + 1, ex, max_claims=8)[order.index(d)][2]
         pack = g.build_pack(r, case, d, p, ex, runner, claims)
-        trace, source = explain_with_model(pack, d, p, runner)
+        trace, source = explain_with_model(pack, d, float(ranker_probs(ranking)[r.d_index[d]]), runner)
         kept, removed = g.check_trace(trace, pack, r, case, [r.db.names[d], r.db.names[runner]])
         fits, missing, against = key_points(pack)
         print(f"{label} {n}. {r.db.names[d]} ({d}) {prob(d, p):.1%} | {source} | kept {sum(len(v) for v in kept.values())}, "
