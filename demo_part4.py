@@ -184,7 +184,8 @@ def key_points(pack):
             lr = re.search(r"LR ([\d.]+)", i.text)
             lr = float(lr.group(1)) if lr else 1.0
             fits.append({"finding": name, "freq": int(freq.group(1)) if freq else None, "strength": strength(lr),
-                         "lr": lr, "ids": [x for x in (p_for.get(i.hpo_id), i.id) if x]})
+                         "lr": lr, "ids": [x for x in (p_for.get(i.hpo_id), i.id) if x],
+                         "via": r.ont.name(i.via) if getattr(i, "via", "") else ""})
         elif i.role == "against":                               # evidence that counts against the disease
             lr = re.search(r"LR ([\d.]+)", i.text)
             against.append({"finding": name, "freq": int(freq.group(1)) if freq else None,

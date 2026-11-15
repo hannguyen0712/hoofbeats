@@ -512,7 +512,9 @@ def page_results():
                 return
             st.markdown("<span class='muted'>Why it fits: click a finding to see its evidence</span>", unsafe_allow_html=True)
             for k, x in enumerate(d["fits"][:3]):
-                freq = f" · in {x['freq']}% of people with it" if x["freq"] is not None else ""
+                freq = ("" if x["freq"] is None else
+                        f" · {x['freq']}% of people with it have '{x['via']}' (the broader HPO term)" if x.get("via") else
+                        f" · in {x['freq']}% of people with it")
                 with st.popover(f"{x['finding']}{freq} · {x['strength']} evidence", use_container_width=True):
                     evidence_links(x["ids"], pack, f"{d['id']}-fit{k}")
             if d.get("against"):

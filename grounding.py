@@ -14,6 +14,7 @@ class Item:
     source: str = ""
     refs: tuple = ()
     role: str = ""
+    via: str = ""        # knowledge items: the broader HPO term the frequency belongs to, if not the finding itself
 
 def patient_items(r, case, claims):
     """Make one P item for each patient finding that claim uses."""
@@ -55,6 +56,13 @@ def knowledge_items(r, case, d, claims, ex, start=1):
         role = "for" if lr_of.get(cl.patient_term, 0.0) > 0 else "against"
         kid = f"K{n}"
         text = cl.text.split(" [")[0]
+        # matched through a broader annotation: the frequency is the broader finding's, so the text names that
+        # finding as the thing the disease shows, not the patient's narrower one
+        via = r.ont.resolve(cl.kb_term) if cl.kb_term else None
+        via = via if via and via != cl.patient_term else ""
+        if via:
+            text = re.sub(r"shows this in (~\d+% of cases) \(via '([^']+)'\)",
+                          r"shows '\2', the broader HPO term it falls under, in \1", text)
         items[kid] = Item(
             kid,
             "knowledge",
@@ -63,21 +71,23 @@ def knowledge_items(r, case, d, claims, ex, start=1):
             cl.status.value,
             source = "HPO Annotations",
             refs = tuple(sorted(cl.refs)),
-            role = role)
+            role = role,
+            via = via)
         n += 1
     return items
 
 def known_terms(r, case):
-    """Return every HPO term the record already covers: present findings and their ancestors, absent findings and their descendants."""
+    """Return every HPO term the record already mentions in some form: each recorded finding (any status), its
+    broader terms and its narrower terms. A missing item says "the patient record does not mention this finding",
+    which is wrong when the record has a broader or narrower version of it (e.g. 'Inability to walk' present and
+    'Inability to walk by childhood/adolescence' expected; 'Joint contracture of the hand' absent and 'Joint
+    contracture' expected)."""
     known = set()
     for f in case.findings:
         t = r.ont.resolve(f.hpo_id)
         if t is None:
             continue
-        if f.status.value == "present":
-            known |= r.ont.ancestors(t)
-        elif f.status.value == "absent":
-            known |= r.ont.descendants(t)
+        known |= set(r.ont.ancestors(t)) | set(r.ont.descendants(t))
     return known
 
 def missing_items(r, case, d, ex, start, max_missing = 3):
@@ -311,6 +321,8 @@ How to write each item:
 - Copy IDs exactly as listed below: patient items start with P, knowledge items start with K.
 - One finding per sentence. Copy numbers exactly as they appear in the evidence.
 - Do not add facts, numbers, findings, genes, tests or diagnoses that are not in the evidence.
+- When an item says the disease shows a broader HPO term that the patient's finding falls under, name that broader
+  term in the sentence: the percentage is for the broader term, not for the patient's exact finding.
 
 Which evidence goes where:
 - "supports": knowledge items marked (supports), each with its patient item.
@@ -506,6 +518,18 @@ def check_sentence(s, pack, r, case, disease_names=(), section=None, strict=True
         names = names_of(r, it)
         if names and not any(re.search(r"(?<!\w)" + re.escape(n) + r"(?!\w)", body) for n in names):
             return {"ok": False, "reason": f"V3: does not name the finding of {it.id}"}
+    # V3 (broader term): a frequency matched through a broader term belongs to that term; a sentence that drops it
+    # gives the patient's exact finding a frequency the evidence does not have
+    for it in items:
+        if it.kind == "knowledge" and it.via:
+            vn = names_of(r, Item("", "", "", it.via))
+            # look outside the patient's own finding name: 'cleft palate' inside 'submucous cleft palate' doesn't count
+            rest = body
+            for n in sorted(names_of(r, it), key=len, reverse=True):          # whole words only
+                rest = re.sub(r"(?<!\w)" + re.escape(n) + r"(?!\w)", " ", rest)
+            if vn and not any(re.search(r"(?<!\w)" + re.escape(n) + r"(?!\w)", rest) for n in vn):
+                return {"ok": False, "reason": f"V3: the frequency in {it.id} is for the broader term "
+                                               f"'{r.ont.name(it.via)}', which the sentence does not name"}
     # V4: numbers, by kind: a percentage must be a frequency in the cited items, a number after LR / likelihood
     # ratio / against must be one of their LRs, any other number must appear in them
     pct, lrs = quantities(items)

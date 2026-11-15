@@ -64,7 +64,13 @@ def make(f, case, d, runner, pack):
             continue
         P, F, fr, lr = pid.get(k.hpo_id), nm(k), freq_of(k), lr_of(k)
         syns = [s.lower() for s in (getattr(r.ont.terms[r.ont.resolve(k.hpo_id)], "synonyms", []) or [])]
-        if k.role == "for" and P and fr:
+        if k.role == "for" and P and fr and k.via:
+            V = r.ont.name(k.via).lower()
+            add("paraphrase: broader term kept", True, "supports",
+                f"The patient has {F}; about {fr}% of people with {D} have {V}, the broader HPO term it falls under [{P}, {k.id}].")
+            add("broader term dropped", False, "supports",
+                f"The patient has {F}, which is seen in about {fr}% of people with {D} [{P}, {k.id}].")
+        elif k.role == "for" and P and fr:
             add("paraphrase: supports", True, "supports",
                 f"The patient has {F}, which is seen in about {fr}% of people with {D} [{P}, {k.id}].")
             if syns:
@@ -110,7 +116,7 @@ def make(f, case, d, runner, pack):
                 f"{F.capitalize()} fits {D} better than {R}: likelihood ratio {a} against 1.00 [{P}, {k.id}].")
     # family history and uncertain findings: the same finding, recorded with another status
     for k in pack.values():
-        P = pid.get(k.hpo_id) if k.kind == "knowledge" and k.role == "for" else None
+        P = pid.get(k.hpo_id) if k.kind == "knowledge" and k.role == "for" and not k.via else None
         if P:
             F, fr = nm(k), freq_of(k)
             for status, good in (("family", f"The patient's mother has {F}, a feature of {D} (~{fr}%) [{P}, {k.id}]."),
