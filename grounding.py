@@ -461,14 +461,18 @@ def _terms(r, text):
     return {r.ont.resolve(f.hpo_id) for f in _extractor(r).findings(text) if r.ont.resolve(f.hpo_id)}
 
 
+# our own wording for a broader-term item; "falls" in it is not the finding 'Falls'
+BROADER_PHRASE = re.compile(r"the broader HPO term it falls under", re.I)
+
+
 def unsupported_findings(body, items, r, disease_names):
     # findings the sentence names that no cited item covers (the cited term, a term in the cited text, or a
     # broader / narrower term of one of those)
-    said = _terms(r, _strip_names(body, disease_names))
+    said = _terms(r, _strip_names(BROADER_PHRASE.sub(" ", body), disease_names))
     if not said:
         return []
     allowed = {r.ont.resolve(i.hpo_id) for i in items if i.hpo_id} - {None}
-    allowed |= _terms(r, _strip_names(" ".join(i.text for i in items), disease_names))
+    allowed |= _terms(r, _strip_names(BROADER_PHRASE.sub(" ", " ".join(i.text for i in items)), disease_names))
     out = []
     for t in said:
         if t in allowed or any(t in r.ont.ancestors(a) or a in r.ont.ancestors(t) for a in allowed):
