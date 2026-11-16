@@ -8,6 +8,8 @@ Every sentence shown to the clinician cites numbered evidence and is checked bef
    - **P items**: the patient's findings, with the words of the note they were read from.
    - **K items**: knowledge-base facts that support the disease (each re-checked with `verify_claim`), frequent
      features of the disease that the record does not mention, and the findings that separate it from the runner-up.
+     When a finding is matched through a broader HPO term, the item names that broader term, since the frequency
+     belongs to it. A feature counts as "not recorded" only if the record has nothing broader or narrower than it.
    - The case's own source paper is removed from every citation list (leakage control); a fact is kept only if
      other papers still support it.
 2. **Explanation**: a local model (Qwen2.5-7B-Instruct on Sol) writes sentences that must end with the IDs they use,
@@ -20,7 +22,7 @@ Every sentence shown to the clinician cites numbered evidence and is checked bef
    | V1 | it cites nothing, or cites an ID that is not in this disease's evidence |
    | V5 | a cited knowledge item belongs to another section (e.g. evidence against the disease under "What fits") |
    | V2 | a cited finding is no longer in the record; an absent finding is not stated as absent *for that finding* (the negation must apply to its name); a present finding is negated; a family-history or uncertain finding is stated as the patient's; a finding the record does not mention is stated as absent or present instead of "not recorded" |
-   | V3 | it does not name (whole words) the finding of an item it cites |
+   | V3 | it does not name (whole words) the finding of an item it cites, or it drops the broader term a cited frequency belongs to |
    | V4 | a number does not match by kind: a percentage must be a frequency in the cited items, a number after LR / likelihood ratio / against / vs must be one of their LRs, an "A against B" pair must be in that order, any other number must appear in them as a plain number |
    | V6 | it claims more than the evidence: certainty or causal wording (proves, confirms, diagnostic, causes, due to, because, ...), a disease other than this one and its runner-up, or a finding no cited item covers |
 
@@ -37,6 +39,7 @@ Every sentence shown to the clinician cites numbered evidence and is checked bef
 ```bash
 python demo_part4.py examples/marfan_note.json      # Stage 1 + ranking + Part 4; writes results/part4_demo.json
 streamlit run review_app.py                          # the review screen
+python walkthrough_part4.py examples/marfan_note.json   # one case, stage by stage (Enter for the next)
 python eval_part4.py 200                             # checks against planted errors (no model needed; --basic: old checks)
 python adversarial_part4.py 200                      # adversarial test set: build part4_adversarial.jsonl and score it
 python recheck_part4.py results/part4_llm_sentences_v3_test.jsonl   # saved model sentences, old vs new checks
@@ -44,7 +47,10 @@ PROMPT_VERSION=v3 python llm_part4.py part4_cases_test.txt    # model explanatio
 ```
 
 On Sol, `run_demo.sbatch` and `run_s6.sbatch` start the model server and run these; the replies are saved in
-`results/llm_cache/`, and `LLM_OFFLINE=1` replays them on a laptop.
+`results/llm_cache/`, and `LLM_OFFLINE=1` replays them on a laptop. The held-out run is
+`sbatch --export=ALL,PROMPT_VERSION=v3,CASES=part4_cases_test.txt run_s6.sbatch` (the script's defaults are prompt v1
+and the dev cases). `llm_part4.py`, `demo_part4.py` and `walkthrough_part4.py` use the same reply limit
+(`LLM_MAX_TOKENS`, default 1,500), because it is part of the reply cache key.
 
 ## Results
 
@@ -54,7 +60,8 @@ random cases this affected 11 of 1,208 knowledge items in 9 cases (e.g. "Lacks '
 in ~80% of cases. LR 0.45" listed as supporting). The role now comes from the sign of the finding's contribution to
 the score, and V5 checks each sentence's section.
 
-**Checks against planted errors** (200 random Phenopacket Store cases, leakage control on, main on Nov 11):
+**Checks against planted errors** (200 random Phenopacket Store cases, leakage control on; unchanged after the Nov 15
+changes):
 
 | Planted error | Original checks (V1-V4) | New checks (V1-V6) |
 | --- | --- | --- |
@@ -65,34 +72,39 @@ the score, and V5 checks each sentence's section.
 | Present finding stated as absent | 100% | 100% (1,439/1,439) |
 | *Correct (template) sentences kept* | 2,051/2,051 | 2,051/2,051 |
 
-**Adversarial test set** (`part4_adversarial.jsonl`, 1,048 sentences built from the evidence packs of 200 cases plus
-6 hand-written paraphrases of the Marfan note; at most 60 per category; each judged against its cited evidence):
+The two missed wrong numbers change the subtype number inside a disease's name ("autosomal dominant, 1" to "14").
+
+**Adversarial test set** (`part4_adversarial.jsonl`, Nov 15 version: 1,168 sentences built from the evidence packs of
+200 cases plus 6 hand-written paraphrases of the Marfan note; at most 60 per category; each judged against its cited
+evidence):
 
 | Should be | Category | n | Original checks | New checks |
 | --- | --- | --- | --- | --- |
 | kept | paraphrase: supports / synonym / against / not recorded / vs runner-up | 251 | 100% | 100% |
+| kept | paraphrase that keeps the broader term | 60 | 100% | 100% |
 | kept | paraphrase: family-history / uncertain finding stated as such | 120 | 100% | 100% |
 | kept | paraphrase in other words, no HPO name (hand-written) | 6 | 0% | 0% |
+| removed | broader term dropped | 60 | 0% | 100% |
 | removed | overclaim: certainty ("proves", "confirms", ...) | 60 | 0% | 100% |
 | removed | overclaim: causal ("causes", "due to", "because of") | 60 | 0% | 100% |
-| removed | wrong disease | 60 | 53% | 100% |
-| removed | extra unsupported clause | 60 | 5% | 100% |
+| removed | wrong disease | 60 | 48% | 100% |
+| removed | extra unsupported clause | 60 | 2% | 100% |
 | removed | negation not tied to the absent finding | 11 | 0% | 100% |
 | removed | not recorded stated as absent / as present | 120 | 0% | 100% |
 | removed | family-history / uncertain finding stated as the patient's | 120 | 0% | 100% |
 | removed | number: LR given as a frequency | 60 | 0% | 100% |
 | removed | number: LRs swapped in a comparison | 60 | 0% | 100% |
 | removed | wrong section | 60 | 0% | 100% |
-| | **correct sentences kept** | 377 | 98.4% | 98.4% |
-| | **wrong sentences removed** | 671 | 5.2% | 100% |
+| | **correct sentences kept** | 437 | 98.6% | 98.6% |
+| | **wrong sentences removed** | 731 | 4.1% | 100% |
 
 This set was built from the error kinds the new checks target, so it shows that each check does what it is meant
 to; it is not an estimate of accuracy on real model output. The hand-written paraphrases show the main cost of
-name matching: a correct sentence in other words ("his feet are flat") is still removed.
+name matching: a correct sentence in other words ("his feet are flat") is still removed. (The Nov 11 version, 1,048
+sentences without the broader-term categories: correct kept 98.4% with both checkers, wrong removed 5.2% vs 100%.)
 
-**Model-written explanations** (Qwen2.5-7B-Instruct; prompts tuned on 31 dev cases, then run once on 30 test cases;
-scored with the original V1-V4, before the Nov 9 scoring change; "kept" is an acceptance rate, not accuracy;
-`recheck_part4.py` re-scores the saved sentences with the new checks):
+**Prompt development** (Qwen2.5-7B-Instruct; prompts tuned on 31 dev cases, then run once on 30 test cases; scored
+with the original V1-V4, before the Nov 9 scoring change; "kept" is an acceptance rate, not accuracy):
 
 | Explanation | Cases | Written | Kept by the checks | Removed by |
 | --- | --- | --- | --- | --- |
@@ -100,7 +112,7 @@ scored with the original V1-V4, before the Nov 9 scoring change; "kept" is an ac
 | Prompt v1 | 31 dev | 264 | 35 (13.3%) | V3 205, V1 16, V2 8 |
 | Prompt v2 | 31 dev | 308 | 294 (95.5%) | V3 9, V4 3, V1 2 |
 | Prompt v3 | 31 dev | 325 | 318 (97.8%) | V4 6, V1 1 |
-| **Prompt v3** | **30 test** | **326** | **325 (99.7%)** | V3 1 |
+| Prompt v3 | 30 test | 326 | 325 (99.7%) | V3 1 |
 
 - v1 failed on format: the model wrote only the IDs.
 - v2 added a worked example and marked which section each item belongs to.
@@ -111,20 +123,33 @@ Examples of errors the checks removed:
 - six comparisons with the runner-up whose likelihood ratio of 1.00 was made up (V4);
 - a number copied from the prompt's own example (V4).
 
-**Hand labels, pilot** (150 sentences, one annotator, blind to the check results): of the 8 sentences the
-original checks removed, 7 were unsupported; 0 of the 142 kept sentences were unsupported. **Provenance (checked Nov 11):** the pilot sheet's sentences come from 32 cases: 30 held-out test cases and 2 development cases, so the pilot is mostly, not purely, held-out. The final evaluation below uses the held-out run only (`part4_llm_sentences_v3_test.jsonl`), and `make_label_sheet.py` now needs the file named and prints where its sentences come from.
+**Broader terms (Nov 15).** When a finding is matched through a broader annotation, the knowledge item now names the
+broader term the frequency belongs to, and V3 removes a sentence that drops it (21 of 181 sentences in an earlier
+labelled run did). "Not recorded" items now skip any finding the record has in a broader or narrower form. The
+prompt asks the model to keep the broader term, passes it the calibrated probability shown on screen (it used to
+receive the ranker's raw share, e.g. 70.7% instead of 13.1% for the Marfan example), and allows 1,500 tokens per reply.
 
-**Human evaluation (next):** every sentence of the held-out run, labelled by two annotators independently, then
-adjudicated:
-1. `python recheck_part4.py results/part4_llm_sentences_v3_test.jsonl`
-2. `python make_label_sheet.py results/part4_llm_sentences_v3_test.recheck.jsonl` (prints where the sentences come
-   from; the key holds both checkers' decisions)
-3. each annotator fills their own copy: supported (1/0) and, if 0, the error type
-4. `python score_labels.py sheet_A.csv sheet_B.csv results/labels/label_key_v3_test.recheck.csv [final.csv]` reports
-   agreement and Cohen's kappa; the unsupported rate before checking and after each checker; unsupported sentences
-   accepted; supported sentences rejected; and results by error type.
+**Final run and labels (Nov 15).** Prompt v3 with the changes above, run once on the 30 held-out test cases:
+314 sentences. The original checks kept 313 (99.7%), the new checks 293 (93.3%). The 314 sentences were labelled
+with AI assistance and reviewed by one team member; these are not independent human labels. The reviewer had seen the
+new checks' removal reasons for some sentences, so agreement with the checks may be overstated, and inter-annotator
+agreement was not measured.
 
-**Broader terms (Nov 15).** When a finding is matched through a broader annotation, the knowledge item now names thevbroader term the frequency belongs to, and V3 removes a sentence that drops it (21 of the 181 labelled test sentences did). "Not recorded" items now skip any finding the record has in a broader or narrower form. Adversarial set rebuilt with a "broader term dropped" category (1,168 sentences): correct sentences kept 431/437 (98.6%), wrong sentences removed 731/731 (100%; original checks 4.1%). Planted-error results unchanged. The one-annotator labels above were made on the earlier version.
+| | Original checks (V1-V4) | New checks (V1-V6) |
+| --- | --- | --- |
+| Unsupported sentences accepted | 20 of 21 | 1 of 21 |
+| Unsupported among kept sentences | 20 of 313 (6.4%) | 1 of 293 (0.3%; 95% upper bound about 1.6%) |
+| Supported sentences removed | 0 of 293 | 1 of 293 |
+
+The 21 unsupported sentences (6.7% of 314): 14 gave a narrower finding the frequency of its broader term; 4 applied
+broader-term wording to an item that has none (a side effect of the new prompt instruction; the new checks caught 3);
+2 cited comparison evidence as support; 1 had a malformed citation. The one supported sentence removed misspelled the
+disease name ("autosmal"), so its subtype number was read as an unsupported number.
+
+**Next:** a human annotator labels the same sheet independently (`results/labels/label_sheet_v3_test.recheck.csv`) without seeing
+the key or the re-check output; `python score_labels.py sheet_A.csv sheet_B.csv
+results/labels/label_key_v3_test.recheck.csv [final.csv]` then reports agreement and Cohen's kappa, and the results
+above are recomputed on the adjudicated labels.
 
 ## Limitations
 
@@ -134,8 +159,12 @@ adjudicated:
   (needs `transformers`; run on Sol or a laptop).
 - V3 matches finding names and their HPO synonyms, so a correct paraphrase in other words is removed.
 - V6's word lists (certainty, causal, other diseases, other findings) are fixed lists: wording outside them passes.
-- The model results above were measured with the original checks and the scoring before Nov 9.
-- The hand labels so far come from one annotator, and their source file is to be confirmed.
+- Asking the model to keep broader terms made it add broader-term wording where there is none (4 of 314 sentences).
+- The prompt-development table was measured with the original checks and the scoring before Nov 9; the final run
+  uses the current scoring and checks.
+- The labels were AI-assisted and reviewed by one team member who had seen some of the checks' decisions; an
+  independent human annotator, blind to the checks, is next.
+- Where the HPO annotations give no frequency, the ranker uses 50%, and sentences then say "~50% of cases".
 - Evidence comes from the patient record, the HPO annotations and the ranker's own calculation; PubMed passages
   (`pubmed.py`) are not in the evidence pack yet.
 - The common-disease list stays empty until common-disease profiles are loaded (Part 2).
