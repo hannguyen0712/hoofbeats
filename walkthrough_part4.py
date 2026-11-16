@@ -127,13 +127,13 @@ for i in pack.values():
 stage("STAGE 4b · MY PART: THE AI WRITES REASONS WITH FOOTNOTES",
       "grounding.py make_prompt_v3() -> Qwen2.5-7B on Sol (saved replies offline) -> parse_trace(); "
       "fallback: template_trace()")
-p = {dd: pp for dd, _, pp in ranking.top(400)}[d]
+p = float(cal[r.d_index[d]]) if cal is not None else {dd: pp for dd, _, pp in ranking.top(400)}[d]
 prompt = g.make_prompt_v3(r, d, p, pack, runner)
 print("   The prompt (first lines; the evidence list above is pasted at the end):")
 for line in prompt.splitlines()[:8]:
     print("     | " + line)
 llm = MedGemma(os.environ.get("LLM_MODEL", "Qwen/Qwen2.5-7B-Instruct"),
-               os.environ.get("LLM_ENDPOINT", "http://127.0.0.1:8000/v1/chat/completions"), max_new_tokens=800,
+               os.environ.get("LLM_ENDPOINT", "http://127.0.0.1:8000/v1/chat/completions"), max_new_tokens=int(os.environ.get("LLM_MAX_TOKENS", "1500")),
                timeout=120, cache_dir="results/llm_cache", extra={"response_format": {"type": "json_object"}},
                offline=os.environ.get("LLM_OFFLINE") == "1")
 try:
