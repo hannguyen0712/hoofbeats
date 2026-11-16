@@ -1,71 +1,87 @@
 # hoofbeats
 
-Diagnosis support for rare and common diseases. Given a patient's findings
-(HPO terms, labs, notes, CT/MR images), the system ranks diseases in one list, explains each
-rank with evidence it has checked, and suggests what to look for next.
+hoofbeats supports the diagnosis of rare and common diseases. It takes a patient's notes, labs, images and HPO
+terms, and ranks every disease in our knowledge base. Each disease on the screen comes with an explanation whose
+sentences are checked against the evidence, the tests that would confirm or rule it out, and a way to re-score the
+case when results come back.
 
-## Architecture
+## How it works
 
 ```
-inputs                    stage 1                 stage 2                  stage 3
-------                    -------                 -------                  -------
-phenopackets  ─┐
-MIMIC labs     ├─>  findings list            ─>  score every disease  ─>  LLM re-ranks top 10
-notes          │    (HPO term, status,           (likelihood ratios        cites evidence ids,
-CT/MR images  ─┘     source, source text)         + prior)                 unsupported sentences dropped
-                                                      │
-                                                      ├─> evidence lines, re-checked
-                                                      └─> next checks (information gain)
+case file          Stage A            Stage 1               Stage 2                Stage 3
+---------          -------            -------               -------                -------
+notes        ─┐
+labs, vitals  │    images are   ─>   findings:        ─>   every disease     ─>   explanations that cite
+images        ├─>  described         HPO term, status,      scored with             evidence, checked
+genes         │    as text           quote, grounding       likelihood ratios       sentence by sentence
+HPO terms    ─┘                                             + calibrated             │
+                                                            probabilities            ├─> tests to confirm or rule out
+                                                                                     └─> follow-up: re-score with results
 ```
 
-**Stage 1, findings.** Everything becomes one list. Each item is an HPO term, a status
-(present / absent / family / uncertain), where it came from, and the text or value behind it.
-- Phenopackets: already HPO.
-- Notes: dictionary match on HPO names and exact synonyms. Negation, hedge and family rules set the status.
-- Labs: 31 tests mapped to HPO, judged against the lab's own reference range.
-- Images: an LLM writes a short findings report (no diagnosis allowed). The report goes through the same dictionary.
-- LLM note extraction: every finding must quote the note word for word.
+**Stage A: image context.** A local vision model describes each image in words. It is told not to name a
+diagnosis, and any disease name it writes is never turned into a finding. The description is then read by the same
+Stage 1 readers as the note, so image findings are grounded and scored like any other finding.
 
-**Stage 2, scoring** (LIRICAL-style). Per disease, each finding adds a log likelihood ratio:
-- present: `f(u,d) / bg(u)`, best match over the term and its ancestors, floor 0.05
-- absent: `(1 - f) / (1 - bg)` if the disease has that feature, otherwise neutral
-- plus a prevalence prior when common diseases are loaded
-- `f` = how often the disease shows the feature (from `phenotype.hpoa`)
-- `bg` = share of diseases that have the feature
+**Stage 1: findings.** Everything becomes one list. Each finding has an HPO term, a status (present, absent, family
+history or uncertain), where it came from, and the words or value behind it.
+- Rules read the note: dictionary matches on HPO names and synonyms, with negation, hedging and family-history
+  rules.
+- A local LLM reads the note too, mostly to catch paraphrases. Every finding it reports must quote the note word
+  for word, and SapBERT links the quote to an HPO term.
+- A numbers reader judges labs and vitals against their reference ranges.
+- HPO terms given as input are used as they are.
 
-Annotations backed only by the test case's own paper are removed first (leakage control).
-A softmax with a fitted temperature turns scores into probabilities.
+**Stage 2: scoring.** The ranker follows LIRICAL. For each disease, every finding adds a log likelihood ratio:
+- present: `f(u,d) / bg(u)`, the best match over the term and its ancestors, with a floor of 0.05
+- absent: `(1 - f) / (1 - bg)` at half weight, and only for features the disease shows in at least 80% of cases
+- `f` is how often the disease shows the feature (from `phenotype.hpoa`), and `bg` is how often diseases show it
+  on average
+- a reported causal gene, and a prevalence prior when common diseases are loaded, add their own terms
 
-Rare diseases come from HPO annotations (8,465 OMIM; Orphanet optional). Common diseases are
-lab profiles learned from MIMIC: share of admissions with each abnormal lab, smoothed as
-(abnormal + 1) / (measured + 2).
+Before a Phenopacket Store case is scored, we remove every annotation supported only by that case's own paper.
+This is our leakage control. Without it, the ranker recognises the paper instead of diagnosing the patient.
 
-**Stage 3, grounding.** Each score term becomes an evidence line, e.g.
-`Has 'Focal motor seizure'; Disease X shows this in ~67% of cases. LR 190 [PMID:...]`.
-Every line is re-derived from the record and the knowledge base. Verified PubMed sentences
-can be added (E-utilities only, queried with disease names and HPO terms).
+Two options change the weights. `--reliability` says how often findings from a source are real: a finding with
+reliability `p` counts as `p*LR + (1-p)`, so unreliable findings move toward no information. `--weights` uses
+evidence weights learned by `train` with grouped cross-validation.
 
-The LLM reorders the top 10 and explains them, citing line ids like `[C3]`. A sentence is
-dropped if it cites nothing, cites another disease's evidence, or doesn't overlap enough
-with what it cites. Faithfulness = sentences kept / sentences written.
+Probabilities come from a softmax over the top 20 diseases, at a temperature fitted on held-out diseases, scaled by
+how often the true disease is in the top 20 at all.
 
-**Next checks.** For each unobserved feature: how much would knowing it shrink the
-uncertainty over the top 20 diseases? The top 5 by that gain get suggested.
+Rare diseases come from the HPO annotations (8,465 OMIM diseases; Orphanet is optional). Common diseases are lab
+profiles learned from MIMIC-IV: for each diagnosis, the share of admissions with each abnormal lab, smoothed as
+`(abnormal + 1) / (measured + 2)`.
+
+**Stage 3: grounding and review.** Each disease gets an evidence pack: the patient's findings with their quotes,
+and knowledge-base facts, each re-checked. The LLM writes sentences that must end with the IDs they use, like
+`[P2, K2]`. Six checks then remove a sentence if it cites nothing, cites the wrong disease's evidence, misstates a
+finding's status, does not name what it cites, gets a number wrong, or claims more than the evidence shows. The
+review screen (`review_app.py`) shows the result, with a *Why?* button on every sentence. Details are in
+[PART4.md](PART4.md).
+
+**Tests and follow-ups.** For every disease on screen, `workup` suggests up to three tests to confirm it and three
+to rule it out, its gene test, and exome or genome sequencing. `followup` re-scores the case when results come in.
 
 ## Files
 
 ```
-hoofbeats/model.py     ontology, disease profiles, ranker, explanations, checks, next checks
-hoofbeats/data.py      loaders (Phenopacket Store, MIMIC, MedPix, Orphanet), text extractor
-hoofbeats/llm.py       LLM client, re-rank, note + image reading, reply cache, privacy guard
-hoofbeats/context.py   Stage A: image context from a vision model; multimodal and medpix-context commands
-hoofbeats/workup.py    test suggestions for every displayed disease (MAxO, LOINC2HPO, GTR); workup-eval
-hoofbeats/followup.py  follow-up: re-analyse a case with new results; before/after and confirmation status
-hoofbeats/pubmed.py    PubMed evidence
-hoofbeats/report.py    figures, tables and notes from saved runs
-hoofbeats/__main__.py  command line
-docs/index.html        local results viewer
-tests.py               42 offline tests
+hoofbeats/model.py      ontology, disease profiles, ranker, explanations, checks
+hoofbeats/data.py       loaders (Phenopacket Store, MIMIC, MedPix, Orphanet) and the rules reader
+hoofbeats/llm.py        LLM client, re-ranking, reply cache, privacy guard
+hoofbeats/llm_reader.py, linker.py, numbers.py, fusion.py, intake.py
+                        Stage 1: LLM reader, SapBERT linker, labs and vitals, merging, case files
+hoofbeats/context.py    Stage A: image context; multimodal and medpix-context
+hoofbeats/train.py      learned evidence weights
+hoofbeats/workup.py     test suggestions (MAxO, LOINC2HPO, GTR) and calibrated probabilities
+hoofbeats/followup.py   follow-up: before and after, confirmation status
+hoofbeats/grounding.py  Stage 3: evidence packs and sentence checks
+hoofbeats/pubmed.py     PubMed evidence
+hoofbeats/report.py     figures, tables and notes from saved runs
+hoofbeats/__main__.py   command line
+review_app.py           review screen (Streamlit)
+docs/index.html         local results viewer
+tests.py                143 offline tests
 ```
 
 ## Setup
@@ -82,12 +98,18 @@ curl -L -o data/kb/ORPHA_ICD10_mapping_en.xml \
   https://raw.githubusercontent.com/orphanet-rare-diseases-issues/RD-CODE/master/ORPHA_ICD10_mapping/ORPHA_ICD10_mapping_en.xml
 ```
 
-LLM backends (global flags, put them before the command):
+The SapBERT linker needs `pip install -r requirements-llm.txt`. A CPU is enough.
+
+LLM backends are global flags, so they go before the command:
 
 ```bash
-# MedGemma via Ollama (set its context length to 16k)
-LLM=(--llm --llm-endpoint http://localhost:11434/v1/chat/completions --llm-model hf.co/unsloth/medgemma-1.5-4b-it-GGUF:Q4_K_M)
-# Gemini (free tier: public data only)
+# Qwen3.5-9B on a local Ollama; thinking off, or it never finishes an answer
+QWEN=(--llm --llm-endpoint http://localhost:11434/v1/chat/completions --llm-model qwen3.5:9b \
+      --llm-extra '{"reasoning_effort": "none"}')
+# MedGemma on a local Ollama (set its context length to 16k)
+MEDGEMMA=(--llm --llm-endpoint http://localhost:11434/v1/chat/completions \
+          --llm-model hf.co/unsloth/medgemma-1.5-4b-it-GGUF:Q4_K_M)
+# Gemini, free tier: public data only
 GEM=https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
 FLASH=(--llm --llm-endpoint $GEM --llm-model gemini-3.8-flash --llm-key-env GEMINI_API_KEY \
        --llm-max-tokens 8192 --llm-extra '{"reasoning_effort": "low"}')
@@ -95,204 +117,154 @@ FLASH=(--llm --llm-endpoint $GEM --llm-model gemini-3.8-flash --llm-key-env GEMI
 
 ## Running
 
-```bash
-python -m hoofbeats --common none diagnose data/phenopacket-store/0.1.27/KCNT1/PMID_23086397_Patient_4.json
-python -m hoofbeats --common none benchmark  --sample 500 --out results/main
-python -m hoofbeats --common none sequential --sample 300 --out results/main
-python -m hoofbeats --common none "${FLASH[@]}" --llm-rpm 5 llm-bench --llm-cases 30 --out results/compare
-python -m hoofbeats --common none "${LLM[@]}" medpix --medpix data/medpix-src/MedPix-2-0 \
-  --only-labeled --limit 40 --max-images 2 --images-per-call 2 --out results/compare
-python -m hoofbeats learn-common --mimic data/mimic-iv-demo/2.2 --min-adm 3
-python -m hoofbeats mimic --mimic data/mimic-iv-demo/2.2 --orphadata-xml data/kb/ORPHA_ICD10_mapping_en.xml --out results/mimic
-python -m hoofbeats report --results results --latex
-```
-
-- `llm-bench` runs the same cases three ways: ranker alone, ranker + LLM re-rank, LLM alone.
-- `--note "..."` labels any run.
-- `--dry-run` counts the LLM requests a command would send, without sending any.
-
-Each run writes `<out>/runs/<id>.txt`, a readable log with settings, output, metrics and any error.
-`runs/latest.txt` is always the newest. `report` makes a new numbered folder each time
-(`reports/report-1`, `-2`, ...) with figures, CSV/LaTeX tables and a short findings list.
-
-LLM replies are cached in `<out>/llm_cache/`, so a re-run, or a run that stopped on a quota,
-only sends new requests. Re-ranking is skipped when the truth isn't in the top 10, since
-reordering can't change that case's score.
-
-Results viewer: `python -m http.server 8000 --bind 127.0.0.1`, then open `localhost:8000/docs/`.
-
-### How to run Stage 1 (patient input to findings, then ranking)
-
-Stage 1 turns a case file (`examples/*.json`: note text, labs, vitals, image findings) into HPO findings, each with
-its quote, readers and grounding. Its configuration is frozen in `configs/stage1_v1.json` (rules + numbers + LLM
-reader, Qwen2.5-7B-Instruct; tag `stage1-final-dev`).
-
-**Locally, rules + numbers only** (no GPU, no model). `diagnose` says it is running without the LLM reader:
+### One case
 
 ```bash
-python -m hoofbeats --common none diagnose examples/marfan_note.json examples/heldout/dm1_note.json --out results
-# per-case JSON in results/diagnose/<case_id>.json
-```
-
-**Full Stage 1 with the LLM reader, on ASU Sol.** The model runs in a vLLM server on the same GPU node, bound to
-127.0.0.1; hoofbeats refuses any other endpoint for reading patient text. One-time setup and copying are in
-[docs/SOL.md](docs/SOL.md). Then, from the repo root on Sol:
-
-```bash
-sbatch scripts/sol_diagnose.sbatch        # all example cases -> results/diagnose/
-# or inside an allocation (salloc ... -G a100:1), any cases:
-bash scripts/sol_run.sh --common none diagnose examples/marfan_note.json --out results
-```
-
-`scripts/sol_run.sh` starts vLLM, waits for it, runs the command with `--llm-endpoint` set, and stops the server.
-Replies are cached per model in `results/llm_cache/`; after copying that folder back, the same command runs on a
-laptop without a GPU: `python -m hoofbeats --common none --llm-offline --llm-cache results/llm_cache diagnose ...`
-(needs `pip install -r requirements-llm.txt` for the SapBERT linker). Any local OpenAI-compatible server works the
-same way with `--llm-endpoint http://127.0.0.1:<port>/v1/chat/completions`.
-
-### Images: Stage A (image context)
-
-When a case has images, a vision model first describes each image (Stage A). The description is added to the
-case's `image_context`, and Stage 1 reads it with the note, so image findings go through the same extraction,
-grounding and scoring as text. The vision model is told not to name a diagnosis, and a disease name in its text is
-never turned into a finding.
-
-- A case file lists its images under `"images"`: `{"path": ..., "modality": ..., "plane": ..., "location": ...}`;
-  paths are relative to the case file. Up to `--context-max-images` (default 4) are described, one per request.
-- Which vision model: `--context-model` if given; otherwise the main `--llm-model` if it reads images (e.g.
-  Qwen2.5-VL, MedGemma, Gemini); otherwise MedGemma 1.5 4B on a local Ollama
-  (`ollama pull hf.co/unsloth/medgemma-1.5-4b-it-GGUF:Q4_K_M`). A `local_only` case only goes to a local model.
-- `--context-verify` (off by default): the vision model is shown the image again with each finding it described and
-  answers yes / no / unsure; only "yes" findings are kept.
-- `--context-confidence {all,probable,definite}` (default `all`): keep only findings the vision model rated at least
-  that sure.
-- Any kind of medical image: radiology (X-ray, CT, MRI, ultrasound, echocardiography, nuclear medicine), ECG and
-  EEG tracings, clinical photographs (face, skin, limbs), eye images (fundus, slit lamp, OCT), microscopy and
-  endoscopy. The image's `modality` (then its `location`) decides the kind; if neither names one, the vision model is
-  first asked what kind of image it is. Radiology images get a radiologist's prompt; every other kind gets its own
-  specialist and asks for what that specialist would report (e.g. rate, intervals and axis for an ECG; dysmorphology
-  terms for a face).
-
-Any image with a short history, on ASU Sol (one vLLM server; Qwen2.5-VL reads both the text and the image). The
-example uses a MedPix image, so clone MedPix first (Setup):
-
-```bash
-MODEL=Qwen/Qwen2.5-VL-7B-Instruct bash scripts/sol_run.sh --common none multimodal --case-id mpx2554 \
-  --text "2 day old male with abdominal distention." --age 0 --sex male \
-  --image data/medpix-src/MedPix-2-0/images/MPX2554_synpic46958.png \
-  --modality "MR - T2 weighted" --plane coronal --location abdomen --out results
-# case file in results/multimodal/mpx2554.json, result in results/diagnose/mpx2554.json
-```
-
-Without a GPU, the same command runs against MedGemma on a local Ollama (slow on a CPU): leave out
-`MODEL=... bash scripts/sol_run.sh` and start it with `python -m hoofbeats`.
-
-Image context on MedPix, side by side (same cases; Stage 1 with rules + numbers; the radiologist's findings are the
-upper bound for what a description can add). `--labels` takes a CSV `U_id,truth` of hand-checked diagnoses; without
-it, MedPix diagnoses are matched to the knowledge base by name:
-
-```bash
-MODEL=Qwen/Qwen2.5-VL-7B-Instruct bash scripts/sol_run.sh --common none medpix-context \
-  --medpix data/medpix-src/MedPix-2-0 --conditions text,context,verified,definite,reference \
-  --limit 40 --max-images 2 --out results/medpix_context
-```
-
-### Test suggestions
-
-For every disease `diagnose` displays, the tests that would confirm or rule it out, with the probability of that
-disease after a positive and after a negative result. Run `download-tests` once first (Setup); without it,
-`diagnose` runs without tests and says so. Details: [docs/TEST_SUGGESTIONS.md](docs/TEST_SUGGESTIONS.md).
-
-```bash
-python -m hoofbeats --common none diagnose examples/marfan_note.json --out results   # tests under "tests" in the JSON
-python -m hoofbeats --common none workup examples/marfan_note.json                    # the same tests, readable
-python -m hoofbeats --common none workup-eval --sample 300 --out results/workup_eval  # evaluation (below)
-```
-
-- Pre-test probability: the ranker's score, calibrated on held-out Phenopacket cases.
-- Tests come from MAxO (diagnostic tests and examinations for HPO findings) and LOINC2HPO (lab tests); each has a
-  burden from 1 (history, examination) to 5 (invasive). Each test's likelihood ratios come from how often each
-  disease shows the findings the test can reveal. Tests are ordered by how much they change the probability per
-  unit of burden.
-- Per disease: up to 3 tests to confirm it (LR+ >= 5), 3 to rule it out (LR- <= 0.2), its gene test, and images
-  already taken that are worth reviewing. Per case: the tests that best tell the top 3 diseases apart, and findings
-  the note may already answer.
-- Gene tests use the method the disease needs, read from the labs' registered tests in GTR: repeat-expansion testing
-  (e.g. myotonic dystrophy, Huntington disease, fragile X), methylation analysis first (e.g. Prader-Willi, Angelman),
-  otherwise sequencing and deletion/duplication analysis.
-- Exome or genome sequencing is always listed as the broad genetic test, and FIRST when the diseases shown add up to
-  less than 30%, since the diagnosis is then often not among them. Genome rather than exome when a shown disease
-  needs repeat-expansion testing; trio for developmental delay or intellectual disability.
-
-`workup-eval` simulates the use of the tests on Phenopacket cases: half of each patient's findings are hidden, each
-method (the workup, tests that tell the top 3 apart, and baselines: feature information gain, most frequent feature,
-random) picks tests one at a time, and a test reveals the hidden findings it can show. It reports Top-1/Top-10, the
-burden spent, and how often the causal gene is among the gene tests of the top diseases.
-
-### Follow-up
-
-When a suggested test has been done, or the patient comes back with anything new, `followup` analyses the case
-again with the existing pipeline: the original case (before), the original plus the follow-up (after, from Stage A),
-and what changed.
-
-```bash
+python -m hoofbeats --common none diagnose examples/marfan_note.json --out results
+python -m hoofbeats --common none workup examples/marfan_note.json
 python -m hoofbeats --common none followup examples/marfan_note.json examples/followup/marfan_followup.json --out results
-# results/followup/<case_id>/: before/, after/, merged_case.json, followup.json (comparison and status)
+streamlit run review_app.py
 ```
 
-- The follow-up file takes the same fields as a case file (`note_text`, `images`, `labs`, `vitals`, `genes`,
-  `hpo_terms`, `details`) plus an optional `test_results` list, e.g.
-  `{"test": "angiography", "result": "negative"}` or
-  `{"test": "FBN1 gene testing", "result": "positive", "genes": ["FBN1"], "classification": "pathogenic"}`.
-  `test` is the test's name or id as the suggestions show it.
-- The original note is not read again: the follow-up's note and every test result go into `followup_text`, which
-  Stage 1 reads as a text of its own, so the change from before to after comes only from the follow-up. A negative
-  test marks absent the findings it was suggested for; a positive test marks its finding present when it looks for only one (otherwise `details` says
-  which). A pathogenic or likely pathogenic gene result adds the gene to the case; a negative gene test makes the
-  diseases of that gene 10x less likely (lower, never ruled out).
-- Status per disease: **confirmed** (a pathogenic / likely pathogenic variant in its gene; if several displayed
-  diseases share the gene, the best-ranked one; the others are "same gene, fits less"), **strongly supported**
-  (probability >= 90% and one of its confirm tests came back positive), otherwise **not yet confirmed**, with its
-  next tests. The ranker's probability alone never makes a disease confirmed.
+Without `--llm-endpoint`, `diagnose` runs Stage 1 with rules and numbers only, and says so.
 
-## Current numbers
+### Rare-disease ranking (Phenopacket Store)
 
-500 Phenopacket cases, 290 diseases (357 evaluable), HPO 2026-09-01, seed 13.
+```bash
+python -m hoofbeats --common none benchmark  --sample 0 --out results/main     # all 3,006 cases
+python -m hoofbeats --common none sequential --sample 0 --out results/main
+python -m hoofbeats --common none train --sample 0 --weights-out results/train/weights.json
+python -m hoofbeats --common none --weights results/train/weights.json benchmark --sample 0 --out results/weighted
+python -m hoofbeats --common none workup-eval --sample 300 --out results/workup_eval
+```
 
-| condition | Top-1 | Top-10 |
+- `--sample 0` means every case, with at most five per disease.
+- `benchmark` also runs the ablations: absent findings, leakage control, gene, onset and sex.
+- `train --kb-size` adds features for how many annotations and papers a disease has. They are off by default
+  because they learn the footprint of leakage control rather than anything about the patient.
+
+### Language models
+
+```bash
+python -m hoofbeats --common none "${QWEN[@]}" llm-bench --sample 0 --llm-cases 100 --out results/compare
+python -m hoofbeats --common none "${QWEN[@]}" llm-bench --sample 0 --llm-cases 100 --rerank-shuffle --out results/compare
+```
+
+`llm-bench` runs the same cases three ways: the ranker alone, the ranker with the LLM re-ranking its top 10, and
+the LLM alone. Each comparison gets a paired confidence interval and a count of the cases that moved up or down.
+`--rerank-shuffle` shows the LLM the shortlist in a random order, to test whether it just keeps the order it was
+given.
+
+### Images (MedPix)
+
+```bash
+python -m hoofbeats --common none "${QWEN[@]}" medpix-context --medpix data/medpix-src/MedPix-2-0 \
+  --split all --limit 40 --max-images 2 --conditions text,context,verified,reference \
+  --reliability-out results/medpix_context/rel.json --out results/medpix_context
+python -m hoofbeats --common none "${QWEN[@]}" medpix-context --medpix data/medpix-src/MedPix-2-0 \
+  --split all --limit 40 --max-images 2 --conditions context --context-no-history --out results/medpix_context
+```
+
+- `text` is the history and exam alone, `context` adds the image description, `verified` keeps only findings the
+  vision model confirms on a second look, and `reference` adds the radiologist's findings as an upper bound.
+- `--context-no-history` shows the vision model only the images, age and sex. If image context still helps, the
+  gain comes from the images and not from the history.
+- `--reliability-out` writes how often the described findings match the radiologist's. Measure it on one set of
+  cases and pass it with `--reliability` on others (`--exclude-cases` keeps the two sets apart).
+
+### Rare and common diseases (MIMIC-IV demo)
+
+```bash
+python -m hoofbeats learn-common --mimic data/mimic-iv-demo/2.2 --min-adm 3 \
+  --orphadata-xml data/kb/ORPHA_ICD10_mapping_en.xml
+python -m hoofbeats mimic --mimic data/mimic-iv-demo/2.2 \
+  --orphadata-xml data/kb/ORPHA_ICD10_mapping_en.xml --out results/mimic
+```
+
+`learn-common` holds out patients, not admissions. `mimic` scores the held-out admissions three ways (prior only,
+labs only, labs and prior), against the primary diagnosis and against any diagnosis.
+
+### Stage 1 on ASU Sol
+
+The LLM reader runs in a vLLM server on the same GPU node, bound to 127.0.0.1. hoofbeats refuses any other
+endpoint for patient text. The one-time setup is in [docs/SOL.md](docs/SOL.md). From the repo root on Sol:
+
+```bash
+sbatch scripts/sol_diagnose.sbatch                                       # all example cases
+bash scripts/sol_run.sh --common none diagnose examples/marfan_note.json --out results   # inside an allocation
+```
+
+`scripts/sol_run.sh` starts vLLM, runs the command against it and stops it. Replies are cached in
+`results/llm_cache/`. After you copy that folder back, the same command runs on a laptop with
+`--llm-offline --llm-cache results/llm_cache`.
+
+### Output
+
+Every run writes `<out>/runs/<id>.txt`, a readable log with the settings, output, metrics and any error, and
+`runs/latest.txt` is always the newest. `report --results results --latex` makes a new numbered folder of figures,
+CSV and LaTeX tables each time. LLM replies are cached in `<out>/llm_cache/`, so a run that stopped on a quota only
+sends the requests it has not sent yet. `--dry-run` counts the requests a command would send, and `--note "..."`
+labels a run.
+
+To browse results, run `python -m http.server 8000 --bind 127.0.0.1` and open `localhost:8000/docs/`.
+
+## Current results
+
+Phenopacket Store 0.1.27, HPO 2026-09-01, seed 13. Intervals are 95% and resample diseases, not cases.
+"Evaluable" means the true disease still has annotations after leakage control (1,969 of 3,006 cases).
+
+| Ranking, 3,006 cases | Top-1 | Top-10 |
 |---|---|---|
-| present findings only | 0.180 | 0.342 |
-| + absent findings | 0.146 | 0.282 |
-| + absent, no leakage control | 0.478 | 0.648 |
-| + absent + causal gene | 0.330 | 0.474 |
+| all cases | 18.8 (16.4–21.2) | 32.9 |
+| evaluable cases | 28.7 (25.4–32.0) | 50.3 |
+| no leakage control | 70.3 | 85.1 |
 
-- Leakage control matters most: without it Top-1 is about 3x higher.
-- Absent findings hurt. Weight 0 to 0.25 is best (evaluable Top-1 0.252 vs 0.204 at full weight).
-- Calibration: temperature 11.6, ECE 0.127.
-- Next checks (pilot, 300 cases): Top-1 0.160 -> 0.180 with information gain, 0.163 with random questions.
-- MedPix (163 mapped cases): Top-10 0.074 from text, 0.129 with the radiologist's findings added.
-- The LLM comparison is still running.
+- **Leakage control matters most.** Without it, Top-1 is 3.7 times higher.
+- **A causal gene** adds 22.8 points of Top-1. Counting every absent finding at full weight costs 3.8 points. Age
+  of onset and sex change nothing.
+- **Learned weights** raise evaluable Top-1 to 30.6% on held-out diseases and papers (+1.9, +0.2 to +3.5).
+- **Probabilities:** the expected calibration error is 0.064, against 0.192 for a softmax over all diseases.
+- **Sequential questions** (1,914 cases): asking about the finding with the most information gain adds 1.2 points
+  of Top-1 after five questions (+0.4 to +2.0). Only 13–15% of the questions can be answered from a published
+  record.
+- **Test suggestions** (300 cases): the first suggested test reveals a hidden finding in 82% of cases, against 12%
+  for a random test.
+- **Qwen3.5-9B** (100 cases): re-ranking adds 1.0 point of Top-1 (0.0 to +3.3). Alone, it is 16.0 points below
+  the ranker.
+- **Images** (40 MedPix cases): image context raises Top-1 from 2.5% to 10.0%, and to 10.0% without the history
+  too. But only 4 of the 70 described findings match the radiologist's.
+- **MIMIC-IV demo** (59 primary diagnoses): labs and prior put 13.6% in the top three, the prior alone none. No
+  rare diagnosis reaches the top ten when ranked with common ones.
+- **Stage 1** (172 PMC test cases): all readers together find 74.7% of the gold terms stated in the text, at about
+  76% estimated precision.
+- **Grounding** (314 model-written sentences): wrong sentences among those shown fell from 6.4% to 0.3%.
 
 ## Rules we keep
 
-- The model never sees the answer. The case's own paper is out of the knowledge base. Diagnoses are stripped from notes. MedPix radiologist findings and captions are only used for scoring.
-- Credentialed MIMIC never leaves the machine: local models only, enforced in code. Keep it under `/secure`; don't commit or paste it anywhere.
-- Gemini's free tier may use prompts for training, so public datasets only.
-- Ties count against the true disease. Evaluable subsets are reported. LLM output is checked, never trusted as is.
+- The model never sees the answer. The case's own paper is removed from the knowledge base, diagnoses are removed
+  from notes, and MedPix captions and radiologist findings are only used for scoring.
+- Patient text and images stay on our own machines. The readers refuse remote endpoints, and this is enforced in
+  code. Credentialed MIMIC data stays under `/secure` and is never committed or pasted anywhere.
+- Gemini's free tier may use prompts for training, so we only send it public data.
+- Ties count against the true disease, and we report evaluable cases next to all cases.
+- LLM output is checked before anyone sees it.
 
 ## Known gaps
 
-- Absent findings and how to weight them.
-- The dictionary misses a lot of radiology wording.
-- Common-disease profiles only see labs.
-- Next-check gains are capped because few suggested terms can be answered from the record.
-- LLMs may have seen these published cases in training, so their gains are upper bounds.
-- The faithfulness check is word overlap. Hand labels are needed to validate it.
+- The true disease is outside the top 50 for about a third of evaluable cases. Tests and re-ranking cannot fix
+  that, which is why exome or genome sequencing is always suggested.
+- Common-disease profiles only see labs, and the demo has 3 to 12 admissions per disease.
+- The local vision model captures little of what a radiologist reports.
+- The LLM and image runs are small, so their intervals are wide. Published cases may be in the models' training
+  data, so their gains are upper bounds.
+- The grounding labels were made with AI help and checked by one of us. They are not independent yet.
+- Phenopacket Store cases arrive already coded in HPO, so the ranking results leave out reading errors. The
+  end-to-end evaluation on PMC cases is next.
 
 ## Data and credits
 
-HPO and annotations (HPO license), Phenopacket Store (BSD-3), Orphanet ICD-10 mapping (CC BY 4.0),
-MIMIC-IV demo (ODbL), MIMIC-IV (PhysioNet credentialed), MedPix 2.0 (no license stated; ask before
+HPO and annotations (HPO license), Phenopacket Store (BSD-3), MAxO, LOINC2HPO, NCBI GTR, Orphanet ICD-10 mapping
+(CC BY 4.0), MIMIC-IV demo (ODbL), MIMIC-IV (PhysioNet credentialed), MedPix 2.0 (no license stated; ask before
 redistributing), MedGemma (HAI-DEF terms). Scoring follows LIRICAL (Robinson et al., AJHG 2020).
 
-Research tool. Not for clinical decisions.
+This is a research tool. It is not for clinical decisions.
