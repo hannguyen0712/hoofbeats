@@ -1,0 +1,360 @@
+run       20261111-165624_medpix_qwen3.5-9b
+started   2026-11-11 16:56:24
+command   medpix
+note      Qwen images, all labeled
+status    ok
+duration  24.4 min
+argv      python -m hoofbeats --common none --note 'Qwen images, all labeled' --llm --llm-endpoint http://localhost:11434/v1/chat/completions --llm-model qwen3.5:9b --llm-max-tokens 4096 --llm-extra '{"reasoning_effort": "none"}' medpix --medpix data/medpix-src/MedPix-2-0 --orphadata-xml data/kb/ORPHA_ICD10_mapping_en.xml --only-labeled --max-images 2 --images-per-call 2 --out results/medpix_all
+
+split         all
+max_images    2
+only_labeled  True
+limit         None
+hpo           hp/releases/2026-09-01
+annotations   2026-09-02
+prefixes      ['OMIM', 'ORPHA']
+common        None
+prior_weight  1.0
+absent_weight 0.5
+absent_min_freq0.8
+use_onset     False
+use_sex       False
+model         qwen3.5:9b
+endpoint      http://localhost:11434/v1/chat/completions
+max_tokens    4096
+extra         {'reasoning_effort': 'none'}
+offline       False
+
+========================================================================
+console output
+========================================================================
+
+[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 12820 rare + 0 common diseases
+[llm] qwen3.5:9b via http://localhost:11434/v1/chat/completions; 0 cached replies in results/medpix_all/llm_cache
+
+[medpix] 1/192 cases read
+[medpix] 2/192 cases read
+[medpix] 3/192 cases read
+[medpix] 4/192 cases read
+[medpix] 5/192 cases read
+[medpix] 6/192 cases read
+[medpix] 7/192 cases read
+[medpix] 8/192 cases read
+[medpix] 9/192 cases read
+[medpix] 10/192 cases read
+[medpix] 11/192 cases read
+[medpix] 12/192 cases read
+[medpix] 13/192 cases read
+[medpix] 14/192 cases read
+[medpix] 15/192 cases read
+[medpix] 16/192 cases read
+[medpix] 17/192 cases read
+[medpix] 18/192 cases read
+[medpix] 19/192 cases read
+[medpix] 20/192 cases read
+[medpix] 21/192 cases read
+[medpix] 22/192 cases read
+[medpix] 23/192 cases read
+[medpix] 24/192 cases read
+[medpix] 25/192 cases read
+[medpix] 26/192 cases read
+[medpix] 27/192 cases read
+[medpix] 28/192 cases read
+[medpix] 29/192 cases read
+[medpix] 30/192 cases read
+[medpix] 31/192 cases read
+[medpix] 32/192 cases read
+[medpix] 33/192 cases read
+[medpix] 34/192 cases read
+[medpix] 35/192 cases read
+[medpix] 36/192 cases read
+[medpix] 37/192 cases read
+[medpix] 38/192 cases read
+[medpix] 39/192 cases read
+[medpix] 40/192 cases read
+[medpix] 41/192 cases read
+[medpix] 42/192 cases read
+[medpix] 43/192 cases read
+[medpix] 44/192 cases read
+[medpix] 45/192 cases read
+[medpix] 46/192 cases read
+[medpix] 47/192 cases read
+[medpix] 48/192 cases read
+[medpix] 49/192 cases read
+[medpix] 50/192 cases read
+[medpix] 51/192 cases read
+[medpix] 52/192 cases read
+[medpix] 53/192 cases read
+[medpix] 54/192 cases read
+[medpix] 55/192 cases read
+[medpix] 56/192 cases read
+[medpix] 57/192 cases read
+[medpix] 58/192 cases read
+[medpix] 59/192 cases read
+[medpix] 60/192 cases read
+[medpix] 61/192 cases read
+[medpix] 62/192 cases read
+[medpix] 63/192 cases read
+[medpix] 64/192 cases read
+[medpix] 65/192 cases read
+[medpix] 66/192 cases read
+[medpix] 67/192 cases read
+[medpix] 68/192 cases read
+[medpix] 69/192 cases read
+[medpix] 70/192 cases read
+[medpix] 71/192 cases read
+[medpix] 72/192 cases read
+[medpix] 73/192 cases read
+[medpix] 74/192 cases read
+[medpix] 75/192 cases read
+[medpix] 76/192 cases read
+[medpix] 77/192 cases read
+[medpix] 78/192 cases read
+[medpix] 79/192 cases read
+[medpix] 80/192 cases read
+[medpix] 81/192 cases read
+[medpix] 82/192 cases read
+[medpix] 83/192 cases read
+[medpix] 84/192 cases read
+[medpix] 85/192 cases read
+[medpix] 86/192 cases read
+[medpix] 87/192 cases read
+[medpix] 88/192 cases read
+[medpix] 89/192 cases read
+[medpix] 90/192 cases read
+[medpix] 91/192 cases read
+[medpix] 92/192 cases read
+[medpix] 93/192 cases read
+[medpix] 94/192 cases read
+[medpix] 95/192 cases read
+[medpix] 96/192 cases read
+[medpix] 97/192 cases read
+[medpix] 98/192 cases read
+[medpix] 99/192 cases read
+[medpix] 100/192 cases read
+[medpix] 101/192 cases read
+[medpix] 102/192 cases read
+[medpix] 103/192 cases read
+[medpix] 104/192 cases read
+[medpix] 105/192 cases read
+[medpix] 106/192 cases read
+[medpix] 107/192 cases read
+[medpix] 108/192 cases read
+[medpix] 109/192 cases read
+[medpix] 110/192 cases read
+[medpix] 111/192 cases read
+[medpix] 112/192 cases read
+[medpix] 113/192 cases read
+[medpix] 114/192 cases read
+[medpix] 115/192 cases read
+[medpix] 116/192 cases read
+[medpix] 117/192 cases read
+[medpix] 118/192 cases read
+[medpix] 119/192 cases read
+[medpix] 120/192 cases read
+[medpix] 121/192 cases read
+[medpix] 122/192 cases read
+[medpix] 123/192 cases read
+[medpix] 124/192 cases read
+[medpix] 125/192 cases read
+[medpix] 126/192 cases read
+[medpix] 127/192 cases read
+[medpix] 128/192 cases read
+[medpix] 129/192 cases read
+[medpix] 130/192 cases read
+[medpix] 131/192 cases read
+[medpix] 132/192 cases read
+[medpix] 133/192 cases read
+[medpix] 134/192 cases read
+[medpix] 135/192 cases read
+[medpix] 136/192 cases read
+[medpix] 137/192 cases read
+[medpix] 138/192 cases read
+[medpix] 139/192 cases read
+[medpix] 140/192 cases read
+[medpix] 141/192 cases read
+[medpix] 142/192 cases read
+[medpix] 143/192 cases read
+[medpix] 144/192 cases read
+[medpix] 145/192 cases read
+[medpix] 146/192 cases read
+[medpix] 147/192 cases read
+[medpix] 148/192 cases read
+[medpix] 149/192 cases read
+[medpix] 150/192 cases read
+[medpix] 151/192 cases read
+[medpix] 152/192 cases read
+[medpix] 153/192 cases read
+[medpix] 154/192 cases read
+[medpix] 155/192 cases read
+[medpix] 156/192 cases read
+[medpix] 157/192 cases read
+[medpix] 158/192 cases read
+[medpix] 159/192 cases read
+[medpix] 160/192 cases read
+[medpix] 161/192 cases read
+[medpix] 162/192 cases read
+[medpix] 163/192 cases read
+[medpix] 164/192 cases read
+[medpix] 165/192 cases read
+[medpix] 166/192 cases read
+[medpix] 167/192 cases read
+[medpix] 168/192 cases read
+[medpix] 169/192 cases read
+[medpix] 170/192 cases read
+[medpix] 171/192 cases read
+[medpix] 172/192 cases read
+[medpix] 173/192 cases read
+[medpix] 174/192 cases read
+[medpix] 175/192 cases read
+[medpix] 176/192 cases read
+[medpix] 177/192 cases read
+[medpix] 178/192 cases read
+[medpix] 179/192 cases read
+[medpix] 180/192 cases read
+[medpix] 181/192 cases read
+[medpix] 182/192 cases read
+[medpix] 183/192 cases read
+[medpix] 184/192 cases read
+[medpix] 185/192 cases read
+[medpix] 186/192 cases read
+[medpix] 187/192 cases read
+[medpix] 188/192 cases read
+[medpix] 189/192 cases read
+[medpix] 190/192 cases read
+[medpix] 191/192 cases read
+[medpix] 192/192 cases read
+[cache] 192 new image reads, 192 total -> results/medpix_all/medpix_image_reads_qwen3.5-9b.jsonl
+[medpix] 192 cases (all), 192 with a diagnosis the ranker knows; median findings from history/exam 1, from radiologist report 1
+
+| input | Top-1 | Top-3 | Top-10 | MRR |
+|---|---|---|---|---|
+| history + exam text | 0.021 | 0.052 | 0.099 | 0.047 |
+| text + radiologist image findings (upper bound) | 0.042 | 0.099 | 0.161 | 0.083 |
+| LLM image findings only | 0.005 | 0.016 | 0.016 | 0.014 |
+| text + LLM image findings | 0.036 | 0.062 | 0.104 | 0.061 |
+
+Against history + exam text, same cases (95% CI resampling diseases; moves count only if they involve the top 10):
+| condition | Top-1, pts | Top-10, pts | MRR x100 | moved up | moved down |
+|---|---|---|---|---|---|
+| text + radiologist image findings (upper bound) | +2.1 (-0.5 to +5.3) | +6.2 (+2.1 to +10.7) | +3.6 (+1.2 to +6.2) | 18 | 4 |
+| LLM image findings only | -1.6 (-4.5 to +0.6) | -8.3 (-14.1 to -3.3) | -3.3 (-7.0 to -0.3) | 3 | 18 |
+| text + LLM image findings | +1.6 (+0.0 to +4.2) | +0.5 (-1.8 to +2.6) | +1.4 (-0.2 to +3.3) | 6 | 4 |
+
+LLM image findings vs radiologist: precision 19.4%, recall 21.2%; unparsed replies 0; 7.53 s per request
+Pooled over all findings: 32 of 165 match the radiologist (19.4%)
+[llm] requests sent 192 (retries 0), answered from cache 0, 7.53 s per request
+[compare] summary appended to results/medpix_all/llm_compare.csv
+
+Review and correct diagnosis labels in results/medpix_all/medpix_labels.csv (pass back with --labels).
+
+========================================================================
+metrics (also in the .json file)
+========================================================================
+{
+ "medpix_paired": {
+  "text + radiologist image findings (upper bound)": {
+   "top1_delta": 0.020833333333333332,
+   "top1_ci": [
+    -0.005155306874632766,
+    0.05319860052338146
+   ],
+   "top10_delta": 0.0625,
+   "top10_ci": [
+    0.021161236424394318,
+    0.10666990291262135
+   ],
+   "mrr_delta": 0.03588789280258103,
+   "mrr_ci": [
+    0.01228064913161812,
+    0.06219560197013556
+   ],
+   "moved_up": 18,
+   "moved_down": 4,
+   "cases": 192
+  },
+  "LLM image findings only": {
+   "top1_delta": -0.015625,
+   "top1_ci": [
+    -0.04487359550561798,
+    0.0057820369806983645
+   ],
+   "top10_delta": -0.08333333333333333,
+   "top10_ci": [
+    -0.1414141414141414,
+    -0.03301757205059092
+   ],
+   "mrr_delta": -0.0330276246387267,
+   "mrr_ci": [
+    -0.06962822626362376,
+    -0.0033797580952223704
+   ],
+   "moved_up": 3,
+   "moved_down": 18,
+   "cases": 192
+  },
+  "text + LLM image findings": {
+   "top1_delta": 0.015625,
+   "top1_ci": [
+    0.0,
+    0.041916167664670656
+   ],
+   "top10_delta": 0.005208333333333333,
+   "top10_ci": [
+    -0.01754643962848297,
+    0.02597969715873643
+   ],
+   "mrr_delta": 0.01406014727971463,
+   "mrr_ci": [
+    -0.0017201934749218122,
+    0.03331631677343898
+   ],
+   "moved_up": 6,
+   "moved_down": 4,
+   "cases": 192
+  }
+ },
+ "medpix": {
+  "model": "qwen3.5:9b",
+  "task": "medpix",
+  "cases": 192,
+  "labeled": 192,
+  "failed_calls": 0,
+  "rank_text_top1": 0.021,
+  "rank_text_top3": 0.052,
+  "rank_text_top10": 0.099,
+  "rank_text_mrr": 0.047,
+  "rank_radiologist_top1": 0.042,
+  "rank_radiologist_top3": 0.099,
+  "rank_radiologist_top10": 0.161,
+  "rank_radiologist_mrr": 0.083,
+  "rank_image_top1": 0.005,
+  "rank_image_top3": 0.016,
+  "rank_image_top10": 0.016,
+  "rank_image_mrr": 0.014,
+  "rank_multimodal_top1": 0.036,
+  "rank_multimodal_top3": 0.062,
+  "rank_multimodal_top10": 0.104,
+  "rank_multimodal_mrr": 0.061,
+  "image_precision": 0.194,
+  "image_recall": 0.212,
+  "unparsed_images": 0,
+  "sec_per_call": 7.53,
+  "requests": 192,
+  "cache_hits": 0,
+  "image_findings": 165,
+  "image_findings_agree": 32,
+  "image_precision_pooled": 0.1939
+ },
+ "requests": {
+  "requests": 192,
+  "retries": 0,
+  "cache_hits": 0,
+  "would_send": 0,
+  "offline_misses": 0,
+  "sec_per_request": 7.53
+ }
+}
+
+files written:
+  results/medpix_all/medpix_qwen3.5-9b.csv

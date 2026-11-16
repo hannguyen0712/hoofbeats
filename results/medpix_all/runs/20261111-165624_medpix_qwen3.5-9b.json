@@ -1,0 +1,167 @@
+{
+ "metrics": {
+  "medpix_paired": {
+   "text + radiologist image findings (upper bound)": {
+    "top1_delta": 0.020833333333333332,
+    "top1_ci": [
+     -0.005155306874632766,
+     0.05319860052338146
+    ],
+    "top10_delta": 0.0625,
+    "top10_ci": [
+     0.021161236424394318,
+     0.10666990291262135
+    ],
+    "mrr_delta": 0.03588789280258103,
+    "mrr_ci": [
+     0.01228064913161812,
+     0.06219560197013556
+    ],
+    "moved_up": 18,
+    "moved_down": 4,
+    "cases": 192
+   },
+   "LLM image findings only": {
+    "top1_delta": -0.015625,
+    "top1_ci": [
+     -0.04487359550561798,
+     0.0057820369806983645
+    ],
+    "top10_delta": -0.08333333333333333,
+    "top10_ci": [
+     -0.1414141414141414,
+     -0.03301757205059092
+    ],
+    "mrr_delta": -0.0330276246387267,
+    "mrr_ci": [
+     -0.06962822626362376,
+     -0.0033797580952223704
+    ],
+    "moved_up": 3,
+    "moved_down": 18,
+    "cases": 192
+   },
+   "text + LLM image findings": {
+    "top1_delta": 0.015625,
+    "top1_ci": [
+     0.0,
+     0.041916167664670656
+    ],
+    "top10_delta": 0.005208333333333333,
+    "top10_ci": [
+     -0.01754643962848297,
+     0.02597969715873643
+    ],
+    "mrr_delta": 0.01406014727971463,
+    "mrr_ci": [
+     -0.0017201934749218122,
+     0.03331631677343898
+    ],
+    "moved_up": 6,
+    "moved_down": 4,
+    "cases": 192
+   }
+  },
+  "medpix": {
+   "model": "qwen3.5:9b",
+   "task": "medpix",
+   "cases": 192,
+   "labeled": 192,
+   "failed_calls": 0,
+   "rank_text_top1": 0.021,
+   "rank_text_top3": 0.052,
+   "rank_text_top10": 0.099,
+   "rank_text_mrr": 0.047,
+   "rank_radiologist_top1": 0.042,
+   "rank_radiologist_top3": 0.099,
+   "rank_radiologist_top10": 0.161,
+   "rank_radiologist_mrr": 0.083,
+   "rank_image_top1": 0.005,
+   "rank_image_top3": 0.016,
+   "rank_image_top10": 0.016,
+   "rank_image_mrr": 0.014,
+   "rank_multimodal_top1": 0.036,
+   "rank_multimodal_top3": 0.062,
+   "rank_multimodal_top10": 0.104,
+   "rank_multimodal_mrr": 0.061,
+   "image_precision": 0.194,
+   "image_recall": 0.212,
+   "unparsed_images": 0,
+   "sec_per_call": 7.53,
+   "requests": 192,
+   "cache_hits": 0,
+   "image_findings": 165,
+   "image_findings_agree": 32,
+   "image_precision_pooled": 0.1939
+  },
+  "requests": {
+   "requests": 192,
+   "retries": 0,
+   "cache_hits": 0,
+   "would_send": 0,
+   "offline_misses": 0,
+   "sec_per_request": 7.53
+  }
+ },
+ "files": [
+  "results/medpix_all/medpix_qwen3.5-9b.csv"
+ ],
+ "settings": {
+  "split": "all",
+  "max_images": 2,
+  "only_labeled": true,
+  "limit": null,
+  "hpo": "hp/releases/2026-09-01",
+  "annotations": "2026-09-02",
+  "prefixes": [
+   "OMIM",
+   "ORPHA"
+  ],
+  "common": null,
+  "prior_weight": 1.0,
+  "absent_weight": 0.5,
+  "absent_min_freq": 0.8,
+  "use_onset": false,
+  "use_sex": false,
+  "model": "qwen3.5:9b",
+  "endpoint": "http://localhost:11434/v1/chat/completions",
+  "max_tokens": 4096,
+  "extra": {
+   "reasoning_effort": "none"
+  },
+  "offline": false
+ },
+ "id": "20261111-165624_medpix_qwen3.5-9b",
+ "command": "medpix",
+ "argv": [
+  "--common",
+  "none",
+  "--note",
+  "Qwen images, all labeled",
+  "--llm",
+  "--llm-endpoint",
+  "http://localhost:11434/v1/chat/completions",
+  "--llm-model",
+  "qwen3.5:9b",
+  "--llm-max-tokens",
+  "4096",
+  "--llm-extra",
+  "{\"reasoning_effort\": \"none\"}",
+  "medpix",
+  "--medpix",
+  "data/medpix-src/MedPix-2-0",
+  "--orphadata-xml",
+  "data/kb/ORPHA_ICD10_mapping_en.xml",
+  "--only-labeled",
+  "--max-images",
+  "2",
+  "--images-per-call",
+  "2",
+  "--out",
+  "results/medpix_all"
+ ],
+ "note": "Qwen images, all labeled",
+ "started": "2026-11-11 16:56:24",
+ "status": "ok",
+ "seconds": 1465.2
+}
