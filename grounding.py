@@ -41,6 +41,14 @@ def patient_items(r, case, claims):
             f.source)
     return items
 
+def lab_profile(r, d, refs=()):
+    """Name of the lab profile a common disease's frequencies come from (MIMIC-IV admissions), or "" for a rare
+    disease, whose frequencies come from HPO annotations."""
+    if d not in r.db.prior:
+        return ""
+    return "MIMIC-IV demo" if any("demo" in x.lower() for x in refs) or not refs else "MIMIC-IV"
+
+
 def knowledge_items(r, case, d, claims, ex, start=1):
     """Make one K item for each knowledge claim."""
     items = {}
@@ -63,13 +71,16 @@ def knowledge_items(r, case, d, claims, ex, start=1):
         if via:
             text = re.sub(r"shows this in (~\d+% of cases) \(via '([^']+)'\)",
                           r"shows '\2', the broader HPO term it falls under, in \1", text)
+        lab = lab_profile(r, d, cl.refs)
+        if lab:     # a common disease: the frequency is the share of its admissions with this lab result
+            text = text.replace(" of cases", f" of {lab} admissions with this diagnosis")
         items[kid] = Item(
             kid,
             "knowledge",
             text,
             cl.patient_term,
             cl.status.value,
-            source = "HPO Annotations",
+            source = f"{lab} lab profile" if lab else "HPO Annotations",
             refs = tuple(sorted(cl.refs)),
             role = role,
             via = via)
@@ -112,13 +123,15 @@ def missing_items(r, case, d, ex, start, max_missing = 3):
             continue
         seen.add(t)
         kid = f"K{n}"
-        text = f"{name} shows '{r.ont.name(t)}' in ~{freq:.0%} of cases; the patient record does not mention this finding."
+        lab = lab_profile(r, d, refs)
+        cases = f"{lab} admissions with this diagnosis" if lab else "cases"
+        text = f"{name} shows '{r.ont.name(t)}' in ~{freq:.0%} of {cases}; the patient record does not mention this finding."
         items[kid] = Item(
             kid,
             "knowledge",
             text,
             t,
-            source="HPO Annotations",
+            source=f"{lab} lab profile" if lab else "HPO Annotations",
             refs=tuple(sorted(refs)),
             role = "missing")
         n += 1
