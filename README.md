@@ -56,8 +56,9 @@ profiles learned from MIMIC-IV: for each diagnosis, the share of admissions with
 **Stage 3: grounding and review.** Each disease gets an evidence pack: the patient's findings with their quotes,
 and knowledge-base facts, each re-checked. The LLM writes sentences that must end with the IDs they use, like
 `[P2, K2]`. Six checks then remove a sentence if it cites nothing, cites the wrong disease's evidence, misstates a
-finding's status, does not name what it cites, gets a number wrong, or claims more than the evidence shows. The
-review screen (`review_app.py`) shows the result, with a *Why?* button on every sentence. Details are in
+finding's status, does not name what it cites, gets a number wrong, or claims more than the evidence shows. When a
+finding matches through a broader HPO term, the sentence must keep that broader term, since the frequency belongs to
+it. The review screen (`review_app.py`) shows the result, with a *Why?* button on every sentence. Details are in
 [PART4.md](PART4.md).
 
 **Tests and follow-ups.** For every disease on screen, `workup` suggests up to three tests to confirm it and three
@@ -80,8 +81,11 @@ hoofbeats/pubmed.py     PubMed evidence
 hoofbeats/report.py     figures, tables and notes from saved runs
 hoofbeats/__main__.py   command line
 review_app.py           review screen (Streamlit)
+grounding.py, *_part4.py   Stage 3 scripts: demo, model explanations, adversarial set, re-checks (PART4.md)
+eval_part5.py           report tables with 95% intervals from saved runs (PART5.md)
+scripts/run_part5.sh    re-runs every Part 5 number
 docs/index.html         local results viewer
-tests.py                143 offline tests
+tests.py                147 offline tests
 ```
 
 ## Setup
@@ -146,18 +150,21 @@ python -m hoofbeats --common none workup-eval --sample 300 --out results/workup_
 ### Language models
 
 ```bash
-python -m hoofbeats --common none "${QWEN[@]}" llm-bench --sample 0 --llm-cases 100 --out results/compare
-python -m hoofbeats --common none "${QWEN[@]}" llm-bench --sample 0 --llm-cases 100 --rerank-shuffle --out results/compare
+python -m hoofbeats --common none "${QWEN[@]}" llm-bench --llm-cases 100 --out results/compare
+python -m hoofbeats --common none "${QWEN[@]}" llm-bench --llm-cases 100 --rerank-shuffle --out results/compare
 ```
 
 `llm-bench` runs the same cases three ways: the ranker alone, the ranker with the LLM re-ranking its top 10, and
-the LLM alone. Each comparison gets a paired confidence interval and a count of the cases that moved up or down.
+the LLM alone, on the first 100 evaluable cases of the default 300-case sample. Each comparison gets a paired confidence interval and a count of the cases that moved up or down.
 `--rerank-shuffle` shows the LLM the shortlist in a random order, to test whether it just keeps the order it was
-given.
+given. Run it on the same cases as the unshuffled run and compare the two.
 
 ### Images (MedPix)
 
 ```bash
+python -m hoofbeats --common none "${QWEN[@]}" medpix --medpix data/medpix-src/MedPix-2-0 \
+  --orphadata-xml data/kb/ORPHA_ICD10_mapping_en.xml --only-labeled --max-images 2 --images-per-call 2 \
+  --out results/medpix_all
 python -m hoofbeats --common none "${QWEN[@]}" medpix-context --medpix data/medpix-src/MedPix-2-0 \
   --split all --limit 40 --max-images 2 --conditions text,context,verified,reference \
   --reliability-out results/medpix_context/rel.json --out results/medpix_context
@@ -165,7 +172,9 @@ python -m hoofbeats --common none "${QWEN[@]}" medpix-context --medpix data/medp
   --split all --limit 40 --max-images 2 --conditions context --context-no-history --out results/medpix_context
 ```
 
-- `text` is the history and exam alone, `context` adds the image description, `verified` keeps only findings the
+- `medpix` runs all 192 cases whose diagnosis is in the knowledge base. It compares the history and exam text,
+  the text with the LLM's image findings, the image findings alone, and the text with the radiologist's findings.
+- `medpix-context` runs Stage A on a smaller set. `text` is the history and exam alone, `context` adds the image description, `verified` keeps only findings the
   vision model confirms on a second look, and `reference` adds the radiologist's findings as an upper bound.
 - `--context-no-history` shows the vision model only the images, age and sex. If image context still helps, the
   gain comes from the images and not from the history.
@@ -198,6 +207,18 @@ bash scripts/sol_run.sh --common none diagnose examples/marfan_note.json --out r
 `results/llm_cache/`. After you copy that folder back, the same command runs on a laptop with
 `--llm-offline --llm-cache results/llm_cache`.
 
+### Reproducing the report numbers
+
+```bash
+bash scripts/run_part5.sh               # benchmark (500 and all cases), sequential (300), eval_part5.py, report
+NOTE="final" bash scripts/run_part5.sh  # the same, with the runs labelled
+python eval_part5.py tables             # only the tables, from runs already saved
+```
+
+This takes about five minutes on a laptop without a GPU. `eval_part5.py` adds what the commands do not print:
+Top-5, a 95% interval on every metric, and the dataset counts. It writes `results/part5/`. [PART5.md](PART5.md)
+names the saved file behind every number.
+
 ### Output
 
 Every run writes `<out>/runs/<id>.txt`, a readable log with the settings, output, metrics and any error, and
@@ -229,15 +250,21 @@ Phenopacket Store 0.1.27, HPO 2026-09-01, seed 13. Intervals are 95% and resampl
   record.
 - **Test suggestions** (300 cases): the first suggested test reveals a hidden finding in 82% of cases, against 12%
   for a random test.
-- **Qwen3.5-9B** (100 cases): re-ranking adds 1.0 point of Top-1 (0.0 to +3.3). Alone, it is 16.0 points below
-  the ranker.
-- **Images** (40 MedPix cases): image context raises Top-1 from 2.5% to 10.0%, and to 10.0% without the history
-  too. But only 4 of the 70 described findings match the radiologist's.
+- **Qwen3.5-9B** (100 cases): re-ranking adds 1.0 point of Top-1 (0.0 to +3.3), moving one case up and none
+  down. With the shortlist shuffled, Top-1 does not change (0.0, −2.7 to +3.2; 4 cases up, 5 down). Alone, the
+  model is 16.0 points below the ranker.
+- **Images, 40 MedPix cases** (Stage A): image context raises Top-1 from 2.5% to 10.0%, and to 10.0% without the
+  history too. But only 4 of the 70 described findings match the radiologist's.
+- **Images, all 192 MedPix cases**: the LLM's image findings add 1.6 points of Top-1 (0.0 to +4.2) and 0.5 points
+  of Top-10 (−1.8 to +2.6) to the text. The radiologist's findings add 6.2 points of Top-10 (+2.1 to +10.7). The
+  LLM's findings match the radiologist's 19.4% of the time.
 - **MIMIC-IV demo** (59 primary diagnoses): labs and prior put 13.6% in the top three, the prior alone none. No
   rare diagnosis reaches the top ten when ranked with common ones.
 - **Stage 1** (172 PMC test cases): all readers together find 74.7% of the gold terms stated in the text, at about
   76% estimated precision.
-- **Grounding** (314 model-written sentences): wrong sentences among those shown fell from 6.4% to 0.3%.
+- **Grounding** (314 model-written sentences on 30 held-out cases): wrong sentences among those shown fell from
+  6.4% to 0.3%. On an adversarial set of 1,168 sentences, the new checks remove every wrong sentence and keep 98.6%
+  of the correct ones.
 
 ## Rules we keep
 
@@ -257,7 +284,9 @@ Phenopacket Store 0.1.27, HPO 2026-09-01, seed 13. Intervals are 95% and resampl
 - The local vision model captures little of what a radiologist reports.
 - The LLM and image runs are small, so their intervals are wide. Published cases may be in the models' training
   data, so their gains are upper bounds.
-- The grounding labels were made with AI help and checked by one of us. They are not independent yet.
+- The grounding labels were made with AI help and checked by one of us. They are not independent yet, and a second
+  annotator is next.
+- External baselines (LIRICAL, RareBench, DeepRare) are not set up yet.
 - Phenopacket Store cases arrive already coded in HPO, so the ranking results leave out reading errors. The
   end-to-end evaluation on PMC cases is next.
 
