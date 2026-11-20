@@ -55,6 +55,7 @@ else:
 describer = MedGemma(vision_model, vision_endpoint, max_new_tokens=1500, timeout=300, vision=True,
                      cache_dir="results/llm_cache", offline=os.environ.get("LLM_OFFLINE") == "1")
 
+IMAGES = {"described_by": None, "note": ""}
 
 def load(path):
     raw = json.loads(Path(path).read_text()) if Path(path).suffix == ".json" else {}
