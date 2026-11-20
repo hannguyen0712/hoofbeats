@@ -42,12 +42,18 @@ llm = MedGemma(os.environ.get("LLM_MODEL", "Qwen/Qwen2.5-7B-Instruct"),
                os.environ.get("LLM_ENDPOINT", "http://127.0.0.1:8000/v1/chat/completions"),
                max_new_tokens=MAX_TOKENS, timeout=120, cache_dir="results/llm_cache",
                extra={"response_format": {"type": "json_object"}}, offline=os.environ.get("LLM_OFFLINE") == "1")
-# Stage A: a vision model describes uploaded images; the description is read like an imaging report
-describer = MedGemma(os.environ["VISION_MODEL"],
-                     os.environ.get("VISION_ENDPOINT", "http://127.0.0.1:8000/v1/chat/completions"), max_new_tokens=1500,
-                     timeout=300, vision=True, cache_dir="results/llm_cache",
-                     offline=os.environ.get("LLM_OFFLINE") == "1") if os.environ.get("VISION_MODEL") else None
-IMAGES = {"described_by": None, "note": ""}
+from hoofbeats.context import DEFAULT_CONTEXT_MODEL, DEFAULT_CONTEXT_ENDPOINT, VISION_NAMES
+main_model = os.environ.get("LLM_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+if os.environ.get("VISION_MODEL"):
+    vision_model = os.environ["VISION_MODEL"]
+    vision_endpoint = os.environ.get("VISION_ENDPOINT", "http://127.0.0.1:8000/v1/chat/completions")
+elif VISION_NAMES.search(main_model):
+    vision_model = main_model
+    vision_endpoint = os.environ.get("LLM_ENDPOINT", "http://127.0.0.1:8000/v1/chat/completions")
+else:
+    vision_model, vision_endpoint = DEFAULT_CONTEXT_MODEL, DEFAULT_CONTEXT_ENDPOINT
+describer = MedGemma(vision_model, vision_endpoint, max_new_tokens=1500, timeout=300, vision=True,
+                     cache_dir="results/llm_cache", offline=os.environ.get("LLM_OFFLINE") == "1")
 
 
 def load(path):
