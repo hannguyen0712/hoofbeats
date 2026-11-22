@@ -180,7 +180,7 @@ def run(case, drop=(), with_results=True):
         Path("results/part4_results_now.json").write_text(json.dumps(load_json(RESULTS, {})[str(case)]))
         cmd += ["--results", "results/part4_results_now.json"]
     with st.spinner("Reading the findings and ranking the diseases..."):
-        res = subprocess.run(cmd, capture_output=True, text=True, env={**os.environ, "LLM_OFFLINE": "1"})
+        res = subprocess.run(cmd, capture_output=True, text=True, env={**os.environ, "LLM_OFFLINE": "1", "VISION_OFFLINE": "0"})
     if res.returncode:
         st.error(res.stderr[-2000:])
         return False
