@@ -572,13 +572,20 @@ def page_results():
     left, right = st.columns([3, 2], gap="large")
     with left:
         has_common = bool(data["lists"]["common"])
-        tab_rare, tab_common = st.tabs(["Rare diseases", "Common diseases" + ("" if has_common else " (not loaded)")])
+        loaded = data.get("common_loaded", has_common)
+        tab_rare, tab_common = st.tabs(["Rare diseases", "Common diseases" + ("" if loaded else " (not loaded)")])
         with tab_rare:
             for n, d in enumerate(data["lists"]["rare"], 1):
                 card(n, d)
         with tab_common:
             if not has_common:
-                st.info("Common-disease profiles are not loaded yet, so this list is empty.")
+                st.info("No common disease matches this record. Common-disease profiles are learned from lab values, "
+                        "so a record without lab results has nothing to match." if loaded else
+                        "Common-disease profiles are not loaded yet, so this list is empty.")
+
+
+
+            
             for n, d in enumerate(data["lists"]["common"], 1):
                 card(n, d)
     with right:
