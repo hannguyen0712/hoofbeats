@@ -29,8 +29,8 @@ Every sentence shown to the clinician cites numbered evidence and is checked bef
    Kept sentences are shown as **Evidence-linked**, tagged with where their evidence comes from: patient record,
    HPO annotation, ranker calculation (or PubMed passage, once those are added). "Evidence-linked" says the
    sentence cites evidence that names the same finding and numbers; it does not prove the reasoning is right.
-4. **Review screen** (`review_app.py`): top 3 rare and top 3 common diseases; each sentence has a *Why?* button that
-   shows the cited evidence, with the exact words highlighted in the note and links to the PubMed sources; the full
+4. **Review screen** (`review_app.py`): top 3 rare and top 3 common diseases; clicking a finding, or the Evidence button on a
+   sentence, shows the cited evidence, with the exact words highlighted in the note and links to the PubMed sources; the full
    note with all evidence highlighted; the suggested tests from Part 3; and a button to remove a wrongly read finding,
    which re-scores and re-explains the case.
 
@@ -39,12 +39,19 @@ Every sentence shown to the clinician cites numbered evidence and is checked bef
 ```bash
 python demo_part4.py examples/marfan_note.json      # Stage 1 + ranking + Part 4; writes results/part4_demo.json
 streamlit run review_app.py                          # the review screen
+LLM_OFFLINE=1 streamlit run review_app.py            # replay saved model replies (laptop)
+COMMON_PROFILES=data/kb/common_profiles.json LLM_OFFLINE=1 streamlit run review_app.py   # + top 3 common diseases
 python walkthrough_part4.py examples/marfan_note.json   # one case, stage by stage (Enter for the next)
 python eval_part4.py 200                             # checks against planted errors (no model needed; --basic: old checks)
 python adversarial_part4.py 200                      # adversarial test set: build part4_adversarial.jsonl and score it
 python recheck_part4.py results/part4_llm_sentences_v3_test.jsonl   # saved model sentences, old vs new checks
 PROMPT_VERSION=v3 python llm_part4.py part4_cases_test.txt    # model explanations (needs the model server)
 ```
+
+Common diseases appear only with `COMMON_PROFILES` set (profiles learned from MIMIC-IV demo lab values, so a record
+without lab results has no common match). Images uploaded in the review screen are described live by a local vision
+model (`VISION_MODEL`, else the main model if it reads images, else MedGemma on a local Ollama); without one running,
+the screen says the images could not be described.
 
 On Sol, `run_demo.sbatch` and `run_s6.sbatch` start the model server and run these; the replies are saved in
 `results/llm_cache/`, and `LLM_OFFLINE=1` replays them on a laptop. The held-out run is
