@@ -58,7 +58,7 @@ and knowledge-base facts, each re-checked. The LLM writes sentences that must en
 `[P2, K2]`. Six checks then remove a sentence if it cites nothing, cites the wrong disease's evidence, misstates a
 finding's status, does not name what it cites, gets a number wrong, or claims more than the evidence shows. When a
 finding matches through a broader HPO term, the sentence must keep that broader term, since the frequency belongs to
-it. The review screen (`review_app.py`) shows the result, with a *Why?* button on every sentence. Details are in
+it. The review screen (`review_app.py`) shows the result; clicking a finding, or the Evidence button on a sentence, shows its evidence. Details are in
 [PART4.md](PART4.md).
 
 **Tests and follow-ups.** For every disease on screen, `workup` suggests up to three tests to confirm it and three
