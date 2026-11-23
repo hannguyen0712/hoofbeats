@@ -474,8 +474,9 @@ def _terms(r, text):
     return {r.ont.resolve(f.hpo_id) for f in _extractor(r).findings(text) if r.ont.resolve(f.hpo_id)}
 
 
-# our own wording for a broader-term item; "falls" in it is not the finding 'Falls'
-BROADER_PHRASE = re.compile(r"the broader HPO term it falls under", re.I)
+# "falls under" is how a broader-term item (and the model's rewording of it) links a finding to its broader term;
+# "falls" there is not the finding 'Falls'
+BROADER_PHRASE = re.compile(r"\bfall(?:s|ing)? under\b", re.I)
 
 
 def unsupported_findings(body, items, r, disease_names):
