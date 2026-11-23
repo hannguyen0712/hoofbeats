@@ -14,9 +14,9 @@ ACTIONS = Path("results/part4_actions.json")        # pick / rule out, per case
 RESULTS = Path("results/part4_results.json")        # test results entered, per case
 CASE_DIR = Path("results/cases")                     # case files written from the forms
 EXAMPLES = {"": "(start empty)",
-            "examples/marfan_note.json": "Tall teenager with lens problems (genetics clinic)",
-            "examples/tsc_imaging.json": "Child with seizures and brain imaging (neurology)",
-            "examples/wilson_labs.json": "Young adult with liver and movement problems (hepatology)"}
+            "examples/marfan_note.json": "Genetics: tall teenager with lens problems",
+            "examples/tsc_imaging.json": "Neurology: child with seizures and brain MRI",
+            "examples/wilson_labs.json": "Hepatology: young adult with liver problems"}
 # where a piece of evidence comes from, shown on every checked sentence and in the evidence popovers
 SOURCE_STYLE = {"patient record": ("Patient record", "#B45309", "#FEF3C7"),
                 "HPO annotation": ("HPO annotation", "#1D4ED8", "#DBEAFE"),
@@ -31,6 +31,7 @@ def source_chips(sources):
                    for lab, fg, bg in (SOURCE_STYLE.get(x, (x, "#334155", "#E2E8F0")) for x in sources))
 SECTIONS = {"supports": "What fits", "against": "What does not fit",
             "expected_but_missing": "Usually present, not recorded", "vs_runner_up": "Why it ranks above the next disease"}
+DOTS = {"very strong": "●●●", "strong": "●●○", "moderate": "●○○", "weak": "○○○"}
 UPLOADS = Path("results/uploads")                    # images uploaded with a case
 MODALITIES = ["X-ray", "CT", "MRI", "Ultrasound", "Photo", "Other"]
 FORM = {"case_id": "", "age": None, "sex": "unknown", "setting": "", "example": "", "note": "", "present": [],
@@ -38,31 +39,69 @@ FORM = {"case_id": "", "age": None, "sex": "unknown", "setting": "", "example": 
         "image_findings": []}
 DOC_NAMES = {"note_text": "Clinical note", "image_context": "Imaging report", "structured_data": "Lab results and other entered values"}
 
-st.set_page_config(page_title="Diagnosis support", layout="wide")
+st.set_page_config(page_title="Hoofbeats · diagnosis support", page_icon="🦓", layout="wide")
 st.markdown("""<style>
-.block-container{padding-top:3.6rem;max-width:1320px}
-.stepper{display:flex;gap:10px;margin:2px 0 18px 0}
-.step{flex:1;border:1px solid #E2E8F0;border-radius:10px;padding:8px 12px;color:#64748B;font-size:0.86rem;background:#F8FAFC}
-.step b{color:#0F172A}
-.step.on{border-color:#2563EB;background:#EFF6FF;color:#1E3A8A}
-.step.done{border-color:#A7F3D0;background:#ECFDF5;color:#065F46}
-.patient{border:1px solid #E2E8F0;border-radius:12px;padding:12px 16px;background:#F8FAFC;margin-bottom:10px}
-.chip{display:inline-block;border-radius:999px;padding:2px 10px;margin:3px 4px 0 0;font-size:0.8rem;border:1px solid #CBD5E1;background:#fff}
-.chip.no{border-color:#FECACA;background:#FEF2F2;color:#991B1B}
-.rank{display:inline-block;width:26px;height:26px;border-radius:50%;background:#0F172A;color:#fff;text-align:center;
-      line-height:26px;font-weight:700;margin-right:8px;font-size:0.85rem}
-.dname{font-size:1.08rem;font-weight:700;color:#0F172A}
-.pct{float:right;font-weight:800;font-size:1.05rem;color:#1E3A8A}
-.bar{height:10px;background:#E2E8F0;border-radius:6px;overflow:hidden;margin:8px 0 2px 0}
-.bar > div{height:100%;background:#2563EB}
-.muted{color:#64748B;font-size:0.84rem}
-.pill{display:inline-block;border-radius:999px;padding:1px 9px;font-size:0.76rem;font-weight:700;margin-right:6px}
+@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap');
+:root{--ink:#1B1D33;--hema:#3B3486;--hema-wash:#EEEDF8;--eosin:#A93A63;--eosin-wash:#F8EAF0;--ok:#1C6B4F;
+      --ok-wash:#E3F2EB;--line:#E3E4EC;--muted:#5F6380;--paper:#FFFFFF;--panel:#F6F6FA}
+html, body, p, li, label, input, textarea, button, h1, h2, h3, h4,
+[data-testid="stMarkdownContainer"], [data-testid="stCaptionContainer"], [data-baseweb="tab"] {
+  font-family:'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif !important}
+.block-container{padding-top:2.2rem;max-width:1280px}
+h1{font-weight:700;letter-spacing:-0.01em;color:var(--ink)}
+.brand{display:flex;align-items:center;gap:10px;margin:0 0 6px 0}
+.brand b{font-size:1.2rem;color:var(--ink)}
+.brand span{color:var(--muted);font-size:0.9rem;margin-left:4px}
+.mark{width:20px;height:20px;border-radius:5px;flex:none;
+      background:repeating-linear-gradient(135deg,var(--ink) 0 3px,var(--paper) 3px 6px);border:1px solid var(--ink)}
+.stepper{display:flex;margin:0 0 22px 0;border-bottom:1px solid var(--line)}
+.step{padding:10px 0 9px 0;margin-right:30px;color:var(--muted);font-size:0.92rem;border-bottom:3px solid transparent;
+      margin-bottom:-1px}
+.step b{font-weight:700}
+.step.on{color:var(--ink);border-bottom-color:var(--hema)}
+.step.done{color:var(--ok)}
+.pt{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.pt h2{font-size:1.6rem;margin:0;padding:0;color:var(--ink);font-weight:700}
+.chips{margin:2px 0 10px 0}
+.chip{display:inline-block;border-radius:6px;padding:2px 9px;margin:4px 5px 0 0;font-size:0.84rem;
+      background:var(--panel);border:1px solid var(--line);color:var(--ink)}
+.chip.no{background:var(--eosin-wash);border-color:transparent;color:var(--eosin)}
+.chip.more{background:transparent;border-style:dashed;color:var(--muted)}
+[class*="st-key-hero"]{position:relative;padding-left:30px !important;overflow:hidden}
+[class*="st-key-hero"]::before{content:'';position:absolute;left:0;top:0;bottom:0;width:12px;
+      background:repeating-linear-gradient(135deg,var(--hema) 0 4px,var(--paper) 4px 8px)}
+.hero .lbl{color:var(--muted);font-size:0.9rem}
+.hero .name{font-size:1.65rem;font-weight:700;color:var(--ink);line-height:1.2;margin:2px 0 6px 0}
+.hero .num{float:right;text-align:right;margin:0 0 6px 18px;max-width:40%}
+.hero .num b{display:block;font-size:2.3rem;line-height:1;color:var(--hema);font-variant-numeric:tabular-nums}
+.hero .num span{color:var(--muted);font-size:0.8rem}
+.bar{height:8px;background:var(--hema-wash);border-radius:4px;overflow:hidden;margin:10px 0 10px 0;clear:both}
+.bar > div{height:100%;background:var(--hema)}
+.ground{display:inline-block;border-radius:6px;padding:3px 10px;font-size:0.82rem;font-weight:700;color:var(--ok);
+        background:var(--ok-wash);margin:0 12px 6px 0}
+.ratio{color:var(--hema);font-size:0.88rem;font-weight:700}
+.sub{font-weight:700;color:var(--ink);margin:12px 0 4px 0}
+.sub .muted{font-weight:400}
+.sect{font-weight:700;color:var(--ink);font-size:1.05rem;margin:22px 0 6px 2px}
+.rail{font-weight:700;color:var(--ink);font-size:1.15rem;margin:6px 0 8px 2px}
+.notes{color:var(--muted);font-size:0.88rem;line-height:1.55;margin:8px 0 10px 0}
+.notes b{color:var(--ink);font-weight:700}
+.cmp{line-height:1.6;margin:4px 0 8px 0}
+.muted{color:var(--muted);font-size:0.86rem}
+.pill{display:inline-block;border-radius:6px;padding:2px 9px;font-size:0.78rem;font-weight:700;margin:2px 6px 4px 0}
+.pill.ok{color:var(--paper);background:var(--ok)}
+.pill.pick{color:var(--hema);background:var(--hema-wash)}
+.pill.out{color:var(--muted);background:var(--panel);border:1px solid var(--line)}
 .rejected{opacity:0.45}
 .doc{font-family:ui-monospace,Menlo,monospace;font-size:0.84rem;line-height:1.6;white-space:pre-wrap;
-     background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:10px 12px;color:#1E293B}
-.doc mark{background:#FDE68A;color:#1E293B;padding:0 2px;border-radius:3px}
-.doc mark.cue{background:#FECACA}
+     background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--ink)}
+.doc mark{background:#FDE68A;color:var(--ink);padding:0 2px;border-radius:3px}
+.doc mark.cue{background:var(--eosin-wash)}
 .doc .dim{color:#94A3B8}
+[data-testid='stAppDeployButton']{display:none}
+[data-testid='stPopoverButton'] > div{width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left}
+[data-testid='stPopoverButton'] > div > div:first-child{flex:1;display:flex;justify-content:flex-start}
+[data-testid='stPopoverButton'] [data-testid='stMarkdownContainer'] p{text-align:left}
 </style>""", unsafe_allow_html=True)
 
 ss = st.session_state
@@ -165,11 +204,12 @@ def labs_from_csv(data):
 
 def stepper(active):
     order = ["patient", "clinical", "results"]
-    labels = [("1. Patient", "Who is the patient"), ("2. Findings", "Notes, symptoms, images, labs"),
-              ("3. Diagnosis", "Likely diseases, evidence, next test")]
+    labels = [("1", "Patient"), ("2", "Findings"), ("3", "Diagnosis")]
     idx = order.index(active) if active in order else 2
+    st.markdown("<div class='brand'><span class='mark'></span><b>Hoofbeats</b><span>Rare-disease diagnosis "
+                "support, with every explanation checked against its evidence</span></div>", unsafe_allow_html=True)
     st.markdown("<div class='stepper'>" + "".join(
-        f"<div class='step {'on' if i == idx else 'done' if i < idx else ''}'><b>{a}</b><br>{b}</div>"
+        f"<div class='step {'on' if i == idx else 'done' if i < idx else ''}'>{'✓' if i < idx else a}&nbsp; <b>{b}</b></div>"
         for i, (a, b) in enumerate(labels)) + "</div>", unsafe_allow_html=True)
 
 
@@ -182,7 +222,10 @@ def run(case, drop=(), with_results=True):
     with st.spinner("Reading the findings and ranking the diseases..."):
         res = subprocess.run(cmd, capture_output=True, text=True, env={**os.environ, "LLM_OFFLINE": "1", "VISION_OFFLINE": "0"})
     if res.returncode:
-        st.error(res.stderr[-2000:])
+        st.error("Something went wrong while analysing this record, so the diagnosis was not updated. "
+                 "Check the findings and try again.")
+        with st.expander("Technical details"):
+            st.code(res.stderr[-2000:])
         return False
     return True
 
@@ -191,28 +234,28 @@ def run(case, drop=(), with_results=True):
 def page_patient():
     stepper("patient")
     st.title("New patient")
+    st.markdown("<span class='muted'>Enter who the patient is and what you found. Hoofbeats lists the likely "
+                "diseases, the evidence for each and the test to do next.</span>", unsafe_allow_html=True)
     f = ss.form
-    with st.container(border=True):
-        st.markdown("**Start from an example** (optional)")
-        ex = st.selectbox("Example patient", list(EXAMPLES), format_func=lambda k: EXAMPLES[k],
-                          index=list(EXAMPLES).index(f["example"]) if f["example"] in EXAMPLES else 0,
-                          label_visibility="collapsed")
-        if ex != f["example"]:
+    st.markdown("<div class='sub'>Try an example</div>", unsafe_allow_html=True)
+    cols = st.columns(3)
+    for col, (ex, label) in zip(cols, [(k, v) for k, v in EXAMPLES.items() if k]):
+        if col.button(label, key=f"ex-{ex}", use_container_width=True):
             f["example"] = ex
-            if ex:
-                c = load_json(ex, {})
-                by_id = {v: k for k, v in hpo_terms().items()}
-                terms = c.get("hpo_terms", [])
-                pick = lambda st_: [by_id[t["id"]] for t in terms if t.get("status", "present") == st_ and t["id"] in by_id]
-                f.update(case_id=c.get("case_id", ""), age=c.get("age"), sex=c.get("sex") or "unknown",
-                         note=c.get("note_text", ""), labs=c.get("labs", []), vitals=c.get("vitals") or {},
-                         genes=", ".join(c.get("genes", [])), present=pick("present"), absent=pick("absent"),
-                         other_terms=[t for t in terms if t.get("status", "present") not in ("present", "absent")
-                                      or t["id"] not in by_id],
-                         image_report=c.get("image_context", ""), image_findings=c.get("image_findings", []),
-                         images=[{"path": str((Path(ex).parent / i["path"]).resolve()), "modality": i.get("modality") or "Other"}
-                                 for i in c.get("images", [])])
-            st.rerun()
+            c = load_json(ex, {})
+            by_id = {v: k for k, v in hpo_terms().items()}
+            terms = c.get("hpo_terms", [])
+            pick = lambda st_: [by_id[t["id"]] for t in terms if t.get("status", "present") == st_ and t["id"] in by_id]
+            f.update(case_id=c.get("case_id", ""), age=c.get("age"), sex=c.get("sex") or "unknown",
+                     note=c.get("note_text", ""), labs=c.get("labs", []), vitals=c.get("vitals") or {},
+                     genes=", ".join(c.get("genes", [])), present=pick("present"), absent=pick("absent"),
+                     other_terms=[t for t in terms if t.get("status", "present") not in ("present", "absent")
+                                  or t["id"] not in by_id],
+                     image_report=c.get("image_context", ""), image_findings=c.get("image_findings", []),
+                     images=[{"path": str((Path(ex).parent / i["path"]).resolve()), "modality": i.get("modality") or "Other"}
+                             for i in c.get("images", [])])
+            go("clinical")
+    st.markdown("<div class='sub'>Or enter a new patient</div>", unsafe_allow_html=True)
     with st.form("patient"):
         c1, c2, c3 = st.columns(3)
         case_id = c1.text_input("Patient ID (no names)", value=f["case_id"], placeholder="e.g. clinic-0042")
@@ -221,7 +264,7 @@ def page_patient():
         sexes = ["unknown", "female", "male", "other"]
         sex = c3.selectbox("Sex", sexes, index=sexes.index(f["sex"]) if f["sex"] in sexes else 0)
         setting = st.text_input("Clinic or setting (optional)", value=f["setting"], placeholder="e.g. genetics clinic")
-        if st.form_submit_button("Next: enter the findings →", type="primary"):
+        if st.form_submit_button("Next: enter the findings", type="primary"):
             if not case_id.strip():
                 st.error("Please enter a patient ID.")
             else:
@@ -241,18 +284,17 @@ def page_clinical():
     names = hpo_terms()
 
     with st.container(border=True):
-        st.markdown("**Clinical note**")
+        st.markdown("**Clinical note** <span class='muted'>· write as you normally would; you can check and correct what was read on the next page</span>", unsafe_allow_html=True)
         note = st.text_area("Clinical note", value=f["note"], height=200, label_visibility="collapsed",
                             placeholder="History, examination and anything else, in your own words. "
                                         "Negations such as 'no chest pain' are understood.")
         c1, c2 = st.columns(2)
-        present = c1.multiselect("Symptoms or signs present (type to search)", list(names), default=f["present"])
-        absent = c2.multiselect("Checked and absent", list(names), default=f["absent"])
+        present = c1.multiselect("Symptoms or signs present", list(names), default=f["present"], placeholder="Type to search")
+        absent = c2.multiselect("Checked and absent", list(names), default=f["absent"], placeholder="Type to search")
         if f["other_terms"]:
             st.caption(f"Also kept from the example: {len(f['other_terms'])} finding(s) marked as family history or uncertain.")
 
-    with st.container(border=True):
-        st.markdown("**Imaging** (optional)")
+    with st.expander("Imaging (optional)" + (" · entered" if f['image_report'] or f['images'] else ""), expanded=bool(f['image_report'] or f['images'])):
         i1, i2 = st.columns([3, 2])
         with i1:
             report = st.text_area("Imaging or radiology report", value=f["image_report"], height=150,
@@ -290,8 +332,7 @@ def page_clinical():
             st.caption("Images are described by a local image model when one is running (on Sol); the description is "
                        "then read like the report above. On this computer they are kept with the case but not described.")
 
-    with st.container(border=True):
-        st.markdown("**Lab results** (optional)")
+    with st.expander("Lab results (optional)" + (" · entered" if f['labs'] else ""), expanded=bool(f['labs'])):
         labs = st.data_editor(f["labs"] or [{"name": None, "value": None, "unit": None, "ref_low": None, "ref_high": None}],
                               num_rows="dynamic", use_container_width=True, key=f"labs_editor_{ss.lab_v}",
                               column_config={"name": st.column_config.SelectboxColumn("Test", options=lab_names()),
@@ -311,8 +352,7 @@ def page_clinical():
         if ss.get("lab_msg"):
             st.caption(ss.lab_msg)
 
-    with st.container(border=True):
-        st.markdown("**Vital signs and genes** (optional)")
+    with st.expander("Vital signs and genes (optional)" + (" · entered" if f['vitals'] or f['genes'] else ""), expanded=bool(f['vitals'] or f['genes'])):
         v = f["vitals"] or {}
         v1, v2, v3, v4, v5 = st.columns(5)
         bp = v1.text_input("Blood pressure", value=v.get("bp") or "", placeholder="120/80")
@@ -322,9 +362,9 @@ def page_clinical():
         spo2 = v5.number_input("SpO2 %", value=v.get("spo2"), placeholder="98")
         genes = st.text_input("Known gene results", value=f["genes"], placeholder="e.g. FBN1")
 
-    b1, b2 = st.columns([1, 4])
-    back = b1.button("← Back")
-    submit = b2.button("Evaluate →", type="primary")
+    b2, b1, _gap = st.columns([1.1, 0.5, 5])
+    back = b1.button("Back")
+    submit = b2.button("Find likely diagnoses", type="primary")
     if back:
         f.update(note=note, present=present, absent=absent, image_report=report, genes=genes)
         go("patient")
@@ -440,134 +480,249 @@ def page_results():
         all_actions[case_key] = actions
         ACTIONS.write_text(json.dumps(all_actions, indent=1))
 
-    top1, top2 = st.columns([5, 1])
-    top1.title("Diagnosis")
-    if top2.button("← Edit findings", use_container_width=True):
-        go("clinical")
-
     pt = data.get("patient") or {}
-    who = " ".join(x for x in (f"{pt['age']}-year-old" if pt.get("age") else "", pt.get("sex") if pt.get("sex") not in (None, "unknown") else "") if x)
+    who = ", ".join(x for x in (f"{pt['age']}-year-old" if pt.get("age") else "",
+                                pt.get("sex") if pt.get("sex") not in (None, "unknown") else "") if x)
+    who = who.replace("-year-old, ", "-year-old ")
     present = [f for f in data["findings"] if f["status"] == "present"]
     absent = [f for f in data["findings"] if f["status"] == "absent"]
-    chips = "".join(f"<span class='chip'>{html.escape(f['name'])}</span>" for f in present) + \
-        "".join(f"<span class='chip no'>no {html.escape(f['name'].lower())}</span>" for f in absent)
-    st.markdown(f"<div class='patient'><b>Patient {html.escape(data['case'])}</b> <span class='muted'>"
-                f"{('· ' + who) if who else ''} · {len(present)} findings present, {len(absent)} absent</span><br>{chips}</div>",
-                unsafe_allow_html=True)
-    if data.get("images"):
-        with st.expander(f"Images ({len(data['images'])})", expanded=False):
+
+    h1, h2, h3 = st.columns([5, 1.5, 1.1], vertical_alignment="center")
+    h1.markdown(f"<div class='pt'><h2>{html.escape(who.capitalize() or 'Patient')}</h2>"
+                f"<span class='muted'>Patient {html.escape(data['case'])}: {len(present)} findings present, "
+                f"{len(absent)} checked and absent</span></div>", unsafe_allow_html=True)
+    with h2.popover("How to read this page", use_container_width=True):
+        st.markdown("- **The %** is the calibrated chance of each disease, given only the findings entered. "
+                    "Look-alike diseases share the chance, so compare the diseases with each other.\n"
+                    "- **●●● ●●○ ●○○** show how strongly a finding points to the disease "
+                    "(likelihood ratio of at least 100, 10 or 3).\n"
+                    "- **✓ statements checked**: every sentence of the explanation was checked against the evidence "
+                    "it cites. Sentences that failed are hidden and listed under *Hidden by the checks*.\n"
+                    "- **Click a finding** to see its evidence and where it was read in the record.\n"
+                    "- **Pick as most likely** and **Rule out** record your judgement. **Enter a test result** "
+                    "updates the list.\n"
+                    "- Decision support only: it does not replace clinical judgement.")
+    if h3.button("Edit findings", use_container_width=True):
+        go("clinical")
+
+    shown_chips = present[:10]
+    chips = "".join(f"<span class='chip'>{html.escape(f['name'])}</span>" for f in shown_chips) + \
+        "".join(f"<span class='chip no'>no {html.escape(f['name'].lower())}</span>" for f in absent[:4])
+    more = len(present) - len(shown_chips) + max(0, len(absent) - 4)
+    if more:
+        chips += f"<span class='chip more'>{more} more</span>"
+    st.markdown(f"<div class='chips'>{chips}</div>", unsafe_allow_html=True)
+
+    e1, e2 = st.columns([1, 1]) if data.get("images") else (st.container(), None)
+    with e1.expander(f"Check and correct what was read ({len(data['findings'])} findings"
+                     + (f", {len(data['dropped'])} removed by you)" if data["dropped"] else ")")):
+        st.caption("If something was read wrongly, remove it and the list of diseases updates.")
+        for f in data["findings"]:
+            a, b = st.columns([7, 1], vertical_alignment="center")
+            mark = {"present": "✓", "absent": "✕"}.get(f["status"], "♢")
+            label = {"present": "", "absent": "absent", "family": "in the family"}.get(f["status"], f["status"])
+            words = f"“{f['words']}”" if f["words"] and f["words"].lower() != f["name"].lower() else ""
+            a.markdown(f"{mark} {html.escape(f['name'])} <span class='muted'>{', '.join(x for x in (label, words) if x)}"
+                       "</span>", unsafe_allow_html=True)
+            if b.button("Remove", key=f"drop-{f['hpo_id']}", use_container_width=True):
+                if run(case_key, data["dropped"] + [f["hpo_id"]]):
+                    st.rerun()
+        if data["dropped"] and st.button("Restore all findings"):
+            if run(case_key):
+                st.rerun()
+    if e2 is not None:
+        with e2.expander(f"Images ({len(data['images'])})"):
             if data.get("images_described_by"):
                 st.caption(f"Described by {data['images_described_by']}; the description is part of the imaging report.")
             elif data.get("images_note"):
                 st.warning(data["images_note"])
-            cols = st.columns(4)
+            cols = st.columns(3)
             for k, im in enumerate(data["images"]):
-                with cols[k % 4]:
+                with cols[k % 3]:
                     if Path(im["path"]).exists():
                         st.image(im["path"], use_container_width=True)
-                    st.caption(f"{im['modality']} · {im['name']}")
-    with st.expander(f"Check what was read from the record ({len(data['findings'])} findings)"
-                     + (f" · {len(data['dropped'])} removed by you" if data["dropped"] else "")):
-        st.caption("If something was read wrongly, remove it and the diagnosis updates.")
-        cols = st.columns(2)
-        for k, f in enumerate(data["findings"]):
-            with cols[k % 2]:
-                a, b = st.columns([5, 1])
-                mark = {"present": "✅", "absent": "⛔"}.get(f["status"], "👪" if f["status"] == "family" else "•")
-                label = {"present": "", "absent": "absent", "family": "in the family"}.get(f["status"], f["status"])
-                words = f"“{f['words']}”" if f["words"] and f["words"].lower() != f["name"].lower() else ""
-                a.markdown(f"{mark} {f['name']} <span class='muted'>{' · '.join(x for x in (label, words) if x)}</span>",
-                           unsafe_allow_html=True)
-                if b.button("Remove", key=f"drop-{f['hpo_id']}"):
-                    if run(case_key, data["dropped"] + [f["hpo_id"]]):
-                        st.rerun()
-        if data["dropped"] and st.button("Restore all findings"):
-            if run(case_key):
-                st.rerun()
+                    st.caption(f"{im['modality']}: {im['name']}")
 
     if fu:
         lines = [f"{shown[d]['name'] if d in shown else d}: "
-                 f"{('%.0f%%' % (100 * fu['before'][d])) if fu['before'].get(d) is not None else 'new'} → {p:.0%}"
+                 f"{('%.0f%%' % (100 * fu['before'][d])) if fu['before'].get(d) is not None else 'new'} to {p:.0%}"
                  for d, p in fu["after"].items()]
         conf = [shown[d]["name"] for d in confirmed_ids if d in shown]
         st.success(("**Confirmed by genetic test: " + ", ".join(conf) + ".**  \n" if conf else
-                    "**Updated with your test results.**  \n") + " · ".join(lines))
+                    "**Updated with your test results.**  \n") + "; ".join(lines))
 
-    def card(n, d):
+    def boxed(key):
+        try:
+            return st.container(border=True, key=key)
+        except TypeError:
+            return st.container(border=True)
+
+    def short(name, n=48):
+        return name if len(name) <= n else name[:n - 1].rstrip(" ,") + "…"
+
+    def status(d):
+        if d["id"] in confirmed_ids:
+            return "<span class='pill ok'>Confirmed by genetic test</span>"
+        if actions["picked"] == d["id"]:
+            return "<span class='pill pick'>Your pick</span>"
+        if d["id"] in actions["rejected"]:
+            return "<span class='pill out'>Ruled out</span>"
+        if d["id"] in (fu or {}).get("same_gene", []):
+            return "<span class='pill out'>Same gene, fits less well</span>"
+        return ""
+
+    def details(d, nxt=None, first=False):
         pack = {i["id"]: i for i in d["pack"]}
         picked, rejected = actions["picked"] == d["id"], d["id"] in actions["rejected"]
-        conf, same = d["id"] in confirmed_ids, d["id"] in (fu or {}).get("same_gene", [])
-        badge = ("<span class='pill' style='color:#fff;background:#047857'>Confirmed</span>" if conf else
-                 "<span class='pill' style='color:#047857;background:#D1FAE5'>Your pick</span>" if picked else
-                 "<span class='pill' style='color:#64748B;background:#E2E8F0'>Ruled out</span>" if rejected else
-                 "<span class='pill' style='color:#64748B;background:#E2E8F0'>Same gene, fits less well</span>" if same else "")
-        with st.container(border=True):
-            st.markdown(f"<div class='{'rejected' if rejected else ''}'><span class='pct'>{d['probability']:.0%}</span>"
-                        f"<span class='rank'>{n}</span><span class='dname'>{html.escape(d['name'])}</span> {badge}"
-                        f"<div class='bar'><div style='width:{max(2, d['probability'] * 100):.0f}%'></div></div></div>",
-                        unsafe_allow_html=True)
-            if rejected:
-                if st.button("Undo rule-out", key=f"undo-{d['id']}"):
-                    actions["rejected"].remove(d["id"]); save_actions(); st.rerun()
-                return
-            st.markdown("<span class='muted'>Why it fits: click a finding to see its evidence</span>", unsafe_allow_html=True)
-            for k, x in enumerate(d["fits"][:3]):
-                freq = ("" if x["freq"] is None else
-                        f" · {x['freq']}% of people with it have '{x['via']}' (the broader HPO term)" if x.get("via") else
-                        f" · in {x['freq']}% of people with it")
-                with st.popover(f"{x['finding']}{freq} · {x['strength']} evidence", use_container_width=True):
-                    evidence_links(x["ids"], pack, f"{d['id']}-fit{k}")
-            if d.get("against"):
-                st.markdown("<span class='muted'>Counts against: " + ", ".join(
-                    (f"no {html.escape(x['finding'].lower())} (usually present, {x['freq']}%)" if x["absent"] and x["freq"]
-                     else html.escape(x["finding"].lower())) for x in d["against"][:3]) + "</span>", unsafe_allow_html=True)
-            if d["missing"]:
-                st.markdown("<span class='muted'>Usually seen but not recorded: " +
-                            ", ".join(f"{html.escape(x['finding'].lower())} ({x['freq']}%)" for x in d["missing"][:3]) +
-                            "</span>", unsafe_allow_html=True)
-            b1, b2, b3 = st.columns([1.3, 1, 2])
+        if rejected:
+            if st.button("Undo rule-out", key=f"undo-{d['id']}"):
+                actions["rejected"].remove(d["id"]); save_actions(); st.rerun()
+            return
+        n_kept = sum(len(v) for v in d["explanation"].values())
+        ground = (f"<span class='ground'>✓ {n_kept} statement{'' if n_kept == 1 else 's'} checked against the evidence"
+                  + (f", {len(d['removed'])} hidden" if d["removed"] else "") + "</span>")
+        ratio = (f"<span class='ratio'>{d['probability'] / nxt:.1f} times as likely as the next disease</span>"
+                 if first and nxt and d["probability"] >= nxt else "")
+        st.markdown(ground + ratio, unsafe_allow_html=True)
+        st.markdown("<div class='sub'>Why it fits <span class='muted'>(click a finding to see its evidence)</span></div>",
+                    unsafe_allow_html=True)
+        for k, x in enumerate(d["fits"][:3]):
+            freq = ("" if x["freq"] is None else
+                    f", {x['freq']}% have '{x['via']}' (broader term)" if x.get("via") else
+                    f", in {x['freq']}% of patients")
+            with st.popover(f"{DOTS.get(x['strength'], '')}  {x['finding']}{freq}", use_container_width=True):
+                st.caption(f"{x['strength'].capitalize()} evidence")
+                evidence_links(x["ids"], pack, f"{d['id']}-fit{k}")
+        notes = []
+        if d.get("against"):
+            notes.append("<b>Counts against:</b> " + ", ".join(
+                (f"no {html.escape(x['finding'].lower())} (usually present, {x['freq']}%)" if x["absent"] and x["freq"]
+                 else html.escape(x["finding"].lower())) for x in d["against"][:3]))
+        if d["missing"]:
+            notes.append("<b>Usually seen but not recorded:</b> " +
+                         ", ".join(f"{html.escape(x['finding'].lower())} ({x['freq']}%)" for x in d["missing"][:3]))
+        if notes:
+            st.markdown("<div class='notes'>" + "<br>".join(notes) + "</div>", unsafe_allow_html=True)
+        b1, b2, b3 = st.columns([1.3, 1, 1.6], vertical_alignment="center")
+        if picked:
+            if b1.button("Unpick", key=f"unpick-{d['id']}", use_container_width=True):
+                actions["picked"] = None; save_actions(); st.rerun()
+        elif b1.button("Pick as most likely", key=f"pick-{d['id']}", type="primary", use_container_width=True):
+            actions["picked"] = d["id"]; save_actions(); st.rerun()
+        if b2.button("Rule out", key=f"rej-{d['id']}", use_container_width=True):
+            actions["rejected"].append(d["id"])
             if picked:
-                if b1.button("Unpick", key=f"unpick-{d['id']}", use_container_width=True):
-                    actions["picked"] = None; save_actions(); st.rerun()
-            elif b1.button("Pick as most likely", key=f"pick-{d['id']}", type="primary", use_container_width=True):
-                actions["picked"] = d["id"]; save_actions(); st.rerun()
-            if b2.button("Rule out", key=f"rej-{d['id']}", use_container_width=True):
-                actions["rejected"].append(d["id"])
-                if picked:
-                    actions["picked"] = None
-                save_actions(); st.rerun()
-            omim = d["id"].split(":")[-1] if d["id"].startswith("OMIM") else None
-            b3.markdown("<span class='muted'>Learn more and management: " +
-                        (f"<a href='https://omim.org/entry/{omim}' target='_blank'>OMIM</a> · " if omim else "") +
-                        f"<a href='https://www.ncbi.nlm.nih.gov/books/NBK1116/?term={d['name'].replace(' ', '+')}' "
-                        f"target='_blank'>GeneReviews</a></span>", unsafe_allow_html=True)
-            with st.expander("Full explanation"):
-                src = "written by a local language model" if d["explanation_source"] == "model" else "written from the evidence"
-                st.caption(f"Every statement was checked against its evidence ({src}); {len(d['removed'])} failed and "
-                           "are hidden. \"Evidence-linked\" means each statement cites evidence that names the same finding "
-                           "and numbers; the tags say where that evidence comes from.")
-                for sec, title in SECTIONS.items():
-                    sents = d["explanation"].get(sec, [])
-                    if not sents:
-                        continue
-                    st.markdown(f"**{title}**")
-                    for j, x in enumerate(sents):
-                        s = x["text"]
-                        srcs = x.get("sources") or OLD_GRADES.get(x["grade"], [])
-                        a, b = st.columns([6, 1])
-                        a.markdown(f"{html.escape(plain(s))}<br><span class='muted'>Evidence-linked · </span>"
-                                   f"{source_chips(srcs)}", unsafe_allow_html=True)
-                        with b.popover("Evidence"):
-                            evidence_links([c.strip() for c in s[s.rfind("[") + 1:s.rfind("]")].split(",")], pack,
-                                           f"{d['id']}-{sec}{j}")
-                if d["removed"]:
-                    with st.expander(f"Hidden by the checks ({len(d['removed'])})"):
-                        for x in d["removed"]:
-                            st.caption(f"{x['text']}  →  {x['reason']}")
+                actions["picked"] = None
+            save_actions(); st.rerun()
+        omim = d["id"].split(":")[-1] if d["id"].startswith("OMIM") else None
+        b3.markdown("<span class='muted'>Read more: " +
+                    (f"<a href='https://omim.org/entry/{omim}' target='_blank'>OMIM</a>, " if omim else "") +
+                    f"<a href='https://www.ncbi.nlm.nih.gov/books/NBK1116/?term={d['name'].replace(' ', '+')}' "
+                    f"target='_blank'>GeneReviews</a></span>", unsafe_allow_html=True)
+        with st.expander("Full explanation"):
+            src = "written by a local language model" if d["explanation_source"] == "model" else "written from the evidence"
+            k_rm = len(d["removed"])
+            st.caption(f"Every statement was checked against its evidence ({src}); {k_rm} failed and "
+                       f"{'is' if k_rm == 1 else 'are'} hidden. The tags say where the evidence comes from.")
+            for sec, title in SECTIONS.items():
+                sents = d["explanation"].get(sec, [])
+                if not sents:
+                    continue
+                st.markdown(f"<div class='sub'>{title}</div>", unsafe_allow_html=True)
+                for j, x in enumerate(sents):
+                    s = x["text"]
+                    srcs = x.get("sources") or OLD_GRADES.get(x["grade"], [])
+                    a, b = st.columns([5, 1])
+                    a.markdown(f"{html.escape(plain(s))}<br>{source_chips(srcs)}", unsafe_allow_html=True)
+                    with b.popover("Evidence"):
+                        evidence_links([c.strip() for c in s[s.rfind("[") + 1:s.rfind("]")].split(",")], pack,
+                                       f"{d['id']}-{sec}{j}")
+            if d["removed"]:
+                with st.expander(f"Hidden by the checks ({k_rm})"):
+                    for x in d["removed"]:
+                        st.caption(f"{x['text']}  ({x['reason']})")
+
+    def compare(a, b):
+        with st.expander(f"Compare with number 2, {short(b['name'], 40)}"):
+            c1, c2 = st.columns(2)
+            for col, d in ((c1, a), (c2, b)):
+                rows = [f"{DOTS.get(x['strength'], '')} {html.escape(x['finding'])}"
+                        + (f" <span class='muted'>({x['freq']}%)</span>" if x["freq"] is not None else "")
+                        for x in d["fits"][:4]]
+                miss = ", ".join(html.escape(x["finding"].lower()) for x in d["missing"][:2])
+                col.markdown(f"<b>{html.escape(d['name'])}</b>, {d['probability']:.0%}"
+                             "<div class='cmp'>" + "<br>".join(rows) + "</div>"
+                             + (f"<span class='muted'>Usually seen but not recorded: {miss}</span>" if miss else ""),
+                             unsafe_allow_html=True)
+            why = a["explanation"].get("vs_runner_up", [])
+            if why:
+                st.markdown(f"<div class='sub'>Checked statements comparing it with "
+                            f"{html.escape(a['runner_up_name'])}</div>", unsafe_allow_html=True)
+                for x in why:
+                    st.markdown(f"- {html.escape(plain(x['text']))}")
+
+    def disease_list(kind):
+        lst = data["lists"][kind]
+        n_all = data.get("n_rare" if kind == "rare" else "n_common")
+        pool = f"{n_all:,} {kind} diseases" if n_all else f"all {kind} diseases in the knowledge base"
+        top = lst[0]
+        nxt = lst[1]["probability"] if len(lst) > 1 else None
+        with boxed(f"hero_{kind}"):
+            st.markdown(f"<div class='hero {'rejected' if top['id'] in actions['rejected'] else ''}'>"
+                        f"<div class='num'><b>{top['probability']:.0%}</b><span>chance among {pool}</span></div>"
+                        f"<div class='lbl'>Most likely</div>"
+                        f"<div class='name'>{html.escape(top['name'])}</div>{status(top)}"
+                        f"<div class='bar'><div style='width:{max(2, top['probability'] * 100):.0f}%'></div></div></div>",
+                        unsafe_allow_html=True)
+            details(top, nxt, first=True)
+            if len(lst) > 1 and top["id"] not in actions["rejected"]:
+                compare(top, lst[1])
+        if len(lst) > 1:
+            st.markdown("<div class='sect'>Other possibilities</div>", unsafe_allow_html=True)
+            for n, d in enumerate(lst[1:], 2):
+                tag = {"<span class='pill pick'>Your pick</span>": "  (your pick)",
+                       "<span class='pill out'>Ruled out</span>": "  (ruled out)"}.get(status(d), "")
+                with st.expander(f"{n}.  {short(d['name'], 60)}  **{d['probability']:.0%}**{tag}"):
+                    st.markdown(status(d) + f"<div class='bar'><div style='width:{max(2, d['probability'] * 100):.0f}%'>"
+                                "</div></div>", unsafe_allow_html=True)
+                    details(d)
 
     def test_line(x):
-        return (f"**{x['test']}**  \n<span class='muted'>if positive → {x['post_test_if_positive']:.0%} · "
-                f"if negative → {x['post_test_if_negative']:.1%} · effort {x['burden']}/5</span>")
+        return (f"**{x['test']}**  \n<span class='muted'>If positive: {x['post_test_if_positive']:.0%}. "
+                f"If negative: {x['post_test_if_negative']:.1%}. Effort {x['burden']} of 5.</span>")
+
+    def summary_text():
+        out = ["Hoofbeats case summary (decision support only, not a diagnosis)", "",
+               f"Patient {data['case']}" + (f", {who}" if who else ""),
+               "Findings present: " + (", ".join(x["name"] for x in present) or "none")]
+        if absent:
+            out.append("Checked and absent: " + ", ".join(x["name"] for x in absent))
+        for kind in ("rare", "common"):
+            if not data["lists"][kind]:
+                continue
+            out += ["", f"Most likely {kind} diseases (calibrated chance):"]
+            for n, d in enumerate(data["lists"][kind], 1):
+                tag = (" [your pick]" if actions["picked"] == d["id"] else
+                       " [ruled out]" if d["id"] in actions["rejected"] else "")
+                out.append(f"{n}. {d['name']}: {d['probability']:.0%}{tag}")
+                if d["fits"]:
+                    out.append("   Fits: " + "; ".join(x["finding"] + (f" ({x['freq']}% of people with it)"
+                               if x["freq"] is not None else "") for x in d["fits"][:3]))
+                if d["missing"]:
+                    out.append("   Usually seen but not recorded: " + "; ".join(x["finding"] for x in d["missing"][:3]))
+        picked_d = shown.get(actions["picked"])
+        if picked_d:
+            t = picked_d.get("tests") or {}
+            tests = [x["test"] for x in ([t["gene_test"]] if t.get("gene_test") else []) + t.get("tests", [])][:3]
+            out += ["", f"Suggested tests for {picked_d['name']}: " + ("; ".join(tests) or "none")]
+        elif data.get("separate"):
+            out += ["", "Tests that best tell the top diseases apart: " + "; ".join(x["test"] for x in data["separate"][:3])]
+        if entered:
+            out += ["", "Test results entered: " + "; ".join(f"{x['test']}: {x['result']}" for x in entered)]
+        hidden = sum(len(d["removed"]) for d in shown.values())
+        out += ["", f"Every explanation statement was checked against the evidence it cites; {hidden} that failed "
+                "the checks were hidden.", time.strftime("Created %Y-%m-%d %H:%M")]
+        return "\n".join(out) + "\n"
 
     left, right = st.columns([3, 2], gap="large")
     with left:
@@ -575,28 +730,26 @@ def page_results():
         loaded = data.get("common_loaded", has_common)
         tab_rare, tab_common = st.tabs(["Rare diseases", "Common diseases" + ("" if loaded else " (not loaded)")])
         with tab_rare:
-            for n, d in enumerate(data["lists"]["rare"], 1):
-                card(n, d)
+            if data["lists"]["rare"]:
+                disease_list("rare")
+            else:
+                st.info("No rare disease matches these findings. Add more findings and try again.")
         with tab_common:
             if not has_common:
                 st.info("No common disease matches this record. Common-disease profiles are learned from lab values, "
                         "so a record without lab results has nothing to match." if loaded else
                         "Common-disease profiles are not loaded yet, so this list is empty.")
-
-
-
-            
-            for n, d in enumerate(data["lists"]["common"], 1):
-                card(n, d)
+            else:
+                disease_list("common")
     with right:
-        st.subheader("Next step")
+        st.markdown("<div class='rail'>Next step</div>", unsafe_allow_html=True)
         picked = shown.get(actions["picked"])
         with st.container(border=True):
             if confirmed_ids and any(d in shown for d in confirmed_ids):
                 st.markdown(f"**{shown[confirmed_ids[0]]['name']}** is confirmed by genetic testing. No further test is "
                             "needed to confirm it.")
             elif picked:
-                st.markdown(f"Tests to confirm or rule out **{picked['name']}**:")
+                st.markdown(f"Tests to confirm or rule out **{picked['name']}**")
                 t = picked.get("tests") or {}
                 for x in (([t["gene_test"]] if t.get("gene_test") else []) + t.get("tests", []))[:3]:
                     st.markdown(test_line(x), unsafe_allow_html=True)
@@ -604,12 +757,13 @@ def page_results():
                     st.markdown(f"Review the existing **{x['test']}** <span class='muted'>(already done)</span>",
                                 unsafe_allow_html=True)
             else:
-                st.markdown("No disease picked yet. These tests best tell the top diseases apart:")
+                st.markdown("Tests that best tell the top diseases apart")
                 for x in data.get("separate", [])[:3]:
-                    parts = " · ".join(f"{shown[d]['name'].split(',')[0]} {p:.0%}" for d, p in x["p_pos"].items() if d in shown)
-                    st.markdown(f"**{x['test']}**  \n<span class='muted'>chance of a positive result: {parts} · "
-                                f"effort {x['burden']}/5</span>", unsafe_allow_html=True)
-                st.caption("Pick a disease on the left to see the tests that confirm it.")
+                    parts = ", ".join(f"{short(shown[d]['name'].split(',')[0], 28)} {p:.0%}"
+                                      for d, p in x["p_pos"].items() if d in shown)
+                    st.markdown(f"**{x['test']}**  \n<span class='muted'>Positive in: {parts}. "
+                                f"Effort {x['burden']} of 5.</span>", unsafe_allow_html=True)
+                st.caption("Pick a disease to see the tests that confirm it.")
         if data.get("can_enter_results"):
             with st.form("result", clear_on_submit=True):
                 st.markdown("**Enter a test result**")
@@ -643,7 +797,8 @@ def page_results():
                     RESULTS.write_text(json.dumps(allr, indent=1))
                     if run(case_key, data["dropped"], with_results=False):
                         st.rerun()
-        st.divider()
+        st.download_button("Download a summary for the chart", summary_text(), use_container_width=True,
+                           file_name=f"hoofbeats_{data['case']}.txt", mime="text/plain")
         if st.button("Start a new patient", use_container_width=True):
             ss.form = {k: (list(v) if isinstance(v, list) else dict(v) if isinstance(v, dict) else v)
                        for k, v in FORM.items()}
@@ -655,7 +810,7 @@ def page_results():
 def page_evidence():
     data = load_json(RESULT, {})
     ev = ss.get("evidence")
-    if st.button("← Back to the diagnosis"):
+    if st.button("Back to the diagnosis"):
         go("results")
     if not ev:
         st.info("Choose a piece of evidence on the diagnosis page.")

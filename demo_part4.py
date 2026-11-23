@@ -209,6 +209,7 @@ def key_points(pack):
 details = raw.get("details") or {}
 out = {"case": case.case_id, "case_path": a.case, "truth": case.truth, "dropped": sorted(dropped),
        "common_loaded": bool(r.db.prior),
+       "n_rare": len(r.db.names) - len(r.db.prior), "n_common": len(r.db.prior),
        "patient": {"age": raw.get("age") or details.get("age"), "sex": raw.get("sex") or details.get("sex")},
        "source": {"kind": "clinical note" if "note_text" in texts else "structured record", "texts": texts},
        "findings": [{"hpo_id": r.ont.resolve(f.hpo_id), "name": r.ont.name(r.ont.resolve(f.hpo_id)),
