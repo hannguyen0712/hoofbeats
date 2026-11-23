@@ -110,6 +110,22 @@ to; it is not an estimate of accuracy on real model output. The hand-written par
 name matching: a correct sentence in other words ("his feet are flat") is still removed. (The Nov 11 version, 1,048
 sentences without the broader-term categories: correct kept 98.4% with both checkers, wrong removed 5.2% vs 100%.)
 
+**NLI comparison (Nov 22).** A general-domain entailment model (cross-encoder/nli-deberta-v3-base; cited evidence
+as premise, sentence without citations as hypothesis, entailment >= 0.5) on the same set
+(`results/adversarial_nli.txt`):
+
+| | Correct kept (437) | Wrong removed (731) |
+| --- | --- | --- |
+| New checks | 98.6% | 100% |
+| NLI alone | 72.3% | 35.0% |
+| New checks and NLI (both must pass) | 71.9% | 100% |
+
+- NLI missed errors that depend on structure rather than wording: broader term dropped, family or uncertain finding
+  stated as the patient's, wrong section (0% each), not recorded stated as present (2%), certainty (7%), swapped LRs (10%).
+- It removed all 60 correct family-finding sentences and about half the correct synonym and uncertain-finding ones.
+- It kept 2 of the 6 hand-written paraphrases V3 removes, but it also kept all 60 broader-term errors V3 catches,
+  so it cannot safely overrule V3.
+
 **Prompt development** (Qwen2.5-7B-Instruct; prompts tuned on 31 dev cases, then run once on 30 test cases; scored
 with the original V1-V4, before the Nov 9 scoring change; "kept" is an acceptance rate, not accuracy):
 
@@ -136,11 +152,15 @@ labelled run did). "Not recorded" items now skip any finding the record has in a
 prompt asks the model to keep the broader term, passes it the calibrated probability shown on screen (it used to
 receive the ranker's raw share, e.g. 70.7% instead of 13.1% for the Marfan example), and allows 1,500 tokens per reply.
 
-**Final run and labels (Nov 15).** Prompt v3 with the changes above, run once on the 30 held-out test cases:
-314 sentences. The original checks kept 313 (99.7%), the new checks 293 (93.3%). The 314 sentences were labelled
-with AI assistance and reviewed by one team member; these are not independent human labels. The reviewer had seen the
-new checks' removal reasons for some sentences, so agreement with the checks may be overstated, and inter-annotator
-agreement was not measured.
+**Final run and labels (Nov 15; second annotation Nov 22).** Prompt v3 with the changes above, run once on the 30
+held-out test cases: 314 sentences. The original checks kept 313 (99.7%), the new checks 293 (93.3%). Two label sets:
+sheet A was labelled with AI assistance and reviewed by one team member who had seen some of the checks' decisions;
+sheet B was labelled by hand by two other team members working together, without seeing the key or the checks'
+output. Agreement: 312 of 314 (99.4%), Cohen's kappa 0.95. Both disagreements (ids 128 and 155) are comparisons with
+the runner-up placed under "supports"; sheet B judged only the content. They were adjudicated by the rule that a
+sentence in the wrong section is unsupported (`results/labels/label_sheet_v3_test_final.csv`). The table uses the
+adjudicated labels; on the 312 sentences both sheets agree on, 19 were unsupported (6.1%) and the figures are 18 of
+311 kept (5.8%) for the original checks and 1 of 293 (0.3%) for the new checks.
 
 | | Original checks (V1-V4) | New checks (V1-V6) |
 | --- | --- | --- |
@@ -153,24 +173,19 @@ broader-term wording to an item that has none (a side effect of the new prompt i
 2 cited comparison evidence as support; 1 had a malformed citation. The one supported sentence removed misspelled the
 disease name ("autosmal"), so its subtype number was read as an unsupported number.
 
-**Next:** a human annotator labels the same sheet independently (`results/labels/label_sheet_v3_test.recheck.csv`) without seeing
-the key or the re-check output; `python score_labels.py sheet_A.csv sheet_B.csv
-results/labels/label_key_v3_test.recheck.csv [final.csv]` then reports agreement and Cohen's kappa, and the results
-above are recomputed on the adjudicated labels.
-
 ## Limitations
 
 - "Evidence-linked" means the sentence names the cited finding and its numbers and adds nothing the checks recognise
-  as extra; meaning beyond that (e.g. a subtle misreading in words the checks don't look for) is not verified. A local
-  entailment (NLI) model is the next step: `adversarial_part4.py --score --nli <model>` evaluates one on the same set
-  (needs `transformers`; run on Sol or a laptop).
+  as extra; meaning beyond that (e.g. a subtle misreading in words the checks don't look for) is not verified.
+  A general-domain NLI model did worse than the checks on the adversarial set (see Results); a medical NLI
+  model is untested.
 - V3 matches finding names and their HPO synonyms, so a correct paraphrase in other words is removed.
 - V6's word lists (certainty, causal, other diseases, other findings) are fixed lists: wording outside them passes.
 - Asking the model to keep broader terms made it add broader-term wording where there is none (4 of 314 sentences).
 - The prompt-development table was measured with the original checks and the scoring before Nov 9; the final run
   uses the current scoring and checks.
-- The labels were AI-assisted and reviewed by one team member who had seen some of the checks' decisions; an
-  independent human annotator, blind to the checks, is next.
+- Sheet A was AI-assisted and reviewed by a team member who had seen some of the checks' decisions; sheet B is a hand
+  annotation blind to the checks (kappa 0.95). Both cover one run of 30 test cases, so the error estimates are small-sample.
 - Where the HPO annotations give no frequency, the ranker uses 50%, and sentences then say "~50% of cases".
 - Evidence comes from the patient record, the HPO annotations and the ranker's own calculation; PubMed passages
   (`pubmed.py`) are not in the evidence pack yet.
