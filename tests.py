@@ -2862,5 +2862,86 @@ class TestPart5(unittest.TestCase):
         self.assertAlmostEqual(t.loc["eig", "vs_random"], 1.0)
 
 
+class TestEvaluate(unittest.TestCase):
+    # hoofbeats/evaluate.py: split, metrics, noisy patients, Resnik baseline, end to end
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = Path(tempfile.mkdtemp())
+        kb = build(cls.root)
+        cls.ont = Ontology(kb / "hp.obo")
+        cls.r = LRRanker(cls.ont, AnnotationDB(kb / "phenotype.hpoa", cls.ont, ("OMIM",), kb / "genes_to_disease.txt"))
+
+    def cases(self):
+        # c1/c2 share a paper, c2/c3 share a disease: one group; c4 and c5 stand alone
+        mk = lambda i, d, pm: Case(i, P("HP:0000098"), [d], source_pmids=[pm])
+        return [mk("c1", "OMIM:1", "PMID:1"), mk("c2", "OMIM:2", "PMID:1"), mk("c3", "OMIM:2", "PMID:2"),
+                mk("c4", "OMIM:3", "PMID:3"), mk("c5", "OMIM:4", "PMID:4")]
+
+    def test_split(self):
+        from hoofbeats.evaluate import assign_split, frozen_split
+        for share in (0.3, 0.5):
+            sp = assign_split(self.cases(), share)
+            self.assertEqual(len({sp["c1"], sp["c2"], sp["c3"]}), 1)              # one group, one side
+            self.assertEqual(sp, assign_split(self.cases()[::-1], share))         # order does not matter
+        self.assertEqual(set(assign_split(self.cases(), 0.0).values()), {"test"})
+        path = Path(tempfile.mkdtemp()) / "split.json"
+        self.assertEqual(frozen_split(path, self.cases(), 0.5, False), frozen_split(path, self.cases(), 0.5, False))
+        with self.assertRaises(SystemExit):
+            frozen_split(path, self.cases()[:3], 0.5, False)
+        frozen_split(path, self.cases()[:3], 0.5, True)                           # --refreeze
+
+    def test_metrics(self):
+        from hoofbeats.evaluate import auroc, clopper_pearson, ece, hit, rr
+        self.assertEqual(hit([1, 4, None], 3).tolist(), [1, 0, 0])
+        self.assertAlmostEqual(rr([1, 4, None]).sum(), 1.25)
+        self.assertEqual(auroc([1, 1, 0, 0], [0.9, 0.8, 0.2, 0.1]), 1.0)
+        self.assertEqual(auroc([1, 0], [0.5, 0.5]), 0.5)
+        self.assertEqual(ece([0.25] * 4, [1, 0, 0, 0]), 0.0)
+        self.assertAlmostEqual(clopper_pearson(0, 100)[1], 0.0362, places=3)
+
+    def test_noisy_patients(self):
+        import random
+        from hoofbeats.evaluate import add_unrelated, broaden, keep_present
+        c = Case("x", P("HP:0000098", "HP:0001166", "HP:0001083", "HP:0007359") + A("HP:0001263"), ["OMIM:1"])
+        k = keep_present(c, 0.0, random.Random(0))
+        self.assertEqual((len(k.present), k.absent), (1, ["HP:0001263"]))         # never empty; absent kept
+        pool = sorted(t for t in self.r.t_index if self.ont.is_phenotype(t))
+        new = set(add_unrelated(c, 1, self.r, pool, random.Random(0)).present) - set(c.present)
+        near = set().union(*(self.ont.ancestors(t) | self.ont.descendants(t) for t in c.present))
+        self.assertEqual(len(new), 1)
+        self.assertFalse(new & near)
+        self.assertIn("HP:0001250", broaden(c, 1.0, self.r, random.Random(0)).present)   # focal seizure -> seizure
+
+    def test_resnik_baseline_with_leakage_control(self):
+        from hoofbeats.evaluate import resnik
+        r = self.r
+        ic = -np.log(np.maximum(np.asarray((r.M > 0).sum(axis=1)).ravel(), 1) / len(r.diseases))
+        c = Case("x", P("HP:0000098", "HP:0001166"), ["OMIM:1"])
+        s = resnik(r, c, frozenset(), ic)
+        self.assertEqual(int(np.argmax(s)), r.d_index["OMIM:1"])
+        s2 = resnik(r, c, frozenset({"PMID:100"}), ic)                           # OMIM:1 loses its PMID:100 annotations
+        self.assertLess(s2[r.d_index["OMIM:1"]], s[r.d_index["OMIM:1"]])
+
+    def test_end_to_end_pairs_text_with_curated_findings(self):
+        from types import SimpleNamespace
+        from unittest import mock
+        import hoofbeats.__main__ as hb_main
+        from hoofbeats.evaluate import Evaluation
+        man = Path(tempfile.mkdtemp()) / "manifest.json"
+        man.write_text(json.dumps({"cases": [{"case_id": "t1", "split": "dev",
+                                              "phenopacket_file": "FBN1/PMID_100_Patient_1.json"}]}))
+        E = object.__new__(Evaluation)
+        E.a = SimpleNamespace(pmc=str(man), pmc_split="dev", allow_test=False, phenopackets=str(self.root / "pps"))
+        E.hb = SimpleNamespace(stage1_reader=lambda a, ont: (None, {"status_policy": "llm"}), leak=hb_main.leak,
+                               evaluable=hb_main.evaluable)
+        E.r, E.cfg, E.md, E.js, E.headline = self.r, {}, [], {}, []
+        with mock.patch("hoofbeats.pmc.load_case_text", return_value="He is very tall and has arachnodactyly."):
+            E.end2end()
+        self.assertEqual(E.js["End to end"]["cases"], 1)
+        E.a.pmc_split = "test"
+        with self.assertRaises(SystemExit):
+            E.end2end()
+
 if __name__ == "__main__":
     unittest.main()

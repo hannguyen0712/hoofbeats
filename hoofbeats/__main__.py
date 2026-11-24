@@ -24,6 +24,7 @@ from .model import (AnnotationDB, Case, Finding, LRRanker, Ontology, Ranking, St
 from .context import add_arguments as add_context_arguments, commands as context_commands
 from .workup import add_arguments as add_workup_arguments, commands as workup_commands
 from .train import add_arguments as add_train_arguments, commands as train_commands, load_weights, rerank_learned
+from .evaluate import add_arguments as add_eval_arguments, commands as eval_commands
 from .followup import add_arguments as add_followup_arguments, commands as followup_commands
 
 
@@ -1554,6 +1555,7 @@ def main(argv=None):
     add_context_arguments(p, sub)     # multimodal, medpix-context and their options (context.py)
     add_workup_arguments(p, sub)      # download-tests, workup, workup-eval (workup.py)
     add_train_arguments(p, sub)       # train and --weights (train.py)
+    add_eval_arguments(p, sub)        # evaluate (evaluate.py)
     add_followup_arguments(p, sub)    # followup (followup.py)
     a = p.parse_args(argv)
     if a.cmd == "download":
@@ -1615,7 +1617,8 @@ def _logged(a):
          "hpo-index": cmd_hpo_index, "llm-eval": cmd_llm_eval,
          "chooser-sheet": cmd_chooser_sheet, "chooser-score": cmd_chooser_score,
          "pmc-test-run": cmd_pmc_test_run, **context_commands(sys.modules[__name__]),
-         **workup_commands(sys.modules[__name__]), **train_commands(sys.modules[__name__]), **followup_commands(sys.modules[__name__])}[a.cmd](a)
+         **workup_commands(sys.modules[__name__]), **train_commands(sys.modules[__name__]), **followup_commands(sys.modules[__name__]),
+         **eval_commands(sys.modules[__name__])}[a.cmd](a)
     except KeyboardInterrupt:
         status = "stopped (Ctrl-C)"
         raise
