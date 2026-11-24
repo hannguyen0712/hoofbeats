@@ -109,11 +109,12 @@ if results and Path(a.case).suffix == ".json" and "case_id" in json.loads(Path(a
     from hoofbeats.followup import interpret, merge
     c0, ex0, rk0, lists0, tests0, prob0 = analyse(a.case, dropped)
     before = {"top": [{"id": d} for lst in lists0.values() for d, _ in lst], "tests": tests0}
-    terms, genes, rows = interpret(wk, before, c0, ex0, results)
+    terms, genes, negative, rows = interpret(wk, before, c0, ex0, results)
     orig = json.loads(Path(a.case).read_text())
     merged = merge(orig, {"test_results": results}, Path(a.case).parent.resolve(), Path(a.case).parent.resolve())
     merged["hpo_terms"] = list(merged.get("hpo_terms") or []) + terms
     merged["genes"] = list(dict.fromkeys(list(merged.get("genes") or []) + genes))
+    merged["genes_negative"] = list(dict.fromkeys(list(merged.get("genes_negative") or []) + negative))
     case_path = "results/part4_followup_case.json"
     Path(case_path).write_text(json.dumps(merged, indent=1))
     r.use_genes = bool(merged["genes"])
@@ -210,7 +211,10 @@ details = raw.get("details") or {}
 out = {"case": case.case_id, "case_path": a.case, "truth": case.truth, "dropped": sorted(dropped),
        "common_loaded": bool(r.db.prior),
        "n_rare": len(r.db.names) - len(r.db.prior), "n_common": len(r.db.prior),
-       "patient": {"age": raw.get("age") or details.get("age"), "sex": raw.get("sex") or details.get("sex")},
+       "calibrated": wk is not None,
+       "pipeline": {"reader": "rules and number parsing",
+                    "kb": "knowledge base HPO " + r.ont.version.rsplit("/", 1)[-1] + ", annotations " + r.db.version},
+       "patient": {"age": raw.get("age") if raw.get("age") is not None else details.get("age"), "sex": raw.get("sex") or details.get("sex")},
        "source": {"kind": "clinical note" if "note_text" in texts else "structured record", "texts": texts},
        "findings": [{"hpo_id": r.ont.resolve(f.hpo_id), "name": r.ont.name(r.ont.resolve(f.hpo_id)),
                      "status": f.status.value, "words": f.evidence or ""} for f in case.findings
@@ -239,5 +243,7 @@ for label, lst in lists.items():
                                     "removed": removed, "tests": tests["diseases"].get(d)})
 
 Path("results").mkdir(exist_ok=True)
-Path("results/part4_demo.json").write_text(json.dumps(out, indent=1))
+tmp = Path("results/part4_demo.json.tmp")
+tmp.write_text(json.dumps(out, indent=1))
+os.replace(tmp, "results/part4_demo.json")
 print("saved results/part4_demo.json")

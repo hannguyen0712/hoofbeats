@@ -83,6 +83,7 @@ h1{font-weight:700;letter-spacing:-0.01em;color:var(--ink)}
 .sub{font-weight:700;color:var(--ink);margin:12px 0 4px 0}
 .sub .muted{font-weight:400}
 .sect{font-weight:700;color:var(--ink);font-size:1.05rem;margin:22px 0 6px 2px}
+.how{color:var(--muted);font-size:0.82rem;line-height:1.5;margin:20px 0 0 2px}
 .rail{font-weight:700;color:var(--ink);font-size:1.15rem;margin:6px 0 8px 2px}
 .notes{color:var(--muted);font-size:0.88rem;line-height:1.55;margin:8px 0 10px 0}
 .notes b{color:var(--ink);font-weight:700}
@@ -216,6 +217,7 @@ def stepper(active):
 def run(case, drop=(), with_results=True):
     # run the pipeline (saved model replies only; a new question falls back to the template explanation)
     cmd = [sys.executable, "demo_part4.py", str(case)] + (["--drop", *drop] if drop else [])
+    ss.last_case = str(case)
     if with_results and load_json(RESULTS, {}).get(str(case)):
         Path("results/part4_results_now.json").write_text(json.dumps(load_json(RESULTS, {})[str(case)]))
         cmd += ["--results", "results/part4_results_now.json"]
@@ -259,7 +261,7 @@ def page_patient():
     with st.form("patient"):
         c1, c2, c3 = st.columns(3)
         case_id = c1.text_input("Patient ID (no names)", value=f["case_id"], placeholder="e.g. clinic-0042")
-        age = c2.number_input("Age (years)", min_value=0, max_value=120, value=int(f["age"]) if f["age"] else None,
+        age = c2.number_input("Age (years)", min_value=0, max_value=120, value=int(f["age"]) if f["age"] is not None else None,
                               placeholder="e.g. 17")
         sexes = ["unknown", "female", "male", "other"]
         sex = c3.selectbox("Sex", sexes, index=sexes.index(f["sex"]) if f["sex"] in sexes else 0)
@@ -278,7 +280,7 @@ def page_patient():
 def page_clinical():
     stepper("clinical")
     f = ss.form
-    who = " ".join(x for x in (f"{f['age']}-year-old" if f["age"] else "", f["sex"] if f["sex"] != "unknown" else "") if x)
+    who = " ".join(x for x in (f"{f['age']}-year-old" if f["age"] is not None else "", f["sex"] if f["sex"] != "unknown" else "") if x)
     st.title("Findings")
     st.caption(f"Patient {f['case_id']}" + (f" · {who}" if who else "") + (f" · {f['setting']}" if f["setting"] else ""))
     names = hpo_terms()
@@ -371,6 +373,10 @@ def page_clinical():
     if submit:
         if not (note.strip() or report.strip() or present or absent or f["images"] or any(r.get("name") for r in labs)):
             st.error("Please enter a note, an imaging report, some findings, an image or a lab result.")
+            return
+        both = sorted(set(present) & set(absent))
+        if both:
+            st.error("Marked both present and absent: " + ", ".join(both) + ". Keep each finding in one list.")
             return
         f.update(note=note, present=present, absent=absent, genes=genes, image_report=report,
                  labs=[r for r in labs if r.get("name") and r.get("value") is not None],
@@ -469,6 +475,13 @@ def page_results():
             go("patient")
         return
     case_key = data["case_path"]
+    if ss.get("last_case") and ss.last_case != case_key:
+        st.warning("The saved results belong to another case, so they are not shown. Run the analysis again "
+                   "for this patient.")
+        if st.button("Run again for this patient", type="primary"):
+            if run(ss.last_case):
+                st.rerun()
+        return
     all_actions = load_json(ACTIONS, {})
     actions = all_actions.get(case_key, {"picked": None, "rejected": []})
     entered = load_json(RESULTS, {}).get(case_key, [])
@@ -481,7 +494,7 @@ def page_results():
         ACTIONS.write_text(json.dumps(all_actions, indent=1))
 
     pt = data.get("patient") or {}
-    who = ", ".join(x for x in (f"{pt['age']}-year-old" if pt.get("age") else "",
+    who = ", ".join(x for x in (f"{pt['age']}-year-old" if pt.get("age") is not None else "",
                                 pt.get("sex") if pt.get("sex") not in (None, "unknown") else "") if x)
     who = who.replace("-year-old, ", "-year-old ")
     present = [f for f in data["findings"] if f["status"] == "present"]
@@ -492,8 +505,9 @@ def page_results():
                 f"<span class='muted'>Patient {html.escape(data['case'])}: {len(present)} findings present, "
                 f"{len(absent)} checked and absent</span></div>", unsafe_allow_html=True)
     with h2.popover("How to read this page", use_container_width=True):
-        st.markdown("- **The %** is the calibrated chance of each disease, given only the findings entered. "
-                    "Look-alike diseases share the chance, so compare the diseases with each other.\n"
+        st.markdown("- **The %** is the model's estimate for each disease, given only the findings entered, "
+                    "calibrated on held-out rare-disease cases. It ranks the diseases; it is not a clinical "
+                    "probability. Look-alike diseases share the chance, so compare the diseases with each other.\n"
                     "- **●●● ●●○ ●○○** show how strongly a finding points to the disease "
                     "(likelihood ratio of at least 100, 10 or 3).\n"
                     "- **✓ statements checked**: every sentence of the explanation was checked against the evidence "
@@ -548,8 +562,11 @@ def page_results():
                  f"{('%.0f%%' % (100 * fu['before'][d])) if fu['before'].get(d) is not None else 'new'} to {p:.0%}"
                  for d, p in fu["after"].items()]
         conf = [shown[d]["name"] for d in confirmed_ids if d in shown]
-        st.success(("**Confirmed by genetic test: " + ", ".join(conf) + ".**  \n" if conf else
+        st.success(("**The genetic result supports " + ", ".join(conf) + ".** Review the report and the findings "
+                    "before confirming the diagnosis.  \n" if conf else
                     "**Updated with your test results.**  \n") + "; ".join(lines))
+        for w in [x.get("warning") for x in fu.get("results") or [] if x.get("warning")]:
+            st.warning(w[0].upper() + w[1:] + ".")
 
     def boxed(key):
         try:
@@ -562,7 +579,7 @@ def page_results():
 
     def status(d):
         if d["id"] in confirmed_ids:
-            return "<span class='pill ok'>Confirmed by genetic test</span>"
+            return "<span class='pill ok'>Supported by genetic result</span>"
         if actions["picked"] == d["id"]:
             return "<span class='pill pick'>Your pick</span>"
         if d["id"] in actions["rejected"]:
@@ -665,11 +682,13 @@ def page_results():
         lst = data["lists"][kind]
         n_all = data.get("n_rare" if kind == "rare" else "n_common")
         pool = f"{n_all:,} {kind} diseases" if n_all else f"all {kind} diseases in the knowledge base"
+        scale = (f"model estimate among {pool}" if kind == "rare" and data.get("calibrated", True) else
+                 f"model score among {pool}, not calibrated")
         top = lst[0]
         nxt = lst[1]["probability"] if len(lst) > 1 else None
         with boxed(f"hero_{kind}"):
             st.markdown(f"<div class='hero {'rejected' if top['id'] in actions['rejected'] else ''}'>"
-                        f"<div class='num'><b>{top['probability']:.0%}</b><span>chance among {pool}</span></div>"
+                        f"<div class='num'><b>{top['probability']:.0%}</b><span>{scale}</span></div>"
                         f"<div class='lbl'>Most likely</div>"
                         f"<div class='name'>{html.escape(top['name'])}</div>{status(top)}"
                         f"<div class='bar'><div style='width:{max(2, top['probability'] * 100):.0f}%'></div></div></div>",
@@ -700,7 +719,9 @@ def page_results():
         for kind in ("rare", "common"):
             if not data["lists"][kind]:
                 continue
-            out += ["", f"Most likely {kind} diseases (calibrated chance):"]
+            out += ["", f"Most likely {kind} diseases ("
+                    + ("model estimate, calibrated on held-out rare-disease cases" if kind == "rare" and data.get("calibrated", True)
+                       else "model score, not calibrated") + "):"]
             for n, d in enumerate(data["lists"][kind], 1):
                 tag = (" [your pick]" if actions["picked"] == d["id"] else
                        " [ruled out]" if d["id"] in actions["rejected"] else "")
@@ -724,6 +745,22 @@ def page_results():
                 "the checks were hidden.", time.strftime("Created %Y-%m-%d %H:%M")]
         return "\n".join(out) + "\n"
 
+    def pipeline_text():
+        pl = data.get("pipeline") or {}
+        srcs = [d["explanation_source"] for d in shown.values()]
+        expl = ("saved local-model replies" if srcs and all(s == "model" for s in srcs) else
+                "templates written from the evidence" if not any(s == "model" for s in srcs) else
+                "saved local-model replies, and templates where none was saved")
+        parts = [f"findings read by {pl.get('reader', 'rules and number parsing')}", f"explanations from {expl}",
+                 "rare-disease estimates calibrated on held-out cases" if data.get("calibrated", True) else
+                 "scores not calibrated"]
+        if data.get("images"):
+            parts.append(f"images described by {data['images_described_by']}" if data.get("images_described_by")
+                         else "images not described")
+        if pl.get("kb"):
+            parts.append(pl["kb"])
+        return "How this was produced: " + "; ".join(parts) + "."
+
     left, right = st.columns([3, 2], gap="large")
     with left:
         has_common = bool(data["lists"]["common"])
@@ -741,13 +778,19 @@ def page_results():
                         "Common-disease profiles are not loaded yet, so this list is empty.")
             else:
                 disease_list("common")
+        st.markdown(f"<div class='how'>{html.escape(pipeline_text())}</div>", unsafe_allow_html=True)
     with right:
         st.markdown("<div class='rail'>Next step</div>", unsafe_allow_html=True)
         picked = shown.get(actions["picked"])
         with st.container(border=True):
             if confirmed_ids and any(d in shown for d in confirmed_ids):
-                st.markdown(f"**{shown[confirmed_ids[0]]['name']}** is confirmed by genetic testing. No further test is "
-                            "needed to confirm it.")
+                gene_rows = [x for x in entered if x.get("classification") in ("pathogenic", "likely pathogenic")]
+                genes_txt = ", ".join(dict.fromkeys(g for x in gene_rows for g in x.get("genes") or [])) or "a gene of this disease"
+                cls_txt = " or ".join(dict.fromkeys(x["classification"] for x in gene_rows)) or "disease-causing"
+                st.markdown(f"A {cls_txt} variant was reported in **{genes_txt}**. This supports "
+                            f"**{shown[confirmed_ids[0]]['name']}**, but the ranking cannot confirm a diagnosis.")
+                st.caption("Check the report (variant, zygosity, inheritance) against the findings, then record your "
+                           "decision with Pick as most likely.")
             elif picked:
                 st.markdown(f"Tests to confirm or rule out **{picked['name']}**")
                 t = picked.get("tests") or {}
@@ -774,14 +817,16 @@ def page_results():
                     + [x["test"] for x in data.get("separate", [])]))
                 test = st.selectbox("Test", options)
                 res = st.radio("Result", ["positive", "negative"], horizontal=True)
-                det = st.text_input("Details (optional)", placeholder="e.g. pathogenic variant c.4082G>A")
+                cls = st.selectbox("Variant classification (gene tests only)",
+                                   ["not stated", "pathogenic", "likely pathogenic", "uncertain significance (VUS)",
+                                    "likely benign", "benign"])
+                det = st.text_input("Details (optional)", placeholder="e.g. c.4082G>A, heterozygous")
                 if st.form_submit_button("Update the diagnosis", type="primary", use_container_width=True):
                     entry = {"test": test, "result": res, "details": det}
                     if "gene" in test.lower() and res == "positive":
                         entry["genes"] = re.findall(r"\b([A-Z][A-Z0-9]{2,})\b", test)[:1]
-                        low = det.lower()
-                        entry["classification"] = "likely pathogenic" if "likely pathogenic" in low else \
-                            "pathogenic" if "pathogenic" in low else "uncertain"
+                        entry["classification"] = {"not stated": "uncertain",
+                                                   "uncertain significance (VUS)": "uncertain"}.get(cls, cls)
                     allr = load_json(RESULTS, {})
                     allr.setdefault(case_key, []).append(entry)
                     RESULTS.write_text(json.dumps(allr, indent=1))
@@ -790,7 +835,8 @@ def page_results():
             if entered:
                 st.markdown("**Results entered**")
                 for x in entered:
-                    st.markdown(f"- {x['test']}: {x['result']}" + (f" ({x['details']})" if x.get("details") else ""))
+                    extra = ", ".join(v for v in (x.get("classification") if x.get("genes") else "", x.get("details")) if v)
+                    st.markdown(f"- {x['test']}: {x['result']}" + (f" ({extra})" if extra else ""))
                 if st.button("Clear results", use_container_width=True):
                     allr = load_json(RESULTS, {})
                     allr.pop(case_key, None)

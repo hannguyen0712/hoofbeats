@@ -1,0 +1,30 @@
+[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 8465 rare + 0 common diseases
+  strict wrong [paraphrase: other words (hand-written)]: The echo shows a widened aortic root, which about 77% of people with Marfan syndrome have [P1, K1]. -> V3: does not name the finding of P1
+  strict wrong [paraphrase: other words (hand-written)]: His feet are flat, as in about 51% of people with Marfan syndrome [P6, K6]. -> V3: does not name the finding of P6
+
+| should be | category | n | basic | strict | nli | strict+nli |
+|---|---|---|---|---|---|---|
+| kept | paraphrase: against | 11 | 100% | 100% | 100% | 100% |
+| kept | paraphrase: broader term kept | 60 | 100% | 100% | 100% | 100% |
+| kept | paraphrase: family finding | 60 | 100% | 100% | 0% | 0% |
+| kept | paraphrase: not recorded | 60 | 100% | 100% | 100% | 100% |
+| kept | paraphrase: other words (hand-written) | 6 | 0% | 0% | 33% | 0% |
+| kept | paraphrase: supports | 60 | 100% | 100% | 100% | 100% |
+| kept | paraphrase: synonym | 60 | 100% | 100% | 55% | 55% |
+| kept | paraphrase: uncertain finding | 60 | 100% | 100% | 52% | 52% |
+| kept | paraphrase: vs runner-up | 60 | 100% | 100% | 98% | 98% |
+| removed | broader term dropped | 60 | 0% | 100% | 0% | 100% |
+| removed | extra unsupported clause | 60 | 2% | 100% | 100% | 100% |
+| removed | family finding stated as the patient's | 60 | 0% | 100% | 0% | 100% |
+| removed | negation not tied to the finding | 11 | 0% | 100% | 100% | 100% |
+| removed | not recorded stated as absent | 60 | 0% | 100% | 100% | 100% |
+| removed | not recorded stated as present | 60 | 0% | 100% | 2% | 100% |
+| removed | number: LR given as a frequency | 60 | 0% | 100% | 58% | 100% |
+| removed | number: swapped LRs | 60 | 0% | 100% | 10% | 100% |
+| removed | overclaim: causal | 60 | 0% | 100% | 40% | 100% |
+| removed | overclaim: certainty | 60 | 0% | 100% | 7% | 100% |
+| removed | uncertain finding stated as the patient's | 60 | 0% | 100% | 0% | 100% |
+| removed | wrong disease | 60 | 48% | 100% | 92% | 100% |
+| removed | wrong section | 60 | 0% | 100% | 0% | 100% |
+correct sentences kept: basic 431/437 (98.6%), strict 431/437 (98.6%), nli 316/437 (72.3%), strict+nli 314/437 (71.9%)
+wrong sentences removed: basic 30/731 (4.1%), strict 731/731 (100.0%), nli 256/731 (35.0%), strict+nli 731/731 (100.0%)
