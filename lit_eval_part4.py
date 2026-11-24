@@ -2,9 +2,11 @@
 
     python lit_eval_part4.py                         # the fresh held-out cases (part4_cases_fresh.txt)
     python lit_eval_part4.py part4_cases_test.txt
-    -> prints coverage; writes results/labels/lit_sheet_<set>.csv (a random 30 highlights to label by hand)
+    -> prints coverage (abstracts only, and with open-access full text); writes results/labels/lit_sheet_<set>.csv
+       (a random 30 highlights to label by hand)
 
-Needs internet for PubMed the first time (only paper IDs are sent); later runs use data/kb/pubmed_cache.json.
+Needs internet the first time (only paper IDs are sent); later runs use the caches in data/kb/. Each case's own
+source paper is left out, as in the ranking (leakage control).
 """
 import csv, random, sys
 from pathlib import Path
@@ -14,7 +16,7 @@ from hoofbeats.data import Extractor, load_phenopackets
 from hoofbeats.model import explain
 from hoofbeats.workup import ranker_probs
 import grounding as g
-from literature_part4 import fetch_papers, highlights
+from literature_part4 import fetch_fulltext, fetch_papers, highlights
 
 src = Path(sys.argv[1] if len(sys.argv) > 1 else "part4_cases_fresh.txt")
 cases = [c for c in src.read_text().split() if c and not c.startswith("examples/")]
@@ -36,27 +38,40 @@ for path in cases:
     pack = g.build_pack(r, case, d, p, ex, runner, claims)
     for i in pack.values():
         if i.kind == "knowledge" and i.hpo_id:
-            items.append({"case": path, "disease": r.db.names[d], **vars(i), "refs": list(i.refs)})
+            items.append({"case": path, "disease": r.db.names[d], "exclude": sorted(ex), **vars(i), "refs": list(i.refs)})
 
-papers, note = fetch_papers([x for i in items for x in i["refs"] if str(x).startswith("PMID:")])
-if note:
-    print(note)
+pmids = [x for i in items for x in i["refs"] if str(x).startswith("PMID:")]
+papers, note = fetch_papers(pmids)
+full, note2 = fetch_fulltext(pmids, limit=1000)
+for n in (note, note2):
+    if n:
+        print(n)
 memo, hits = {}, []
-n_pmid = n_fetched = n_hit = 0
+count = {"pmid": 0, "own paper only": 0, "abstract": 0, "full text": 0, "hit abstract": 0, "hit any": 0}
 for i in items:
-    pm = [x for x in i["refs"] if str(x).startswith("PMID:")]
-    n_pmid += bool(pm)
-    n_fetched += any(x.split(":")[-1] in papers for x in pm)
-    h = highlights(r.ont, ext, i, papers, memo)
-    n_hit += bool(h)
+    own = {x.split(":")[-1] for x in i["exclude"]}
+    pm = [x.split(":")[-1] for x in i["refs"] if str(x).startswith("PMID:")]
+    other = [x for x in pm if x not in own]
+    count["pmid"] += bool(pm)
+    count["own paper only"] += bool(pm) and not other
+    count["abstract"] += any(x in papers for x in other)
+    count["full text"] += any(x in full for x in other)
+    count["hit abstract"] += bool(highlights(r.ont, ext, i, papers, memo, None, i["exclude"]))
+    h = highlights(r.ont, ext, i, papers, memo, full, i["exclude"])
+    count["hit any"] += bool(h)
     hits += [{"item": i, **x} for x in h]
 
 pct = lambda a, b: f"{a} of {b} ({a / b:.0%})" if b else "0 of 0"
-print(f"{len(cases)} cases, {len(items)} knowledge items")
-print(f"  cite at least one PubMed paper:        {pct(n_pmid, len(items))}")
-print(f"  at least one abstract fetched:         {pct(n_fetched, len(items))}")
-print(f"  at least one highlighted sentence:     {pct(n_hit, len(items))} of all items; "
-      f"{pct(n_hit, n_fetched)} of items with an abstract")
+n = len(items)
+print(f"{len(cases)} cases, {n} knowledge items")
+print(f"  cite at least one PubMed paper:              {pct(count['pmid'], n)}")
+print(f"  cite only the case's own paper (left out):   {pct(count['own paper only'], n)}")
+print(f"  an abstract of another cited paper:          {pct(count['abstract'], n)}")
+print(f"  an open-access full text of one:             {pct(count['full text'], n)}")
+print(f"  highlighted, abstracts only:                 {pct(count['hit abstract'], n)}")
+print(f"  highlighted, abstracts and full text:        {pct(count['hit any'], n)}")
+print("  where the highlights come from:", ", ".join(f"{k} {v}" for k, v in
+      sorted(__import__("collections").Counter(h["where"] for h in hits).items(), key=lambda kv: -kv[1])))
 
 rng = random.Random(0)
 sample = rng.sample(hits, min(30, len(hits)))
@@ -64,14 +79,14 @@ out = Path("results/labels") / f"lit_sheet_{src.stem.replace('part4_cases_', '')
 out.parent.mkdir(parents=True, exist_ok=True)
 with open(out, "w", newline="", encoding="utf-8") as f:
     w = csv.writer(f)
-    w.writerow(["id", "disease", "finding", "pmid", "sentence (highlighted words in [[ ]])",
+    w.writerow(["id", "disease", "finding", "pmid", "where", "sentence (highlighted words in [[ ]])",
                 "label (1 = the sentence reports this finding in this disease, 0 = not)", "note"])
-    for n, x in enumerate(sample, 1):
+    for k, x in enumerate(sample, 1):
         s, marked, pos = x["sentence"], [], 0
         for a, b in sorted(x["marks"]):
             marked += [s[pos:a], "[[", s[a:b], "]]"]
             pos = b
         marked.append(s[pos:])
-        w.writerow([n, x["item"]["disease"], r.ont.name(r.ont.resolve(x["item"]["hpo_id"])), x["pmid"], "".join(marked),
-                    "", ""])
+        w.writerow([k, x["item"]["disease"], r.ont.name(r.ont.resolve(x["item"]["hpo_id"])), x["pmid"], x["where"],
+                    "".join(marked), "", ""])
 print(f"saved {out} ({len(sample)} highlights to label)")

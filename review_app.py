@@ -466,7 +466,7 @@ def evidence_links(ids, pack, key):
             name = re.search(r"'([^']+)'", item.get("text", ""))
             lit = item.get("lit") or []
             if lit:
-                st.markdown("**Where the cited papers report it** (PubMed abstracts)")
+                st.markdown("**Where the cited papers report it** (abstracts and open-access full texts)")
             for k, h in enumerate(lit):
                 s, parts, pos = h["sentence"], [], 0
                 for a, b in sorted(h["marks"]):
@@ -474,13 +474,20 @@ def evidence_links(ids, pack, key):
                     pos = b
                 parts.append(html.escape(s[pos:]))
                 year = f", {h['year']}" if h.get("year") else ""
-                st.markdown(f"<div class='lit'>{''.join(parts)}<br><span class='muted'>{h['pmid']}{year}: "
+                where = h.get("where") or "abstract"
+                st.markdown(f"<div class='lit'>{''.join(parts)}<br><span class='muted'>{h['pmid']}{year}, {where}: "
                             f"{html.escape(h['title'][:120])}</span></div>", unsafe_allow_html=True)
                 a, b = h["marks"][0]
-                st.link_button(f"📚 Open {h['pmid']} on PubMed with these words highlighted",
-                               literature_link(h["pmid"], s[a:b]), use_container_width=True)
+                if h.get("pmc") and where not in ("title", "abstract"):
+                    st.link_button(f"📖 Open the full text ({h['pmc']}) with these words highlighted",
+                                   f"https://pmc.ncbi.nlm.nih.gov/articles/{h['pmc']}/#:~:text={urlquote(s[a:b])}",
+                                   use_container_width=True)
+                else:
+                    st.link_button(f"📚 Open {h['pmid']} on PubMed with these words highlighted",
+                                   literature_link(h["pmid"], s[a:b]), use_container_width=True)
             if "lit" in item and not lit and item.get("lit_papers"):
-                st.caption("The cited abstracts do not name this finding; it may be in the full text or the tables.")
+                st.caption("The cited papers do not name this finding in their abstract or open-access full text; it "
+                           "may be in a table or in a paper that is not open access.")
             done = {h["pmid"] for h in lit}
             for ref in [r for r in item.get("refs", []) if r.startswith("PMID") and r not in done][:max(0, 4 - len(lit))]:
                 flag = " (retracted or withdrawn in PubMed)" if ref in (item.get("lit_retracted") or []) else ""
@@ -535,7 +542,8 @@ def page_results():
                     "- **✓ statements checked**: every sentence of the explanation was checked against the evidence "
                     "it cites. Sentences that failed are hidden and listed under *Hidden by the checks*.\n"
                     "- **Click a finding** to see its evidence and where it was read in the record.\n"
-                    "- **📄** marks a finding that a cited paper's abstract reports for this disease; the sentence is "
+                    "- **📄** marks a finding that a cited paper reports for this disease (abstract or open-access full text); "
+                    "the sentence is "
                     "shown with the words highlighted. It shows the paper reports it, not that the diagnosis is right.\n"
                     "- **Pick as most likely** and **Rule out** record your judgement. **Enter a test result** "
                     "updates the list.\n"
@@ -789,8 +797,8 @@ def page_results():
                          else "images not described")
         lit = data.get("literature")
         if lit:
-            parts.append(f"paper highlights from {lit['papers']} PubMed abstracts" + (" (PubMed not reachable: saved "
-                         "abstracts only)" if lit.get("note") else ""))
+            parts.append(f"paper highlights from {lit['papers']} PubMed abstracts and {lit.get('full_text', 0)} "
+                         "open-access full texts" + (" (NCBI not reachable: saved copies only)" if lit.get("note") else ""))
         if pl.get("kb"):
             parts.append(pl["kb"])
         return "How this was produced: " + "; ".join(parts) + "."
