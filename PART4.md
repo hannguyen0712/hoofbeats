@@ -195,6 +195,11 @@ follow-up change).
   uses the current scoring and checks.
 - Sheet A was AI-assisted and reviewed by a team member who had seen some of the checks' decisions; sheet B is a hand
   annotation blind to the checks (kappa 0.95). Both cover one run of 30 test cases, so the error estimates are small-sample.
+- The checks were not designed blind to these 30 test cases: V5-V6 (Nov 11) followed the pilot labels on them, and the
+  broader-term rule and prompt line (Nov 15) followed 21 of 181 labelled test sentences. The 0.3% is therefore an
+  optimistic estimate. The clean test is a fresh set of 30 cases (`part4_cases_fresh.txt`: no disease or paper shared
+  with the dev or test lists), run once with the frozen prompt and checks and labelled by hand by two annotators
+  independently.
 - Where the HPO annotations give no frequency, the ranker uses 50%, and sentences then say "~50% of cases".
 - Evidence comes from the patient record, the HPO annotations and the ranker's own calculation; PubMed passages
   (`pubmed.py`) are not in the evidence pack yet.
