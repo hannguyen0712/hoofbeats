@@ -849,23 +849,26 @@ def page_results():
                     [x["test"] for d in ordered for x in (([d["tests"]["gene_test"]] if (d.get("tests") or {}).get("gene_test")
                                                           else []) + (d.get("tests") or {}).get("tests", []))]
                     + [x["test"] for x in data.get("separate", [])]))
-                test = st.selectbox("Test", options)
-                res = st.radio("Result", ["positive", "negative"], horizontal=True)
+                test = st.selectbox("Test", options, index=None, placeholder="Choose a test")
+                res = st.radio("Result", ["positive", "negative"], index=None, horizontal=True)
                 cls = st.selectbox("Variant classification (gene tests only)",
                                    ["not stated", "pathogenic", "likely pathogenic", "uncertain significance (VUS)",
                                     "likely benign", "benign"])
                 det = st.text_input("Details (optional)", placeholder="e.g. c.4082G>A, heterozygous")
                 if st.form_submit_button("Update the diagnosis", type="primary", use_container_width=True):
-                    entry = {"test": test, "result": res, "details": det}
-                    if "gene" in test.lower() and res == "positive":
-                        entry["genes"] = re.findall(r"\b([A-Z][A-Z0-9]{2,})\b", test)[:1]
-                        entry["classification"] = {"not stated": "uncertain",
-                                                   "uncertain significance (VUS)": "uncertain"}.get(cls, cls)
-                    allr = load_json(RESULTS, {})
-                    allr.setdefault(case_key, []).append(entry)
-                    RESULTS.write_text(json.dumps(allr, indent=1))
-                    if run(case_key, data["dropped"]):
-                        st.rerun()
+                    if not test or not res:
+                        st.error("Choose a test and its result first; nothing was changed.")
+                    else:
+                        entry = {"test": test, "result": res, "details": det}
+                        if "gene" in test.lower() and res == "positive":
+                            entry["genes"] = re.findall(r"\b([A-Z][A-Z0-9]{2,})\b", test)[:1]
+                            entry["classification"] = {"not stated": "uncertain",
+                                                       "uncertain significance (VUS)": "uncertain"}.get(cls, cls)
+                        allr = load_json(RESULTS, {})
+                        allr.setdefault(case_key, []).append(entry)
+                        RESULTS.write_text(json.dumps(allr, indent=1))
+                        if run(case_key, data["dropped"]):
+                            st.rerun()
             if entered:
                 st.markdown("**Results entered**")
                 for x in entered:
