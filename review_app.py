@@ -223,6 +223,7 @@ def run(case, drop=(), with_results=True):
         cmd += ["--results", "results/part4_results_now.json"]
     with st.spinner("Reading the findings and ranking the diseases..."):
         res = subprocess.run(cmd, capture_output=True, text=True, env={**os.environ, "LLM_OFFLINE": "1", "VISION_OFFLINE": "0"})
+    ss.stale = bool(res.returncode)
     if res.returncode:
         st.error("Something went wrong while analysing this record, so the diagnosis was not updated. "
                  "Check the findings and try again.")
@@ -502,7 +503,7 @@ def page_results():
 
     h1, h2, h3 = st.columns([5, 1.5, 1.1], vertical_alignment="center")
     h1.markdown(f"<div class='pt'><h2>{html.escape(who.capitalize() or 'Patient')}</h2>"
-                f"<span class='muted'>Patient {html.escape(data['case'])}: {len(present)} findings present, "
+                f"<span class='muted'>Patient {html.escape(data['case'])}: {len(present)} finding{'' if len(present) == 1 else 's'} present, "
                 f"{len(absent)} checked and absent</span></div>", unsafe_allow_html=True)
     with h2.popover("How to read this page", use_container_width=True):
         st.markdown("- **The %** is the model's estimate for each disease, given only the findings entered, "
@@ -526,9 +527,14 @@ def page_results():
     if more:
         chips += f"<span class='chip more'>{more} more</span>"
     st.markdown(f"<div class='chips'>{chips}</div>", unsafe_allow_html=True)
+    if ss.get("stale"):
+        st.warning("The last update failed, so these results are from before it. Fix the problem and run it again.")
+    if len(present) < 3:
+        st.warning(f"Insufficient evidence: only {len(present)} finding{'' if len(present) == 1 else 's'} present. "
+                   "The list below is a weak starting point, not a differential; add more findings.")
 
     e1, e2 = st.columns([1, 1]) if data.get("images") else (st.container(), None)
-    with e1.expander(f"Check and correct what was read ({len(data['findings'])} findings"
+    with e1.expander(f"Check and correct what was read ({len(data['findings'])} finding{'' if len(data['findings']) == 1 else 's'}"
                      + (f", {len(data['dropped'])} removed by you)" if data["dropped"] else ")")):
         st.caption("If something was read wrongly, remove it and the list of diseases updates.")
         for f in data["findings"]:
@@ -562,8 +568,8 @@ def page_results():
                  f"{('%.0f%%' % (100 * fu['before'][d])) if fu['before'].get(d) is not None else 'new'} to {p:.0%}"
                  for d, p in fu["after"].items()]
         conf = [shown[d]["name"] for d in confirmed_ids if d in shown]
-        st.success(("**The genetic result supports " + ", ".join(conf) + ".** Review the report and the findings "
-                    "before confirming the diagnosis.  \n" if conf else
+        st.success(("**Molecular evidence reported for " + ", ".join(conf) + ".** It needs clinical review (the "
+                    "report and the findings) before the diagnosis is confirmed.  \n" if conf else
                     "**Updated with your test results.**  \n") + "; ".join(lines))
         for w in [x.get("warning") for x in fu.get("results") or [] if x.get("warning")]:
             st.warning(w[0].upper() + w[1:] + ".")
@@ -579,7 +585,7 @@ def page_results():
 
     def status(d):
         if d["id"] in confirmed_ids:
-            return "<span class='pill ok'>Supported by genetic result</span>"
+            return "<span class='pill ok'>Molecular evidence reported: needs clinical review</span>"
         if actions["picked"] == d["id"]:
             return "<span class='pill pick'>Your pick</span>"
         if d["id"] in actions["rejected"]:
