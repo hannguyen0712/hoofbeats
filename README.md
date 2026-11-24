@@ -284,8 +284,8 @@ Phenopacket Store 0.1.27, HPO 2026-09-01, seed 13. Intervals are 95% and resampl
 - The local vision model captures little of what a radiologist reports.
 - The LLM and image runs are small, so their intervals are wide. Published cases may be in the models' training
   data, so their gains are upper bounds.
-- The grounding labels were made with AI help and checked by one of us. They are not independent yet, and a second
-  annotator is next.
+- The grounding labels: one sheet was made with AI help and checked by one of us; a second sheet was labelled by
+  hand by two other team members together, blind to the checks (Cohen's kappa 0.95). Both cover 30 test cases.
 - External baselines (LIRICAL, RareBench, DeepRare) are not set up yet.
 - Phenopacket Store cases arrive already coded in HPO, so the ranking results leave out reading errors. The
   end-to-end evaluation on PMC cases is next.

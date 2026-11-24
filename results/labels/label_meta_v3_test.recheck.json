@@ -1,0 +1,43 @@
+{
+ "source": "results/part4_llm_sentences_v3_test.recheck.jsonl",
+ "modified": "Sun Nov 15 17:16:31 2026",
+ "sentences": 314,
+ "cases": [
+  "data/phenopacket-store/0.1.27/11q_terminal_deletion/PMID_15266616_122.json",
+  "data/phenopacket-store/0.1.27/AGRN/PMID_24951643_Kinship_1_Patient_2.json",
+  "data/phenopacket-store/0.1.27/B3GALT6/PMID_23664117_family_F6_subject_P7.json",
+  "data/phenopacket-store/0.1.27/BAG3/PMID_31853710_II_2.json",
+  "data/phenopacket-store/0.1.27/CLXN/PMID_36727596_OP_4161_II1.json",
+  "data/phenopacket-store/0.1.27/CNTNAP2/PMID_37183190_Family_14_individual_ind_18.json",
+  "data/phenopacket-store/0.1.27/ERCC8/PMID_16865293_Family_3_individual_10Y4M.json",
+  "data/phenopacket-store/0.1.27/GLI3/PMID_24736735_G013_F.json",
+  "data/phenopacket-store/0.1.27/GTF3C3/PMID_39636576_F4_Australia_P6.json",
+  "data/phenopacket-store/0.1.27/IFT140/PMID_37628605_Proband_2.json",
+  "data/phenopacket-store/0.1.27/ITPR1/PMID_29925855_P2.json",
+  "data/phenopacket-store/0.1.27/ITPR1/PMID_37964426_S6_N2591T.json",
+  "data/phenopacket-store/0.1.27/KDM6B/PMID_37196654_Individual_62_MSSNG_AU2168301.json",
+  "data/phenopacket-store/0.1.27/MTTV/PMID_39468830_IV_5.json",
+  "data/phenopacket-store/0.1.27/NEK8/PMID_37598857_Family_7_individual_III_4.json",
+  "data/phenopacket-store/0.1.27/NF1/PMID_26178382_UAB_R0746.json",
+  "data/phenopacket-store/0.1.27/PRKAR1A/PMID_36213268_Case_presentation.json",
+  "data/phenopacket-store/0.1.27/RPGRIP1/PMID_25096270_Case_2.json",
+  "data/phenopacket-store/0.1.27/SAMD9L/PMID_27259050_III_3.json",
+  "data/phenopacket-store/0.1.27/SATB2/PMID_31021519_SATB2_35_from_Zarate_et_al_2018a.json",
+  "data/phenopacket-store/0.1.27/SMAD2/PMID_30448172_man.json",
+  "data/phenopacket-store/0.1.27/SON/PMID_34521999_Individual_52.json",
+  "data/phenopacket-store/0.1.27/STXBP1/PMID_35190816_STX_26865513_Patient_33.json",
+  "data/phenopacket-store/0.1.27/SUOX/PMID_36303223_Proband_18_from_PMID_23414711.json",
+  "data/phenopacket-store/0.1.27/TBCK/PMID_27040691_Individual_3_1.json",
+  "data/phenopacket-store/0.1.27/TBX1/PMID_30137364_B_III_1.json",
+  "data/phenopacket-store/0.1.27/TGFB3/PMID_25835445_1_II_14.json",
+  "data/phenopacket-store/0.1.27/UMOD/PMID_32274456_Family_FGJF_individual_32.json",
+  "data/phenopacket-store/0.1.27/UMOD/PMID_34904096_patient.json",
+  "data/phenopacket-store/0.1.27/ZMYM3/PMID_24721225_III_1.json"
+ ],
+ "strata_population": {
+  "all": 314
+ },
+ "strata_sample": {
+  "all": 314
+ }
+}
