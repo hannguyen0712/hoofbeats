@@ -173,6 +173,22 @@ broader-term wording to an item that has none (a side effect of the new prompt i
 2 cited comparison evidence as support; 1 had a malformed citation. The one supported sentence removed misspelled the
 disease name ("autosmal"), so its subtype number was read as an unsupported number.
 
+**Fresh held-out set (Nov 24).** Because the checks were refined after inspecting the run above (see Limitations),
+they were tested again on 30 new cases (`part4_cases_fresh.txt`), chosen and committed before the run, sharing no
+disease or paper with the dev or test lists. Prompt v3 and the checks were frozen; Qwen2.5-7B-Instruct ran once on
+Sol and wrote 325 sentences. One team member labelled all of them by hand, blind to the checks' decisions
+(`results/labels/label_sheet_v3_fresh_A.csv`); 16 (4.9%) were unsupported.
+
+| | Original checks (V1-V4) | New checks (V1-V6) |
+| --- | --- | --- |
+| Unsupported sentences accepted | 15 of 16 | 0 of 16 |
+| Unsupported among kept sentences | 15 of 324 (4.6%) | 0 of 308 (0.0%; one-sided 95% upper bound 1.0%) |
+| Supported sentences removed | 0 of 309 | 1 of 309 |
+
+The 16 unsupported sentences (error type as labelled): 13 wrong finding, 2 wrong section, 1 not in the evidence.
+The new checks caught all of them, the original checks only the last. The one supported
+sentence removed again misspelled the disease name ("autosmal"), so fuzzy name matching is the next fix.
+
 **Review screen safeguards (Nov 22).** A gene result counts only when its variant classification is chosen from a
 list (pathogenic, likely pathogenic, uncertain, likely benign, benign); free text is no longer parsed. A pathogenic
 or likely pathogenic variant in a disease's gene is shown as "supported by genetic result", not as a confirmed
@@ -197,9 +213,8 @@ follow-up change).
   annotation blind to the checks (kappa 0.95). Both cover one run of 30 test cases, so the error estimates are small-sample.
 - The checks were not designed blind to these 30 test cases: V5-V6 (Nov 11) followed the pilot labels on them, and the
   broader-term rule and prompt line (Nov 15) followed 21 of 181 labelled test sentences. The 0.3% is therefore an
-  optimistic estimate. The clean test is a fresh set of 30 cases (`part4_cases_fresh.txt`: no disease or paper shared
-  with the dev or test lists), run once with the frozen prompt and checks and labelled by hand by two annotators
-  independently.
+  optimistic estimate; the fresh held-out set above is the clean test. That set has a single annotator, so its
+  label reliability rests on the agreement measured on the first set (kappa 0.95, same labelling rules).
 - Where the HPO annotations give no frequency, the ranker uses 50%, and sentences then say "~50% of cases".
 - Evidence comes from the patient record, the HPO annotations and the ranker's own calculation; PubMed passages
   (`pubmed.py`) are not in the evidence pack yet.
