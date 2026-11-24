@@ -13,7 +13,7 @@ from types import SimpleNamespace
 from hoofbeats.__main__ import load_kb
 from hoofbeats.data import Extractor, load_phenopackets
 from hoofbeats.intake import load_case
-from hoofbeats.llm import MedGemma
+from hoofbeats.llm import MedGemma, require_local
 from hoofbeats.model import Case, explain
 import grounding as g
 from hoofbeats.workup import ranker_probs
@@ -133,6 +133,7 @@ if followup:
 
 def explain_with_model(pack, d, p, runner):
     try:
+        require_local(llm)
         trace = g.parse_trace(llm.chat(make_prompt(r, d, p, pack, runner)))
     except Exception as e:                                              # server not running, timeout
         print(f"   model not reachable ({type(e).__name__}); using the template explanation")

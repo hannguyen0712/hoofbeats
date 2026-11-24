@@ -191,12 +191,14 @@ sentence removed again misspelled the disease name ("autosmal"), so fuzzy name m
 
 **Review screen safeguards (Nov 22).** A gene result counts only when its variant classification is chosen from a
 list (pathogenic, likely pathogenic, uncertain, likely benign, benign); free text is no longer parsed. A pathogenic
-or likely pathogenic variant in a disease's gene is shown as "supported by genetic result", not as a confirmed
+or likely pathogenic variant in a disease's gene is shown as "molecular evidence reported: needs clinical review", not as a confirmed
 diagnosis: the clinician records the decision. Percentages are labelled as model estimates (calibrated on held-out
 rare-disease cases, or "not calibrated" when the calibration is unavailable); the screen states how the results
 were produced (reader, explanation source, knowledge-base version); and results saved for another case are not
 shown. The in-screen follow-up uses the current `interpret` output again (it had stopped working after the Nov 9
-follow-up change).
+follow-up change). Since Nov 24, a failed update marks the results on screen as out of date, a record with fewer
+than 3 present findings is flagged as insufficient evidence, and the explanation model is called only when it runs
+in-process or on localhost (otherwise the template is used).
 
 ## Limitations
 
