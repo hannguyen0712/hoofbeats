@@ -200,6 +200,15 @@ follow-up change). Since Nov 24, a failed update marks the results on screen as 
 than 3 present findings is flagged as insufficient evidence, and the explanation model is called only when it runs
 in-process or on localhost (otherwise the template is used).
 
+**Paper highlights (Nov 24).** For each knowledge item, the screen fetches the PubMed abstracts of the papers its
+HPO annotation cites (`literature_part4.py`; only paper IDs are sent; saved in `data/kb/pubmed_cache.json`) and shows
+the sentences in which the Stage 1 reader finds the item's finding (or a narrower form of it, or the broader term by
+name) stated as present, with the words highlighted, plus a PubMed link that opens the abstract with the same words
+highlighted. A sentence with a negation word before the finding is skipped, and retracted papers are flagged and not
+used. A highlight shows that a cited paper reports the finding for this disease, not that the diagnosis is right.
+`python lit_eval_part4.py` measures how many evidence items get a highlight on a case list and writes 30 highlights
+to check by hand (`results/labels/lit_sheet_<set>.csv`).
+
 ## Limitations
 
 - "Evidence-linked" means the sentence names the cited finding and its numbers and adds nothing the checks recognise
@@ -218,6 +227,7 @@ in-process or on localhost (otherwise the template is used).
   optimistic estimate; the fresh held-out set above is the clean test. That set has a single annotator, so its
   label reliability rests on the agreement measured on the first set (kappa 0.95, same labelling rules).
 - Where the HPO annotations give no frequency, the ranker uses 50%, and sentences then say "~50% of cases".
-- Evidence comes from the patient record, the HPO annotations and the ranker's own calculation; PubMed passages
-  (`pubmed.py`) are not in the evidence pack yet.
+- Evidence comes from the patient record, the HPO annotations and the ranker's own calculation. PubMed abstracts are
+  shown to the clinician as highlights but are not in the evidence pack the model cites; many annotations cite no
+  paper, and abstracts often leave out features reported only in the full text or tables.
 - The common-disease list stays empty until common-disease profiles are loaded (Part 2).
