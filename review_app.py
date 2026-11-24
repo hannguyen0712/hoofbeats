@@ -83,6 +83,8 @@ h1{font-weight:700;letter-spacing:-0.01em;color:var(--ink)}
 .sub{font-weight:700;color:var(--ink);margin:12px 0 4px 0}
 .sub .muted{font-weight:400}
 .sect{font-weight:700;color:var(--ink);font-size:1.05rem;margin:22px 0 6px 2px}
+.lit{border-left:3px solid var(--hema);padding:4px 0 4px 10px;margin:6px 0 4px 0;font-size:0.92rem;line-height:1.5}
+.lit mark{background:#FDE68A;color:var(--ink);padding:0 2px;border-radius:3px}
 .how{color:var(--muted);font-size:0.82rem;line-height:1.5;margin:20px 0 0 2px}
 .rail{font-weight:700;color:var(--ink);font-size:1.15rem;margin:6px 0 8px 2px}
 .notes{color:var(--muted);font-size:0.88rem;line-height:1.55;margin:8px 0 10px 0}
@@ -462,8 +464,27 @@ def evidence_links(ids, pack, key):
                      "**From the HPO annotations** (disease features curated from the papers listed):")
             st.markdown(f"{where} {html.escape(plain(item.get('text', '')))}", unsafe_allow_html=True)
             name = re.search(r"'([^']+)'", item.get("text", ""))
-            for ref in [r for r in item.get("refs", []) if r.startswith("PMID")][:4]:
-                st.link_button(f"📚 Open {ref} on PubMed", literature_link(ref, name.group(1) if name else ""),
+            lit = item.get("lit") or []
+            if lit:
+                st.markdown("**Where the cited papers report it** (PubMed abstracts)")
+            for k, h in enumerate(lit):
+                s, parts, pos = h["sentence"], [], 0
+                for a, b in sorted(h["marks"]):
+                    parts += [html.escape(s[pos:a]), "<mark>", html.escape(s[a:b]), "</mark>"]
+                    pos = b
+                parts.append(html.escape(s[pos:]))
+                year = f", {h['year']}" if h.get("year") else ""
+                st.markdown(f"<div class='lit'>{''.join(parts)}<br><span class='muted'>{h['pmid']}{year}: "
+                            f"{html.escape(h['title'][:120])}</span></div>", unsafe_allow_html=True)
+                a, b = h["marks"][0]
+                st.link_button(f"📚 Open {h['pmid']} on PubMed with these words highlighted",
+                               literature_link(h["pmid"], s[a:b]), use_container_width=True)
+            if "lit" in item and not lit and item.get("lit_papers"):
+                st.caption("The cited abstracts do not name this finding; it may be in the full text or the tables.")
+            done = {h["pmid"] for h in lit}
+            for ref in [r for r in item.get("refs", []) if r.startswith("PMID") and r not in done][:max(0, 4 - len(lit))]:
+                flag = " (retracted or withdrawn in PubMed)" if ref in (item.get("lit_retracted") or []) else ""
+                st.link_button(f"📚 Open {ref} on PubMed{flag}", literature_link(ref, name.group(1) if name else ""),
                                use_container_width=True)
 
 
@@ -514,6 +535,8 @@ def page_results():
                     "- **✓ statements checked**: every sentence of the explanation was checked against the evidence "
                     "it cites. Sentences that failed are hidden and listed under *Hidden by the checks*.\n"
                     "- **Click a finding** to see its evidence and where it was read in the record.\n"
+                    "- **📄** marks a finding that a cited paper's abstract reports for this disease; the sentence is "
+                    "shown with the words highlighted. It shows the paper reports it, not that the diagnosis is right.\n"
                     "- **Pick as most likely** and **Rule out** record your judgement. **Enter a test result** "
                     "updates the list.\n"
                     "- Decision support only: it does not replace clinical judgement.")
@@ -613,7 +636,8 @@ def page_results():
             freq = ("" if x["freq"] is None else
                     f", {x['freq']}% have '{x['via']}' (broader term)" if x.get("via") else
                     f", in {x['freq']}% of patients")
-            with st.popover(f"{DOTS.get(x['strength'], '')}  {x['finding']}{freq}", use_container_width=True):
+            paper = "  📄" if any(pack.get(c, {}).get("lit") for c in x["ids"]) else ""
+            with st.popover(f"{DOTS.get(x['strength'], '')}  {x['finding']}{freq}{paper}", use_container_width=True):
                 st.caption(f"{x['strength'].capitalize()} evidence")
                 evidence_links(x["ids"], pack, f"{d['id']}-fit{k}")
         notes = []
@@ -763,6 +787,10 @@ def page_results():
         if data.get("images"):
             parts.append(f"images described by {data['images_described_by']}" if data.get("images_described_by")
                          else "images not described")
+        lit = data.get("literature")
+        if lit:
+            parts.append(f"paper highlights from {lit['papers']} PubMed abstracts" + (" (PubMed not reachable: saved "
+                         "abstracts only)" if lit.get("note") else ""))
         if pl.get("kb"):
             parts.append(pl["kb"])
         return "How this was produced: " + "; ".join(parts) + "."

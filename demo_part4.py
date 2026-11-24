@@ -243,6 +243,9 @@ for label, lst in lists.items():
                                     "pack": [item_json(i) for i in pack.values()], "explanation": kept,
                                     "removed": removed, "tests": tests["diseases"].get(d)})
 
+if os.environ.get("LIT_HIGHLIGHTS", "1") == "1":       # sentences of the cited papers that report each finding
+    from literature_part4 import add_to_lists
+    add_to_lists(out, r.ont, ext)
 Path("results").mkdir(exist_ok=True)
 tmp = Path("results/part4_demo.json.tmp")
 tmp.write_text(json.dumps(out, indent=1))
