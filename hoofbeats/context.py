@@ -129,7 +129,7 @@ MM_CONDITIONS = {"text": "history/exam text",
                  "context": "text + image context (Stage A)",
                  "verified": "text + image context, findings checked by the vision model",
                  "definite": "text + image context, only findings the vision model called definite",
-                 "consensus": "text + image context, only findings most of --context-samples descriptions agree on",
+                 "consensus": "text + image context, only findings at least --context-agree of --context-samples descriptions report",
                  "reference": "text + radiologist findings (upper bound for a context)"}
 CONTEXT_CONDS = ("context", "verified", "definite", "consensus")     # conditions that need the image context
 
@@ -356,10 +356,11 @@ def add_arguments(p, sub):
                         "pertinent negatives (no details, summary, technique or anatomy)")
     p.add_argument("--context-samples", type=int, default=1,
                    help="describe each image this many times (the first at temperature 0, the others sampled) and keep "
-                        "only the findings most descriptions agree on; 1 = off (medpix-context: condition consensus)")
+                        "only the findings at least --context-agree of them report; 1 = off (medpix-context: condition "
+                        "consensus); 5 is the tested setting")
     p.add_argument("--context-agree", type=int, default=0,
                    help="with --context-samples: how many descriptions must report a finding to keep it "
-                        "(default: more than half)")
+                        "(default 2)")
     p.add_argument("--context-verify", action="store_true",
                    help="check each described finding with a second request to the vision model and keep only the "
                         "confirmed ones (diagnose, multimodal; medpix-context compares both with --conditions verified)")

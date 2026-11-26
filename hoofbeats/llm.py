@@ -894,7 +894,7 @@ class ImageContext:
     kept: int = 0              # findings it confirmed (answered yes)
     definite: str = ""         # the description with only the findings the model called definite
     kind: str = ""             # the kind of image (image_kind, or classify_image when the labels name none)
-    consensus: str = ""        # --context-samples N: only the findings that most of the N descriptions agree on
+    consensus: str = ""        # --context-samples N: only the findings at least --context-agree of them report
 
 
 # --context-confidence: keep only findings the describing model rated at least this sure (its "confidence" field;
@@ -1001,6 +1001,8 @@ def verify_findings(llm, grp: list[dict], obj: dict) -> tuple[dict, int, int]:
 
 
 SAMPLE_TEMPERATURE = 0.7
+AGREE_DEFAULT = 2      # --context-agree: 2 of 5 kept recall and precision both above a single description on MedPix
+                       # (32B: precision 11.8% -> 14.0%, recall 16.1% -> 19.2%); 3 of 5 raised precision but lost recall
 
 
 def agreed_findings(texts: list[str], extract, name, need: int | None = None) -> tuple[str, int]:
@@ -1069,7 +1071,7 @@ def image_context(llm, case: Case, max_images: int = 4, per_call: int = 1,
                 obj_k = reply_json(raw_k, ("findings", "summary", "technique"))
                 if isinstance(obj_k, dict):
                     texts.append(render_context(obj_k, "", label, lean=lean))
-            need = getattr(llm, "agree", 0) or len(texts) // 2 + 1
+            need = min(getattr(llm, "agree", 0) or AGREE_DEFAULT, len(texts))
             agreed, _ = agreed_findings(texts, extract, getattr(llm, "term_name", str), need)
             consensus = (f"{label} (findings in at least {need} of {len(texts)} descriptions):\n{agreed}" if agreed else
                          f"{label}: no finding came back in {need} of {len(texts)} descriptions.")
