@@ -1192,6 +1192,22 @@ class TestConfidence(unittest.TestCase):
         self.assertIs(by_confidence(obj, "all"), obj)
         self.assertIn("No D", render_context(by_confidence(obj, "definite"), "", "Image 1"))
 
+    def test_findings_only(self):
+        # --context-read findings: Stage 1 reads the findings list and the negatives, not the hedged details,
+        # the summary or the technique
+        from hoofbeats.llm import render_context
+        obj = {"technique": "MRI brain", "anatomy": "Brain",
+               "findings": [{"finding": "Enlarged lateral ventricles", "location": "both sides", "confidence": "probable",
+                             "details": "suggesting possible hydrocephalus or edema"}],
+               "pertinent_negatives": ["No midline shift"], "summary": "Findings suggest hydrocephalus."}
+        full, lean = render_context(obj, "", "Image 1"), render_context(obj, "", "Image 1", lean=True)
+        self.assertIn("hydrocephalus", full)
+        self.assertNotIn("hydrocephalus", lean)
+        self.assertNotIn("MRI brain", lean)
+        self.assertIn("- Enlarged lateral ventricles (both sides) [probable]", lean)
+        self.assertIn("No midline shift", lean)
+        self.assertEqual(render_context(None, "free text", "Image 1", lean=True), "Image 1: free text")
+
 
 class TestImageKinds(unittest.TestCase):
     def test_kinds_and_prompts(self):

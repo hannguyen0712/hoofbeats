@@ -62,8 +62,9 @@ def context_llm(hb, a):
                    cache, a.dry_run, a.llm_timeout, offline=a.llm_offline)
     llm.verify = bool(getattr(a, "context_verify", False))    # read by llm.image_context
     llm.min_confidence = getattr(a, "context_confidence", "all") or "all"
+    llm.read = getattr(a, "context_read", "all") or "all"       # read by llm.image_context
     hb.RUN["settings"].update({"context_model": llm.model, "context_endpoint": llm.endpoint or "in-process",
-                               "context_verify": llm.verify})
+                               "context_verify": llm.verify, "context_read": llm.read})
     print(f"[llm] image context (Stage A) by {llm.model} via {llm.endpoint or 'transformers (in-process)'}: {why}"
           + ("; each finding checked with a second request (--context-verify)" if llm.verify else ""))
     if not llm.is_local:
@@ -339,6 +340,9 @@ def add_arguments(p, sub):
     p.add_argument("--context-images-per-call", type=int, default=1, help="images described together in one request")
     p.add_argument("--context-confidence", choices=("all", "probable", "definite"), default="all",
                    help="keep only image findings the vision model rated at least this sure (default: all)")
+    p.add_argument("--context-read", choices=("all", "findings"), default="all",
+                   help="what Stage 1 reads from each image description: all of it, or only the findings list and "
+                        "pertinent negatives (no details, summary, technique or anatomy)")
     p.add_argument("--context-verify", action="store_true",
                    help="check each described finding with a second request to the vision model and keep only the "
                         "confirmed ones (diagnose, multimodal; medpix-context compares both with --conditions verified)")

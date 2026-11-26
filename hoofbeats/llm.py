@@ -848,12 +848,16 @@ def context_prompt(imgs: list[dict], details: dict, clinical: str = "", kind: st
                               rules="".join(f"\n- {r}" for r in rules))
 
 
-def render_context(obj, raw: str, label: str) -> str:
-    # the context JSON as readable text; the raw reply if it was not JSON
+def render_context(obj, raw: str, label: str, lean: bool = False) -> str:
+    # the context JSON as readable text; the raw reply if it was not JSON. lean (--context-read findings): only the
+    # findings list (finding, location, confidence) and the pertinent negatives. The details, summary, technique and
+    # anatomy are left out: there the model hedges ("may indicate edema"), names interpretations of a finding it already
+    # listed ("suggesting hydrocephalus" for enlarged ventricles) and repeats the history, and Stage 1 would read each
+    # of those as one more finding.
     if not isinstance(obj, dict):
         return f"{label}: {raw.strip()[:3000]}" if raw.strip() else ""
     lines = [f"{label}:"]
-    for key in ("technique", "anatomy"):
+    for key in () if lean else ("technique", "anatomy"):
         if str(obj.get(key) or "").strip():
             lines.append(f"{key.capitalize()}: {str(obj[key]).strip()}")
     found = obj.get("findings") or []
@@ -864,14 +868,14 @@ def render_context(obj, raw: str, label: str) -> str:
                 loc, det = str(f.get("location") or "").strip(), str(f.get("details") or "").strip()
                 conf = str(f.get("confidence") or "").strip().lower()
                 lines.append(f"- {str(f['finding']).strip()}" + (f" ({loc})" if loc else "")
-                             + (f" [{conf}]" if conf else "") + (f": {det}" if det else ""))
+                             + (f" [{conf}]" if conf else "") + (f": {det}" if det and not lean else ""))
             elif isinstance(f, str) and f.strip():
                 lines.append(f"- {f.strip()}")
     neg = obj.get("pertinent_negatives") or []
     neg = [neg] if isinstance(neg, str) else neg if isinstance(neg, list) else []
     if any(str(x).strip() for x in neg):
         lines.append("Pertinent negatives: " + "; ".join(str(x).strip() for x in neg if str(x).strip()))
-    if str(obj.get("summary") or "").strip():
+    if not lean and str(obj.get("summary") or "").strip():
         lines.append(f"Summary: {str(obj['summary']).strip()}")
     return "\n".join(lines) if len(lines) > 1 else (f"{label}: {raw.strip()[:3000]}" if raw.strip() else "")
 
@@ -1001,6 +1005,7 @@ def image_context(llm, case: Case, max_images: int = 4, per_call: int = 1,
     check_policy(llm, [case])
     verify = getattr(llm, "verify", False) if verify is None else verify
     level = getattr(llm, "min_confidence", "all")       # --context-confidence
+    lean = getattr(llm, "read", "all") == "findings"    # --context-read
     imgs = case.meta.get("images", [])[:max_images]
     if imgs and not llm.sees_images:
         raise ValueError(f"{llm.model} cannot read images; the image-context model must be a vision model")
@@ -1020,16 +1025,16 @@ def image_context(llm, case: Case, max_images: int = 4, per_call: int = 1,
         stopped = cut_off(raw, limit)
         # free text is passed on only if it is a finished, short answer, not a reply that ran out of tokens
         usable = isinstance(obj, dict) or (raw.strip() and not stopped and len(raw) < 4000)
-        text = render_context(obj, raw, label) if usable else ""
-        definite = render_context(by_confidence(obj, "definite"), "", label) if isinstance(obj, dict) else ""
+        text = render_context(obj, raw, label, lean=lean) if usable else ""
+        definite = render_context(by_confidence(obj, "definite"), "", label, lean=lean) if isinstance(obj, dict) else ""
         if level in CONFIDENCE and isinstance(obj, dict):
             obj = by_confidence(obj, level)
-            text = render_context(obj, "", label)        # no raw-text fallback: it would bring the dropped ones back
+            text = render_context(obj, "", label, lean=lean)        # no raw-text fallback: it would bring the dropped ones back
         unchecked, asked, kept = text, 0, 0
         if verify and isinstance(obj, dict):
             checked, asked, kept = verify_findings(llm, grp, obj)
             if asked:      # no raw-text fallback: it would bring back the findings the check removed
-                text = render_context(checked, "", label)
+                text = render_context(checked, "", label, lean=lean)
         out.append(ImageContext([g.get("id", g["path"]) for g in grp], label, text, isinstance(obj, dict),
                                 getattr(llm, "model", ""), stopped, unchecked, asked, kept, definite, kind))
     return out
