@@ -1246,6 +1246,8 @@ class TestConsensus(unittest.TestCase):
         self.assertEqual((text, n), ("- Alpha", 1))
         text, n = agreed_findings(["- Alpha\nNo Delta", "No Delta", "- Beta"], self.extract, names)
         self.assertEqual(text, "- No delta")              # 2 of 3 say no Delta; Alpha and Beta come once each
+        text, n = agreed_findings(["- Alpha\n- Beta", "- Alpha", "- Alpha\n- Gamma"], self.extract, names, need=1)
+        self.assertEqual(n, 3)                            # --context-agree 1: anything any description reports
 
     def test_image_context_samples(self):
         from hoofbeats.llm import image_context

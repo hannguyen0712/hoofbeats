@@ -1003,7 +1003,7 @@ def verify_findings(llm, grp: list[dict], obj: dict) -> tuple[dict, int, int]:
 SAMPLE_TEMPERATURE = 0.7
 
 
-def agreed_findings(texts: list[str], extract, name) -> tuple[str, int]:
+def agreed_findings(texts: list[str], extract, name, need: int | None = None) -> tuple[str, int]:
     # consistency filter (--context-samples): a finding the model saw in the image tends to come back when the same
     # image is described again; one it made up or hedged about tends not to. Keeps the findings (HPO term and status)
     # that more than half of the descriptions report, written as their term names so Stage 1 reads exactly those.
@@ -1012,7 +1012,7 @@ def agreed_findings(texts: list[str], extract, name) -> tuple[str, int]:
     votes = Counter()
     for t in texts:
         votes.update({(f.hpo_id, f.status) for f in extract(t) if f.status in (Status.PRESENT, Status.ABSENT)})
-    need = len(texts) // 2 + 1
+    need = min(need, len(texts)) if need else len(texts) // 2 + 1     # --context-agree; default: a majority
     keep = sorted(k for k, n in votes.items() if n >= need)
     lines = [f"- {name(h)}" for h, st in keep if st == Status.PRESENT]
     lines += [f"- No {name(h).lower()}" for h, st in keep if st == Status.ABSENT]
@@ -1069,9 +1069,10 @@ def image_context(llm, case: Case, max_images: int = 4, per_call: int = 1,
                 obj_k = reply_json(raw_k, ("findings", "summary", "technique"))
                 if isinstance(obj_k, dict):
                     texts.append(render_context(obj_k, "", label, lean=lean))
-            agreed, _ = agreed_findings(texts, extract, getattr(llm, "term_name", str))
-            consensus = (f"{label} (findings in most of {len(texts)} descriptions):\n{agreed}" if agreed else
-                         f"{label}: no finding came back in most of {len(texts)} descriptions.")
+            need = getattr(llm, "agree", 0) or len(texts) // 2 + 1
+            agreed, _ = agreed_findings(texts, extract, getattr(llm, "term_name", str), need)
+            consensus = (f"{label} (findings in at least {need} of {len(texts)} descriptions):\n{agreed}" if agreed else
+                         f"{label}: no finding came back in {need} of {len(texts)} descriptions.")
             if getattr(llm, "use_consensus", True):
                 text = consensus
         out.append(ImageContext([g.get("id", g["path"]) for g in grp], label, text, isinstance(obj, dict),

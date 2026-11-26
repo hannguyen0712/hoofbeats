@@ -64,8 +64,9 @@ def context_llm(hb, a):
     llm.min_confidence = getattr(a, "context_confidence", "all") or "all"
     llm.read = getattr(a, "context_read", "all") or "all"       # read by llm.image_context
     llm.samples = max(int(getattr(a, "context_samples", 1) or 1), 1)
+    llm.agree = max(int(getattr(a, "context_agree", 0) or 0), 0)
     hb.RUN["settings"].update({"context_model": llm.model, "context_endpoint": llm.endpoint or "in-process",
-                               "context_verify": llm.verify, "context_read": llm.read, "context_samples": llm.samples})
+                               "context_verify": llm.verify, "context_read": llm.read, "context_samples": llm.samples, "context_agree": llm.agree})
     print(f"[llm] image context (Stage A) by {llm.model} via {llm.endpoint or 'transformers (in-process)'}: {why}"
           + ("; each finding checked with a second request (--context-verify)" if llm.verify else ""))
     if not llm.is_local:
@@ -289,16 +290,17 @@ def cmd_medpix_context(a, hb):
         for case, g in df.groupby("case", sort=False):
             print(f"  {case} ({g.title.iloc[0]}): " + ", ".join(f"{x.condition} {num(x.rank)}" for x in g.itertuples()))
     pct = lambda k: "–" if k not in summary else f"{summary[k]:.1%}"
-    for cond in ("context", "verified", "definite"):
+    for cond in ("context", "verified", "definite", "consensus"):
         cx = df[df.condition == cond]
         if not len(cx):
             continue
-        pre = {"context": "context_", "verified": "verified_", "definite": "definite_"}[cond]
+        pre = {"context": "context_", "verified": "verified_", "definite": "definite_", "consensus": "consensus_"}[cond]
         summary.update({pre + k.removeprefix("context_"): round(cx[k].mean(), 3)
                         for k in ("context_named_diagnosis", "context_parsed", "context_precision", "context_recall")
                         if k in cx and cx[k].notna().any()})
         what = {"context": "Image context", "verified": "Checked image context",
-                "definite": "Image context, definite findings only"}[cond]
+                "definite": "Image context, definite findings only",
+                "consensus": "Image context, findings the descriptions agree on"}[cond]
         print(f"\n{what} vs the radiologist's findings (HPO terms): precision {pct(pre + 'precision')}, "
               f"recall {pct(pre + 'recall')}; contexts that named the diagnosis {pct(pre + 'named_diagnosis')} "
               f"(disease names are never turned into findings); replies parsed {pct(pre + 'parsed')}")
@@ -355,6 +357,9 @@ def add_arguments(p, sub):
     p.add_argument("--context-samples", type=int, default=1,
                    help="describe each image this many times (the first at temperature 0, the others sampled) and keep "
                         "only the findings most descriptions agree on; 1 = off (medpix-context: condition consensus)")
+    p.add_argument("--context-agree", type=int, default=0,
+                   help="with --context-samples: how many descriptions must report a finding to keep it "
+                        "(default: more than half)")
     p.add_argument("--context-verify", action="store_true",
                    help="check each described finding with a second request to the vision model and keep only the "
                         "confirmed ones (diagnose, multimodal; medpix-context compares both with --conditions verified)")
