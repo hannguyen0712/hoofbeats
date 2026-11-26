@@ -40,7 +40,7 @@ Every sentence shown to the clinician cites numbered evidence and is checked bef
 python demo_part4.py examples/marfan_note.json      # Stage 1 + ranking + Part 4; writes results/part4_demo.json
 streamlit run review_app.py                          # the review screen
 LLM_OFFLINE=1 streamlit run review_app.py            # replay saved model replies (laptop)
-COMMON_PROFILES=data/kb/common_profiles.json LLM_OFFLINE=1 streamlit run review_app.py   # + top 3 common diseases
+COMMON_PROFILES=none streamlit run review_app.py      # without the common-disease list
 python walkthrough_part4.py examples/marfan_note.json   # one case, stage by stage (Enter for the next)
 python eval_part4.py 200                             # checks against planted errors (no model needed; --basic: old checks)
 python adversarial_part4.py 200                      # adversarial test set: build part4_adversarial.jsonl and score it
@@ -48,8 +48,8 @@ python recheck_part4.py results/part4_llm_sentences_v3_test.jsonl   # saved mode
 PROMPT_VERSION=v3 python llm_part4.py part4_cases_test.txt    # model explanations (needs the model server)
 ```
 
-Common diseases appear only with `COMMON_PROFILES` set (profiles learned from MIMIC-IV demo lab values, so a record
-without lab results has no common match). Images uploaded in the review screen are described live by a local vision
+Common diseases load automatically when `data/kb/common_profiles.json` exists (`COMMON_PROFILES=none` turns them
+off; profiles are learned from MIMIC-IV demo lab values, so a record without lab results has no common match). Images uploaded in the review screen are described live by a local vision
 model (`VISION_MODEL`, else the main model if it reads images, else MedGemma on a local Ollama); without one running,
 the screen says the images could not be described.
 

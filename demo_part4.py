@@ -26,7 +26,7 @@ ap.add_argument("--results", default=None, help="JSON file with test results ent
 ap.add_argument("--k", type=int, default=3)
 a = ap.parse_args()
 
-r = load_kb(SimpleNamespace(kb="data/kb", common=os.environ.get("COMMON_PROFILES", "none"), prior_weight=1.0, absent_weight=0.5, absent_min_freq=0.8,
+r = load_kb(SimpleNamespace(kb="data/kb", common=os.environ.get("COMMON_PROFILES", "data/kb/common_profiles.json"), prior_weight=1.0, absent_weight=0.5, absent_min_freq=0.8,
                             use_onset=False, use_sex=False))
 ext = Extractor(r.ont)
 try:
