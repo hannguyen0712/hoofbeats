@@ -26,6 +26,7 @@ SECTIONS = {"TITLE": "title", "ABSTRACT": "abstract", "INTRO": "introduction", "
             "FIG": "figure legend", "TABLE": "table"}                # references, funding etc. are left out
 COUNTS = {Status.PRESENT, Status.FAMILY}        # in a paper, "affected relatives had X" also reports X
 NEGATION = re.compile(r"\b(no|not|without|absent|absence|none|neither|nor|lack\w*|never|negative|denied|excluded)\b", re.I)
+FAMILY_HISTORY = re.compile(r"\bfamily (medical )?history\b", re.I)   # relatives of a carrier, not patients
 
 
 def _quick(url, timeout=30):
@@ -142,7 +143,8 @@ def highlights(ont, ext, item, papers, memo, full=None, exclude=(), per_item=3):
             if s not in memo:
                 memo[s] = ext.mentions(s)
             marks = [(m.start, m.end) for m in memo[s] if m.status in COUNTS and fits(m)
-                     and not NEGATION.search(s[:m.start])]      # stricter than the reader: any negation before it
+                     and not NEGATION.search(s[:m.start])       # stricter than the reader: any negation before it
+                     and not FAMILY_HISTORY.search(s[:m.start])]
             if marks:
                 out.append({"pmid": f"PMID:{pmid}", "title": p.title if p else "", "year": p.year if p else None,
                             "sentence": s, "marks": marks, "where": where, "pmc": ft.get("pmc", "")})
