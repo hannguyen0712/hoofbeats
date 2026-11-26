@@ -10,3 +10,15 @@ __pycache__/
 *.npy
 *.safetensors
 *.gguf
+
+results/cases/
+results/uploads/
+results/runs/
+results/part4_demo.json
+results/part4_demo.json.tmp
+results/part4_actions.json
+results/part4_results.json
+results/part4_results_now.json
+results/part4_followup_case.json
+results/_case_without_images.json
+*.out
