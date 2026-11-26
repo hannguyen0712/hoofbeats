@@ -217,7 +217,8 @@ abstracts alone, 84 (26%) with the full text (results 22, introductions 18, figu
 5). One team member labelled a random 30 highlights by hand (`results/labels/lit_sheet_fresh.csv`): 23 correct (77%;
 95% CI 58-90%). Of the 7 wrong, 4 report the finding for a different disease or patient group in the same paper, 1
 is a family history, 1 a study's inclusion criteria and 1 a related but different finding. Highlights are shown as
-pointers for the clinician to check; the checks do not use them.
+pointers for the clinician to check; the checks do not use them. Since Nov 26 a mention after "family history" no
+longer counts (the parkinsonism error above); the 77% was measured before this change.
 
 ## Limitations
 
