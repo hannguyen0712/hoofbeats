@@ -1209,6 +1209,60 @@ class TestConfidence(unittest.TestCase):
         self.assertEqual(render_context(None, "free text", "Image 1", lean=True), "Image 1: free text")
 
 
+class TestConsensus(unittest.TestCase):
+    # --context-samples: describe each image N times, keep the findings most descriptions agree on
+
+    class Sampler:
+        # the first (temperature 0) reply sees A and B; sample 1 sees A; sample 2 sees A, C and "No D"
+        model, endpoint, sees_images, is_local, dry_run, max_new_tokens = "fake", None, True, True, False, 512
+
+        def __init__(self):
+            self.extra, self.seen = {}, []
+
+        def chat(self, user, system="", images=()):
+            from hoofbeats.llm import CLASSIFY_PROMPT
+            if user == CLASSIFY_PROMPT:
+                return "radiology"
+            seed = self.extra.get("seed", 0)
+            self.seen.append((seed, self.extra.get("temperature")))
+            names = {0: ["Alpha", "Beta"], 1: ["Alpha"], 2: ["Alpha", "Gamma"]}[seed]
+            return json.dumps({"findings": [{"finding": n} for n in names],
+                               "pertinent_negatives": ["No Delta"] if seed == 2 else [], "summary": "x"})
+
+    @staticmethod
+    def extract(text):
+        ids = {"alpha": "HP:1", "beta": "HP:2", "gamma": "HP:3", "delta": "HP:4"}
+        out = []
+        for line in text.lower().splitlines():
+            for word, h in ids.items():
+                if word in line:
+                    out.append(Finding(h, Status.ABSENT if line.strip("- ").startswith("no ") else Status.PRESENT))
+        return out
+
+    def test_agreed_findings(self):
+        from hoofbeats.llm import agreed_findings
+        names = {"HP:1": "Alpha", "HP:2": "Beta", "HP:3": "Gamma", "HP:4": "Delta"}.get
+        text, n = agreed_findings(["- Alpha\n- Beta", "- Alpha", "- Alpha\n- Gamma\nNo Delta"], self.extract, names)
+        self.assertEqual((text, n), ("- Alpha", 1))
+        text, n = agreed_findings(["- Alpha\nNo Delta", "No Delta", "- Beta"], self.extract, names)
+        self.assertEqual(text, "- No delta")              # 2 of 3 say no Delta; Alpha and Beta come once each
+
+    def test_image_context_samples(self):
+        from hoofbeats.llm import image_context
+        llm = self.Sampler()
+        llm.samples, llm.extract = 3, self.extract
+        llm.term_name = {"HP:1": "Alpha", "HP:2": "Beta", "HP:3": "Gamma", "HP:4": "Delta"}.get
+        case = Case("c", [], [], meta={"images": [{"path": __file__, "modality": "CT", "id": "i1"}]})
+        part = image_context(llm, case, max_images=1)[0]
+        self.assertEqual(sorted(llm.seen), [(0, None), (1, 0.7), (2, 0.7)])
+        self.assertIn("- Alpha", part.consensus)
+        self.assertNotIn("Beta", part.consensus)
+        self.assertEqual(part.text, part.consensus)          # diagnose reads the agreed findings
+        self.assertIn("Beta", part.unchecked)                # the first description is kept for display
+        llm.samples = 1
+        self.assertEqual(image_context(llm, case, max_images=1)[0].consensus, "")
+
+
 class TestImageKinds(unittest.TestCase):
     def test_kinds_and_prompts(self):
         from hoofbeats.llm import context_prompt, image_kind

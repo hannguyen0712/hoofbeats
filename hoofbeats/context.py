@@ -63,8 +63,9 @@ def context_llm(hb, a):
     llm.verify = bool(getattr(a, "context_verify", False))    # read by llm.image_context
     llm.min_confidence = getattr(a, "context_confidence", "all") or "all"
     llm.read = getattr(a, "context_read", "all") or "all"       # read by llm.image_context
+    llm.samples = max(int(getattr(a, "context_samples", 1) or 1), 1)
     hb.RUN["settings"].update({"context_model": llm.model, "context_endpoint": llm.endpoint or "in-process",
-                               "context_verify": llm.verify, "context_read": llm.read})
+                               "context_verify": llm.verify, "context_read": llm.read, "context_samples": llm.samples})
     print(f"[llm] image context (Stage A) by {llm.model} via {llm.endpoint or 'transformers (in-process)'}: {why}"
           + ("; each finding checked with a second request (--context-verify)" if llm.verify else ""))
     if not llm.is_local:
@@ -127,8 +128,9 @@ MM_CONDITIONS = {"text": "history/exam text",
                  "context": "text + image context (Stage A)",
                  "verified": "text + image context, findings checked by the vision model",
                  "definite": "text + image context, only findings the vision model called definite",
+                 "consensus": "text + image context, only findings most of --context-samples descriptions agree on",
                  "reference": "text + radiologist findings (upper bound for a context)"}
-CONTEXT_CONDS = ("context", "verified", "definite")     # conditions that need the image context
+CONTEXT_CONDS = ("context", "verified", "definite", "consensus")     # conditions that need the image context
 
 
 def medpix_context_case(c, conds, ctx_llm, r: LRRanker, ext, max_images=2, per_call=1, agreement=None,
@@ -148,10 +150,17 @@ def medpix_context_case(c, conds, ctx_llm, r: LRRanker, ext, max_images=2, per_c
         # no_history: the vision model gets the images, age and sex but not the history (the "clinical question"),
         # to tell findings it sees from findings it expects from the history; Stage 1 still reads the history
         seen = replace(c, meta={**c.meta, "history": ""}) if no_history else c
+        if "consensus" in conds:
+            if getattr(ctx_llm, "samples", 1) < 2:
+                raise SystemExit("the consensus condition needs --context-samples 3 or more")
+            ctx_llm.extract, ctx_llm.term_name, ctx_llm.use_consensus = ext.findings, r.ont.name, False
         parts = image_context(ctx_llm, seen, max_images, per_call, verify="verified" in conds)
         texts = {"context": "\n\n".join(x.unchecked for x in parts if x.unchecked),
                  "verified": "\n\n".join(x.text for x in parts if x.text),
-                 "definite": "\n\n".join(x.definite for x in parts if x.definite)}
+                 "definite": "\n\n".join(x.definite for x in parts if x.definite),
+                 "consensus": "\n\n".join(x.consensus for x in parts if x.consensus)}
+        if "consensus" not in conds:
+            texts.pop("consensus")
         ref = {f.hpo_id for f in ext.findings(c.meta["reference_text"]) if f.status == Status.PRESENT}
         for cond, text in texts.items():
             _, info = delabel(text, c.meta.get("names") or [c.meta.get("title", "")], [], ext.vocab)
@@ -343,6 +352,9 @@ def add_arguments(p, sub):
     p.add_argument("--context-read", choices=("all", "findings"), default="all",
                    help="what Stage 1 reads from each image description: all of it, or only the findings list and "
                         "pertinent negatives (no details, summary, technique or anatomy)")
+    p.add_argument("--context-samples", type=int, default=1,
+                   help="describe each image this many times (the first at temperature 0, the others sampled) and keep "
+                        "only the findings most descriptions agree on; 1 = off (medpix-context: condition consensus)")
     p.add_argument("--context-verify", action="store_true",
                    help="check each described finding with a second request to the vision model and keep only the "
                         "confirmed ones (diagnose, multimodal; medpix-context compares both with --conditions verified)")

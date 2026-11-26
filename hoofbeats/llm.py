@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import copy
 import hashlib
 import json
 import re
@@ -893,6 +894,7 @@ class ImageContext:
     kept: int = 0              # findings it confirmed (answered yes)
     definite: str = ""         # the description with only the findings the model called definite
     kind: str = ""             # the kind of image (image_kind, or classify_image when the labels name none)
+    consensus: str = ""        # --context-samples N: only the findings that most of the N descriptions agree on
 
 
 # --context-confidence: keep only findings the describing model rated at least this sure (its "confidence" field;
@@ -998,6 +1000,25 @@ def verify_findings(llm, grp: list[dict], obj: dict) -> tuple[dict, int, int]:
     return out, len(found), len(keep)
 
 
+SAMPLE_TEMPERATURE = 0.7
+
+
+def agreed_findings(texts: list[str], extract, name) -> tuple[str, int]:
+    # consistency filter (--context-samples): a finding the model saw in the image tends to come back when the same
+    # image is described again; one it made up or hedged about tends not to. Keeps the findings (HPO term and status)
+    # that more than half of the descriptions report, written as their term names so Stage 1 reads exactly those.
+    # extract: text -> findings (Extractor.findings); name: HPO id -> term name. Returns (text, findings kept).
+    from collections import Counter
+    votes = Counter()
+    for t in texts:
+        votes.update({(f.hpo_id, f.status) for f in extract(t) if f.status in (Status.PRESENT, Status.ABSENT)})
+    need = len(texts) // 2 + 1
+    keep = sorted(k for k, n in votes.items() if n >= need)
+    lines = [f"- {name(h)}" for h, st in keep if st == Status.PRESENT]
+    lines += [f"- No {name(h).lower()}" for h, st in keep if st == Status.ABSENT]
+    return ("\n".join(lines), len(keep))
+
+
 def image_context(llm, case: Case, max_images: int = 4, per_call: int = 1,
                   verify: bool | None = None) -> list[ImageContext]:
     # Stage A: per_call images per request (1 = one context per image, best for small models). verify: check each
@@ -1035,8 +1056,26 @@ def image_context(llm, case: Case, max_images: int = 4, per_call: int = 1,
             checked, asked, kept = verify_findings(llm, grp, obj)
             if asked:      # no raw-text fallback: it would bring back the findings the check removed
                 text = render_context(checked, "", label, lean=lean)
+        consensus = ""
+        n_samples, extract = getattr(llm, "samples", 1), getattr(llm, "extract", None)
+        if n_samples > 1 and extract and unchecked:
+            # the same request again at a higher temperature with a fixed seed per sample (cached like any request)
+            texts = [unchecked]
+            for k in range(1, n_samples):
+                smp = copy.copy(llm)
+                smp.extra = {**(llm.extra or {}), "temperature": SAMPLE_TEMPERATURE, "seed": k}
+                raw_k = smp.chat(context_prompt(grp, details, clinical, kind), context_system(kind),
+                               images=tuple(g["path"] for g in grp))
+                obj_k = reply_json(raw_k, ("findings", "summary", "technique"))
+                if isinstance(obj_k, dict):
+                    texts.append(render_context(obj_k, "", label, lean=lean))
+            agreed, _ = agreed_findings(texts, extract, getattr(llm, "term_name", str))
+            consensus = (f"{label} (findings in most of {len(texts)} descriptions):\n{agreed}" if agreed else
+                         f"{label}: no finding came back in most of {len(texts)} descriptions.")
+            if getattr(llm, "use_consensus", True):
+                text = consensus
         out.append(ImageContext([g.get("id", g["path"]) for g in grp], label, text, isinstance(obj, dict),
-                                getattr(llm, "model", ""), stopped, unchecked, asked, kept, definite, kind))
+                                getattr(llm, "model", ""), stopped, unchecked, asked, kept, definite, kind, consensus))
     return out
 
 

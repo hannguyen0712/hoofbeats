@@ -271,6 +271,8 @@ def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancesto
     if images and describer is None:
         raise IntakeError(f"{d.case_id} has images but no image-context model: pass --context-model (and --context-endpoint) so they are described")
     if images:
+        if getattr(describer, "samples", 1) > 1:     # --context-samples: the consistency filter reads HPO terms
+            describer.extract, describer.term_name = ext.findings, ont.name
         described = describe_images(describer, d, images, warnings.append, max_images, images_per_call)
         if described["text"]:
             d.image_context = ((d.image_context or "").strip() + "\n\n" + described["text"]).strip()
