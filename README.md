@@ -180,6 +180,19 @@ python -m hoofbeats --common none "${QWEN[@]}" medpix-context --medpix data/medp
   gain comes from the images and not from the history.
 - `--reliability-out` writes how often the described findings match the radiologist's. Measure it on one set of
   cases and pass it with `--reliability` on others (`--exclude-cases` keeps the two sets apart).
+- `--context-samples 5` describes each image five times (the first at temperature 0, the others sampled) and keeps
+  only the findings at least `--context-agree` of them report (default 2). Findings the model makes up once are
+  dropped, and real findings the first description missed are kept. It needs five times the vision-model requests.
+  In `medpix-context`, the `consensus` condition shows it next to `context`:
+
+  ```bash
+  python -m hoofbeats --common none "${QWEN[@]}" --context-samples 5 medpix-context \
+    --medpix data/medpix-src/MedPix-2-0 --split all --limit 40 --max-images 2 \
+    --conditions text,context,consensus,reference --out results/medpix_context
+  ```
+- `--context-read findings` makes Stage 1 read only each image finding's name, location and confidence, and the
+  pertinent negatives, not the explanations and summary around them.
+- Both options are off by default, and they work the same way in `diagnose`, `multimodal` and `medpix-context`.
 
 ### Rare and common diseases (MIMIC-IV demo)
 
