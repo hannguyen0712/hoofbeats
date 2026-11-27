@@ -26,11 +26,10 @@ ap.add_argument("--results", default=None, help="JSON file with test results ent
 ap.add_argument("--k", type=int, default=3)
 ap.add_argument("--out", default="results/part4_demo.json", help="where to save the result; temporary files go next to it")
 a = ap.parse_args()
-OUT = Path(a.out)
-WORK = OUT.parent
+OUT, WORK = Path(a.out), Path(a.out).parent
 WORK.mkdir(parents=True, exist_ok=True)
 
-r = load_kb(SimpleNamespace(kb="data/kb", common=os.environ.get("COMMON_PROFILES", "data/kb/common_profiles.json"), prior_weight=1.0, absent_weight=0.5, absent_min_freq=0.8,
+r = load_kb(SimpleNamespace(kb="data/kb", common=os.environ.get("COMMON_PROFILES", "data/kb/common_profiles.json"), common_hpo=os.environ.get("COMMON_HPO"), prior_weight=1.0, absent_weight=0.5, absent_min_freq=0.8,
                             use_onset=False, use_sex=False))
 ext = Extractor(r.ont)
 try:
@@ -215,6 +214,7 @@ def key_points(pack):
 details = raw.get("details") or {}
 out = {"case": case.case_id, "case_path": a.case, "truth": case.truth, "dropped": sorted(dropped),
        "common_loaded": bool(r.db.prior),
+       "common_sources": {"labs": bool(r.db.scope), "symptoms": bool(getattr(r.db, "common_hpo", {}).get("diseases"))},
        "n_rare": len(r.db.names) - len(r.db.prior), "n_common": len(r.db.prior),
        "calibrated": wk is not None,
        "pipeline": {"reader": "rules and number parsing",
@@ -242,6 +242,7 @@ for label, lst in lists.items():
         print(f"{label} {n}. {r.db.names[d]} ({d}) {prob(d, p):.1%} | {source} | kept {sum(len(v) for v in kept.values())}, "
               f"removed {len(removed)}")
         out["lists"][label].append({"id": d, "name": r.db.names[d], "probability": prob(d, p), "ranker_score": p,
+                                    "profile": "labs" if d in r.db.scope else "symptoms" if d in r.db.prior else None,
                                     "runner_up": runner, "runner_up_name": r.db.names[runner],
                                     "explanation_source": source, "fits": fits, "missing": missing, "against": against,
                                     "pack": [item_json(i) for i in pack.values()], "explanation": kept,

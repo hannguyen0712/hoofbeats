@@ -115,15 +115,10 @@ for _k in ("rep_v", "img_v", "lab_v"):    # bumped after an upload is read, to c
 
 def clean_old_sessions(keep):
     # delete session folders with no file changed in the last SESSION_TTL_HOURS
-    if not SESSIONS.exists():
-        return
     cutoff = time.time() - SESSION_TTL_HOURS * 3600
-    for d in SESSIONS.iterdir():
-        if not d.is_dir() or d.name == keep:
-            continue
+    for d in (x for x in SESSIONS.glob("*/") if x.name != keep):
         try:
-            newest = max((p.stat().st_mtime for p in d.rglob("*")), default=d.stat().st_mtime)
-            if newest < cutoff:
+            if max((p.stat().st_mtime for p in d.rglob("*")), default=d.stat().st_mtime) < cutoff:
                 shutil.rmtree(d, ignore_errors=True)
         except OSError:
             pass
@@ -134,12 +129,9 @@ if "sid" not in ss:
     clean_old_sessions(ss.sid)
 WORK = SESSIONS / ss.sid
 WORK.mkdir(parents=True, exist_ok=True)
-RESULT = WORK / "part4_demo.json"
-ACTIONS = WORK / "part4_actions.json"        # pick / rule out, per case
-RESULTS = WORK / "part4_results.json"        # test results entered, per case
-RESULTS_NOW = WORK / "part4_results_now.json"
-CASE_DIR = WORK / "cases"                     # case files written from the forms
-UPLOADS = WORK / "uploads"                    # images uploaded with a case
+# result, pick / rule out per case, test results per case, case files from the forms, uploaded images
+RESULT, ACTIONS, RESULTS, RESULTS_NOW, CASE_DIR, UPLOADS = (WORK / x for x in (
+    "part4_demo.json", "part4_actions.json", "part4_results.json", "part4_results_now.json", "cases", "uploads"))
 
 
 def pct(p):
@@ -701,8 +693,10 @@ def page_results():
                 actions["picked"] = None
             save_actions(); st.rerun()
         omim = d["id"].split(":")[-1] if d["id"].startswith("OMIM") else None
+        mesh = d["id"].split(":")[-1] if d["id"].startswith("MESH:") else None
         b3.markdown("<span class='muted'>Read more: " +
                     (f"<a href='https://omim.org/entry/{omim}' target='_blank'>OMIM</a>, " if omim else "") +
+                    (f"<a href='https://meshb.nlm.nih.gov/record/ui?ui={mesh}' target='_blank'>MeSH</a>, " if mesh else "") +
                     f"<a href='https://www.ncbi.nlm.nih.gov/books/NBK1116/?term={d['name'].replace(' ', '+')}' "
                     f"target='_blank'>GeneReviews</a></span>", unsafe_allow_html=True)
         with st.expander("Full explanation"):
@@ -747,6 +741,9 @@ def page_results():
                 for x in why:
                     st.markdown(f"- {html.escape(plain(x['text']))}")
 
+    def profile_tag(d):
+        return {"labs": " · lab profile", "symptoms": " · symptom profile"}.get(d.get("profile"), "")
+
     def disease_list(kind):
         lst = data["lists"][kind]
         n_all = data.get("n_rare" if kind == "rare" else "n_common")
@@ -759,7 +756,7 @@ def page_results():
             st.markdown(f"<div class='hero {'rejected' if top['id'] in actions['rejected'] else ''}'>"
                         f"<div class='num'><b>{pct(top['probability'])}</b><span>{scale}</span></div>"
                         f"<div class='lbl'>Most likely</div>"
-                        f"<div class='name'>{html.escape(top['name'])}</div>{status(top)}"
+                        f"<div class='name'>{html.escape(top['name'])}<span class='muted'>{profile_tag(top)}</span></div>{status(top)}"
                         f"<div class='bar'><div style='width:{max(2, top['probability'] * 100):.0f}%'></div></div></div>",
                         unsafe_allow_html=True)
             details(top, nxt, first=True)
@@ -770,7 +767,7 @@ def page_results():
             for n, d in enumerate(lst[1:], 2):
                 tag = {"<span class='pill pick'>Your pick</span>": "  (your pick)",
                        "<span class='pill out'>Ruled out</span>": "  (ruled out)"}.get(status(d), "")
-                with st.expander(f"{n}.  {short(d['name'], 60)}  **{pct(d['probability'])}**{tag}"):
+                with st.expander(f"{n}.  {short(d['name'], 60)}{profile_tag(d)}  **{pct(d['probability'])}**{tag}"):
                     st.markdown(status(d) + f"<div class='bar'><div style='width:{max(2, d['probability'] * 100):.0f}%'>"
                                 "</div></div>", unsafe_allow_html=True)
                     details(d)
@@ -845,11 +842,17 @@ def page_results():
             else:
                 st.info("No rare disease matches these findings. Add more findings and try again.")
         with tab_common:
+            srcs = data.get("common_sources") or {"labs": loaded, "symptoms": False}
             if not has_common:
                 st.info("No common disease matches this record. Common-disease profiles are learned from lab values, "
-                        "so a record without lab results has nothing to match." if loaded else
+                        "so a record without lab results has nothing to match." if loaded and not srcs["symptoms"] else
+                        "No common disease matches these findings." if loaded else
                         "Common-disease profiles are not loaded yet, so this list is empty.")
             else:
+                st.caption(("Lab profiles are learned from MIMIC-IV admissions and only score lab results. "
+                            if srcs["labs"] else "") + ("Symptom profiles come from HPO common-disease annotations mined "
+                            "from PubMed abstracts; most give no frequencies, so their scores are rougher than the "
+                            "rare-disease ones." if srcs["symptoms"] else ""))
                 disease_list("common")
         st.markdown(f"<div class='how'>{html.escape(pipeline_text())}</div>", unsafe_allow_html=True)
     with right:

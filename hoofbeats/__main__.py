@@ -18,6 +18,8 @@ import re
 
 from .data import (DiseaseMatcher, Extractor, download, learn_common, load_medpix, load_mimic,
                    load_phenopackets, orphadata_icd10)
+from .common_hpo import (DEFAULT_FREQ as COMMON_HPO_FREQ, DEFAULT_MASS as COMMON_HPO_MASS,
+                         find_default as find_common_hpo, load_common_hpo)
 from .grounding import level_of
 from .model import (AnnotationDB, Case, Finding, LRRanker, Ontology, Ranking, Status, explain,
                     most_frequent_test, suggest_tests, verify_claim, parse_reliability)
@@ -166,10 +168,26 @@ def load_kb(a, prefixes=("OMIM",)):
         db.add_common(a.profiles)
         if a.profiles["n_rare_admissions"]:
             rare_mass = a.profiles["n_rare_admissions"] / a.profiles["n_admissions"]
+    n_lab, s = len(db.names) - n_rare, None
+    path = getattr(a, "common_hpo", None) or (find_common_hpo() if a.common != "none" else None)   # --common none: rare only
+    if path and path != "none":
+        if not Path(path).exists():
+            raise SystemExit(f"--common-hpo: {path} not found")
+        freq = getattr(a, "common_hpo_freq", COMMON_HPO_FREQ)
+        s = load_common_hpo(db, path, freq, getattr(a, "common_hpo_mass", COMMON_HPO_MASS))
+        print(f"[kb] symptom profiles: {s['diseases']} common diseases from {s['path']}" + "".join(
+            f", {n} {what}" for n, what in ((s["estimated"], f"with frequencies estimated at {freq:.0%}"),
+                                            (s["skipped_existing"], "skipped (already in the knowledge base)"),
+                                            (s["skipped_few_terms"], "with fewer than 3 findings left out")) if n))
+    a.common_hpo_summary = s
     RUN["settings"].update({"hpo": ont.version, "annotations": db.version, "prefixes": list(prefixes),
-                            "common": a.profiles["source"] if a.profiles else None, "prior_weight": a.prior_weight})
-    print(f"[kb] HPO {ont.version}, annotations {db.version}: {n_rare} rare + {len(db.names) - n_rare} common diseases"
-          + (f" (common from {a.profiles['source']}, rare prior mass {rare_mass:.1%})" if a.profiles else ""))
+                            "common": a.profiles["source"] if a.profiles else None, "prior_weight": a.prior_weight,
+                            "common_hpo": s})
+    n_sym = len(db.names) - n_rare - n_lab
+    print(f"[kb] HPO {ont.version}, annotations {db.version}: {n_rare} rare + {n_lab + n_sym} common diseases"
+          + (f" ({n_lab} lab profiles from {a.profiles['source']}, {n_sym} symptom profiles)" if a.profiles and n_sym else
+             f" (common from {a.profiles['source']}, rare prior mass {rare_mass:.1%})" if a.profiles else
+             " (symptom profiles)" if n_sym else ""))
     RUN["settings"].update({"absent_weight": a.absent_weight, "absent_min_freq": a.absent_min_freq,
                             "use_onset": a.use_onset, "use_sex": a.use_sex})
     r = LRRanker(ont, db, prior_weight=a.prior_weight, rare_mass=rare_mass,
@@ -184,7 +202,8 @@ def load_kb(a, prefixes=("OMIM",)):
 
 
 def label(r: LRRanker, d: str) -> str:
-    tag = f" [common, {r.db.prior[d]:.1%} of admissions]" if d in r.db.prior else ""
+    tag = (f" [common, {r.db.prior[d]:.1%} of admissions]" if d in r.db.scope else
+           " [common, symptom profile]" if d in r.db.prior else "")
     return f"{r.db.names[d]} ({d}){tag}"
 
 
@@ -1402,6 +1421,15 @@ def main(argv=None):
     p.add_argument("--note", default="", help="free-text note saved with this run, shown in reports")
     p.add_argument("--common", default="data/kb/common_profiles.json",
                    help="common-disease profiles from learn-common; used whenever the file exists")
+    p.add_argument("--common-hpo", default=None,
+                   help="symptom-based common-disease annotations: a file or folder of HPO annotations (HPOA-style or "
+                        "the HPO common-disease files). Default: data/kb/common_hpo.tsv, data/kb/common_hpo/ or "
+                        "data/kb/common-diseases/ when present, unless --common none. 'none' turns them off")
+    p.add_argument("--common-hpo-freq", type=float, default=COMMON_HPO_FREQ,
+                   help="frequency used for annotations that give none (text-mined files give none)")
+    p.add_argument("--common-hpo-mass", type=float, default=COMMON_HPO_MASS,
+                   help="prior share of all symptom-profile common diseases together, split evenly, for diseases "
+                        "without a prevalence column")
     p.add_argument("--prior-weight", type=float, default=1.0, help="0 = ignore how common each disease is")
     p.add_argument("--absent-weight", type=float, default=0.5, help="weight on absent findings (1 = old rule)")
     p.add_argument("--use-onset", action="store_true", help="score the patient's age of onset (or age) against disease onset")
