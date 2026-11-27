@@ -1,0 +1,11 @@
+.git
+.venv
+__pycache__
+**/mimic*/
+data/medpix-src
+data/phenopacket-store
+results/runs
+results/sessions
+results/cases
+results/uploads
+*.out

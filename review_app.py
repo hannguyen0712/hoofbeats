@@ -3,16 +3,14 @@
 Page 1: patient details -> page 2: the clinician enters the findings -> page 3: the diagnosis lists, with the
 evidence behind each suggestion -> page 4: the source document with the evidence highlighted.
 """
-import csv, html, io, json, os, re, subprocess, sys, time
+import csv, html, io, json, os, re, shutil, subprocess, sys, time, uuid
 from pathlib import Path
 from urllib.parse import quote as urlquote
 import streamlit as st
 import streamlit.components.v1 as components
 
-RESULT = Path("results/part4_demo.json")
-ACTIONS = Path("results/part4_actions.json")        # pick / rule out, per case
-RESULTS = Path("results/part4_results.json")        # test results entered, per case
-CASE_DIR = Path("results/cases")                     # case files written from the forms
+SESSIONS = Path("results/sessions")                  # one private folder per browser session
+SESSION_TTL_HOURS = float(os.environ.get("SESSION_TTL_HOURS", "12"))   # idle sessions older than this are deleted
 EXAMPLES = {"": "(start empty)",
             "examples/marfan_note.json": "Genetics: tall teenager with lens problems",
             "examples/tsc_imaging.json": "Neurology: child with seizures and brain MRI",
@@ -32,7 +30,6 @@ def source_chips(sources):
 SECTIONS = {"supports": "What fits", "against": "What does not fit",
             "expected_but_missing": "Usually present, not recorded", "vs_runner_up": "Why it ranks above the next disease"}
 DOTS = {"very strong": "●●●", "strong": "●●○", "moderate": "●○○", "weak": "○○○"}
-UPLOADS = Path("results/uploads")                    # images uploaded with a case
 MODALITIES = ["X-ray", "CT", "MRI", "Ultrasound", "Photo", "Other"]
 FORM = {"case_id": "", "age": None, "sex": "unknown", "setting": "", "example": "", "note": "", "present": [],
         "absent": [], "other_terms": [], "labs": [], "vitals": {}, "genes": "", "image_report": "", "images": [],
@@ -114,6 +111,35 @@ for _k, _v in FORM.items():
     ss.form.setdefault(_k, _v)
 for _k in ("rep_v", "img_v", "lab_v"):    # bumped after an upload is read, to clear that upload box
     ss.setdefault(_k, 0)
+
+
+def clean_old_sessions(keep):
+    # delete session folders with no file changed in the last SESSION_TTL_HOURS
+    if not SESSIONS.exists():
+        return
+    cutoff = time.time() - SESSION_TTL_HOURS * 3600
+    for d in SESSIONS.iterdir():
+        if not d.is_dir() or d.name == keep:
+            continue
+        try:
+            newest = max((p.stat().st_mtime for p in d.rglob("*")), default=d.stat().st_mtime)
+            if newest < cutoff:
+                shutil.rmtree(d, ignore_errors=True)
+        except OSError:
+            pass
+
+
+if "sid" not in ss:
+    ss.sid = uuid.uuid4().hex                 # random, never shown or put in the URL
+    clean_old_sessions(ss.sid)
+WORK = SESSIONS / ss.sid
+WORK.mkdir(parents=True, exist_ok=True)
+RESULT = WORK / "part4_demo.json"
+ACTIONS = WORK / "part4_actions.json"        # pick / rule out, per case
+RESULTS = WORK / "part4_results.json"        # test results entered, per case
+RESULTS_NOW = WORK / "part4_results_now.json"
+CASE_DIR = WORK / "cases"                     # case files written from the forms
+UPLOADS = WORK / "uploads"                    # images uploaded with a case
 
 
 def pct(p):
@@ -223,11 +249,11 @@ def stepper(active):
 
 def run(case, drop=(), with_results=True):
     # run the pipeline (saved model replies only; a new question falls back to the template explanation)
-    cmd = [sys.executable, "demo_part4.py", str(case)] + (["--drop", *drop] if drop else [])
+    cmd = [sys.executable, "demo_part4.py", str(case), "--out", str(RESULT)] + (["--drop", *drop] if drop else [])
     ss.last_case = str(case)
     if with_results and load_json(RESULTS, {}).get(str(case)):
-        Path("results/part4_results_now.json").write_text(json.dumps(load_json(RESULTS, {})[str(case)]))
-        cmd += ["--results", "results/part4_results_now.json"]
+        RESULTS_NOW.write_text(json.dumps(load_json(RESULTS, {})[str(case)]))
+        cmd += ["--results", str(RESULTS_NOW)]
     with st.spinner("Reading the findings and ranking the diseases..."):
         res = subprocess.run(cmd, capture_output=True, text=True, env={**os.environ, "LLM_OFFLINE": "1", "VISION_OFFLINE": "0"})
     ss.stale = bool(res.returncode)

@@ -24,7 +24,11 @@ ap.add_argument("case", nargs="?", default="examples/marfan_note.json")
 ap.add_argument("--drop", nargs="*", default=[], help="HPO ids the clinician removed")
 ap.add_argument("--results", default=None, help="JSON file with test results entered by the clinician")
 ap.add_argument("--k", type=int, default=3)
+ap.add_argument("--out", default="results/part4_demo.json", help="where to save the result; temporary files go next to it")
 a = ap.parse_args()
+OUT = Path(a.out)
+WORK = OUT.parent
+WORK.mkdir(parents=True, exist_ok=True)
 
 r = load_kb(SimpleNamespace(kb="data/kb", common=os.environ.get("COMMON_PROFILES", "data/kb/common_profiles.json"), prior_weight=1.0, absent_weight=0.5, absent_min_freq=0.8,
                             use_onset=False, use_sex=False))
@@ -72,7 +76,7 @@ def load(path):
             IMAGES["note"] = f"The image model could not be used ({type(e).__name__}); the images were not described."
     if raw.get("images"):                                               # no image model here: keep the images
         IMAGES["note"] = IMAGES["note"] or "No image model is running here, so the images are saved but not described."
-        tmp = Path("results/_case_without_images.json")
+        tmp = WORK / "_case_without_images.json"
         tmp.write_text(json.dumps({k: v for k, v in raw.items() if k != "images"}))
         return load_case(str(tmp), r.ont, ext, disease_names=r.db.names)
     return load_case(path, r.ont, ext, disease_names=r.db.names)        # note / case file -> findings (Stage 1)
@@ -115,7 +119,7 @@ if results and Path(a.case).suffix == ".json" and "case_id" in json.loads(Path(a
     merged["hpo_terms"] = list(merged.get("hpo_terms") or []) + terms
     merged["genes"] = list(dict.fromkeys(list(merged.get("genes") or []) + genes))
     merged["genes_negative"] = list(dict.fromkeys(list(merged.get("genes_negative") or []) + negative))
-    case_path = "results/part4_followup_case.json"
+    case_path = str(WORK / "part4_followup_case.json")
     Path(case_path).write_text(json.dumps(merged, indent=1))
     r.use_genes = bool(merged["genes"])
     followup = {"results": rows, "before": {d: prob0(d, p) for lst in lists0.values() for d, p in lst}}
@@ -246,8 +250,7 @@ for label, lst in lists.items():
 if os.environ.get("LIT_HIGHLIGHTS", "1") == "1":       # sentences of the cited papers that report each finding
     from literature_part4 import add_to_lists
     add_to_lists(out, r.ont, ext, exclude=ex)
-Path("results").mkdir(exist_ok=True)
-tmp = Path("results/part4_demo.json.tmp")
+tmp = OUT.with_name(OUT.name + ".tmp")
 tmp.write_text(json.dumps(out, indent=1))
-os.replace(tmp, "results/part4_demo.json")
-print("saved results/part4_demo.json")
+os.replace(tmp, OUT)
+print(f"saved {OUT}")

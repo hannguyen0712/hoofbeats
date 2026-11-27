@@ -1,0 +1,34 @@
+{
+ "metrics": {},
+ "files": [
+  "results/eval/EVAL.md"
+ ],
+ "settings": {
+  "sample": 0,
+  "seed": 13,
+  "rounds": 5,
+  "hpo": "hp/releases/2026-09-01",
+  "annotations": "2026-09-02",
+  "prefixes": [
+   "OMIM"
+  ],
+  "common": null,
+  "prior_weight": 1.0,
+  "absent_weight": 0.5,
+  "absent_min_freq": 0.8,
+  "use_onset": false,
+  "use_sex": false
+ },
+ "id": "20261124-105803_evaluate",
+ "command": "evaluate",
+ "argv": [
+  "--common",
+  "none",
+  "evaluate",
+  "--learn"
+ ],
+ "note": "",
+ "started": "2026-11-24 10:58:03",
+ "status": "ok",
+ "seconds": 163.0
+}
