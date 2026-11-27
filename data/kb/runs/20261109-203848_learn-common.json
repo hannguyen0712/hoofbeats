@@ -1,0 +1,30 @@
+{
+ "metrics": {
+  "common": {
+   "diseases": 63,
+   "admissions": 177,
+   "rare_admissions": 13,
+   "held_out_patients": 26,
+   "source": "MIMIC-IV-demo"
+  }
+ },
+ "files": [],
+ "settings": {
+  "seed": 13
+ },
+ "id": "20261109-203848_learn-common",
+ "command": "learn-common",
+ "argv": [
+  "learn-common",
+  "--mimic",
+  "data/mimic-iv-demo/2.2",
+  "--orphadata-xml",
+  "data/kb/ORPHA_ICD10_mapping_en.xml",
+  "--min-adm",
+  "3"
+ ],
+ "note": "",
+ "started": "2026-11-09 20:38:48",
+ "status": "ok",
+ "seconds": 0.5
+}

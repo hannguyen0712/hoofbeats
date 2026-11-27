@@ -11,6 +11,7 @@ import streamlit.components.v1 as components
 
 SESSIONS = Path("results/sessions")                  # one private folder per browser session
 SESSION_TTL_HOURS = float(os.environ.get("SESSION_TTL_HOURS", "12"))   # idle sessions older than this are deleted
+PUBLIC_DEMO = os.environ.get("PUBLIC_DEMO") == "1"   # shows the "no real patient data" banner on every page
 EXAMPLES = {"": "(start empty)",
             "examples/marfan_note.json": "Genetics: tall teenager with lens problems",
             "examples/tsc_imaging.json": "Neurology: child with seizures and brain MRI",
@@ -229,6 +230,9 @@ def labs_from_csv(data):
 
 
 def stepper(active):
+    if PUBLIC_DEMO:
+        st.warning("Public demo. Do not enter real patient information: anything typed here is processed on a "
+                   "shared cloud server. Use the examples or published cases.")
     order = ["patient", "clinical", "results"]
     labels = [("1", "Patient"), ("2", "Findings"), ("3", "Diagnosis")]
     idx = order.index(active) if active in order else 2
@@ -252,8 +256,10 @@ def run(case, drop=(), with_results=True):
     if res.returncode:
         st.error("Something went wrong while analysing this record, so the diagnosis was not updated. "
                  "Check the findings and try again.")
-        with st.expander("Technical details"):
-            st.code(res.stderr[-2000:])
+        print(res.stderr[-4000:], file=sys.stderr)          # server log only: it can quote the note
+        if os.environ.get("HOOFBEATS_DEBUG") == "1":
+            with st.expander("Technical details"):
+                st.code(res.stderr[-2000:])
         return False
     return True
 
@@ -268,7 +274,7 @@ def page_patient():
     st.markdown("<div class='sub'>Try an example</div>", unsafe_allow_html=True)
     cols = st.columns(3)
     for col, (ex, label) in zip(cols, [(k, v) for k, v in EXAMPLES.items() if k]):
-        if col.button(label, key=f"ex-{ex}", use_container_width=True):
+        if col.button(label, key=f"ex-{ex}", width="stretch"):
             f["example"] = ex
             c = load_json(ex, {})
             by_id = {v: k for k, v in hpo_terms().items()}
@@ -349,12 +355,12 @@ def page_clinical():
             for k, im in enumerate(list(f["images"])):
                 with cols[k % 4]:
                     if Path(im["path"]).exists():
-                        st.image(im["path"], use_container_width=True)
+                        st.image(im["path"], width="stretch")
                     st.caption(Path(im["path"]).name)
                     m = st.selectbox("Type", MODALITIES, key=f"mod-{im['path']}",
                                      index=MODALITIES.index(im["modality"]) if im["modality"] in MODALITIES else 5)
                     im["modality"] = m
-                    if st.button("Remove", key=f"rm-{im['path']}", use_container_width=True):
+                    if st.button("Remove", key=f"rm-{im['path']}", width="stretch"):
                         f["images"].remove(im)
                         st.rerun()
             st.caption("Images are described by a local image model when one is running (on Sol); the description is "
@@ -362,7 +368,7 @@ def page_clinical():
 
     with st.expander("Lab results (optional)" + (" · entered" if f['labs'] else ""), expanded=bool(f['labs'])):
         labs = st.data_editor(f["labs"] or [{"name": None, "value": None, "unit": None, "ref_low": None, "ref_high": None}],
-                              num_rows="dynamic", use_container_width=True, key=f"labs_editor_{ss.lab_v}",
+                              num_rows="dynamic", width="stretch", key=f"labs_editor_{ss.lab_v}",
                               column_config={"name": st.column_config.SelectboxColumn("Test", options=lab_names()),
                                              "value": st.column_config.NumberColumn("Value"),
                                              "unit": st.column_config.TextColumn("Unit"),
@@ -471,7 +477,7 @@ def evidence_links(ids, pack, key):
             st.markdown(f"**From the patient record:** {html.escape(plain(item.get('text', '')))}", unsafe_allow_html=True)
             for k, sp in enumerate(item.get("spans", [])[:3]):
                 label = f"📄 {DOC_NAMES.get(sp['field'], sp['field'])}: “{sp['quote'][:60]}”"
-                if st.button(label, key=f"{key}-{cid}-{k}", use_container_width=True):
+                if st.button(label, key=f"{key}-{cid}-{k}", width="stretch"):
                     name = re.search(r"'([^']+)' is (\w+)", item.get("text", ""))
                     ss.evidence = {"field": sp["field"], "start": sp["start"],
                                    "title": f"{name.group(1)} ({name.group(2)})" if name else plain(item.get("text", ""))}
@@ -504,10 +510,10 @@ def evidence_links(ids, pack, key):
                 if h.get("pmc") and where not in ("title", "abstract"):
                     st.link_button(f"📖 Open the full text ({h['pmc']}) with these words highlighted",
                                    f"https://pmc.ncbi.nlm.nih.gov/articles/{h['pmc']}/#:~:text={urlquote(s[a:b])}",
-                                   use_container_width=True)
+                                   width="stretch")
                 else:
                     st.link_button(f"📚 Open {h['pmid']} on PubMed with these words highlighted",
-                                   literature_link(h["pmid"], s[a:b]), use_container_width=True)
+                                   literature_link(h["pmid"], s[a:b]), width="stretch")
             if "lit" in item and not lit and item.get("lit_papers"):
                 st.caption("The cited papers do not name this finding in their abstract or open-access full text; it "
                            "may be in a table or in a paper that is not open access.")
@@ -515,7 +521,7 @@ def evidence_links(ids, pack, key):
             for ref in [r for r in item.get("refs", []) if r.startswith("PMID") and r not in done][:max(0, 4 - len(lit))]:
                 flag = " (retracted or withdrawn in PubMed)" if ref in (item.get("lit_retracted") or []) else ""
                 st.link_button(f"📚 Open {ref} on PubMed{flag}", literature_link(ref, name.group(1) if name else ""),
-                               use_container_width=True)
+                               width="stretch")
 
 
 def page_results():
@@ -556,7 +562,7 @@ def page_results():
     h1.markdown(f"<div class='pt'><h2>{html.escape(who.capitalize() or 'Patient')}</h2>"
                 f"<span class='muted'>Patient {html.escape(data['case'])}: {len(present)} finding{'' if len(present) == 1 else 's'} present, "
                 f"{len(absent)} checked and absent</span></div>", unsafe_allow_html=True)
-    with h2.popover("How to read this page", use_container_width=True):
+    with h2.popover("How to read this page", width="stretch"):
         st.markdown("- **The %** is the model's estimate for each disease, given only the findings entered, "
                     "calibrated on held-out rare-disease cases. It ranks the diseases; it is not a clinical "
                     "probability. Look-alike diseases share the chance, so compare the diseases with each other.\n"
@@ -571,7 +577,7 @@ def page_results():
                     "- **Pick as most likely** and **Rule out** record your judgement. **Enter a test result** "
                     "updates the list.\n"
                     "- Decision support only: it does not replace clinical judgement.")
-    if h3.button("Edit findings", use_container_width=True):
+    if h3.button("Edit findings", width="stretch"):
         go("clinical")
 
     shown_chips = present[:10]
@@ -598,7 +604,7 @@ def page_results():
             words = f"“{f['words']}”" if f["words"] and f["words"].lower() != f["name"].lower() else ""
             a.markdown(f"{mark} {html.escape(f['name'])} <span class='muted'>{', '.join(x for x in (label, words) if x)}"
                        "</span>", unsafe_allow_html=True)
-            if b.button("Remove", key=f"drop-{f['hpo_id']}", use_container_width=True):
+            if b.button("Remove", key=f"drop-{f['hpo_id']}", width="stretch"):
                 if run(case_key, data["dropped"] + [f["hpo_id"]]):
                     st.rerun()
         if data["dropped"] and st.button("Restore all findings"):
@@ -614,7 +620,7 @@ def page_results():
             for k, im in enumerate(data["images"]):
                 with cols[k % 3]:
                     if Path(im["path"]).exists():
-                        st.image(im["path"], use_container_width=True)
+                        st.image(im["path"], width="stretch")
                     st.caption(f"{im['modality']}: {im['name']}")
 
     if fu:
@@ -668,7 +674,7 @@ def page_results():
                     f", {x['freq']}% have '{x['via']}' (broader term)" if x.get("via") else
                     f", in {x['freq']}% of patients")
             paper = "  📄" if any(pack.get(c, {}).get("lit") for c in x["ids"]) else ""
-            with st.popover(f"{DOTS.get(x['strength'], '')}  {x['finding']}{freq}{paper}", use_container_width=True):
+            with st.popover(f"{DOTS.get(x['strength'], '')}  {x['finding']}{freq}{paper}", width="stretch"):
                 st.caption(f"{x['strength'].capitalize()} evidence")
                 evidence_links(x["ids"], pack, f"{d['id']}-fit{k}")
         notes = []
@@ -683,11 +689,11 @@ def page_results():
             st.markdown("<div class='notes'>" + "<br>".join(notes) + "</div>", unsafe_allow_html=True)
         b1, b2, b3 = st.columns([1.3, 1, 1.6], vertical_alignment="center")
         if picked:
-            if b1.button("Unpick", key=f"unpick-{d['id']}", use_container_width=True):
+            if b1.button("Unpick", key=f"unpick-{d['id']}", width="stretch"):
                 actions["picked"] = None; save_actions(); st.rerun()
-        elif b1.button("Pick as most likely", key=f"pick-{d['id']}", type="primary", use_container_width=True):
+        elif b1.button("Pick as most likely", key=f"pick-{d['id']}", type="primary", width="stretch"):
             actions["picked"] = d["id"]; save_actions(); st.rerun()
-        if b2.button("Rule out", key=f"rej-{d['id']}", use_container_width=True):
+        if b2.button("Rule out", key=f"rej-{d['id']}", width="stretch"):
             actions["rejected"].append(d["id"])
             if picked:
                 actions["picked"] = None
@@ -897,7 +903,7 @@ def page_results():
                                    ["not stated", "pathogenic", "likely pathogenic", "uncertain significance (VUS)",
                                     "likely benign", "benign"])
                 det = st.text_input("Details (optional)", placeholder="e.g. c.4082G>A, heterozygous")
-                if st.form_submit_button("Update the diagnosis", type="primary", use_container_width=True):
+                if st.form_submit_button("Update the diagnosis", type="primary", width="stretch"):
                     if not test or not res:
                         st.error("Choose a test and its result first; nothing was changed.")
                     else:
@@ -916,15 +922,15 @@ def page_results():
                 for x in entered:
                     extra = ", ".join(v for v in (x.get("classification") if x.get("genes") else "", x.get("details")) if v)
                     st.markdown(f"- {x['test']}: {x['result']}" + (f" ({extra})" if extra else ""))
-                if st.button("Clear results", use_container_width=True):
+                if st.button("Clear results", width="stretch"):
                     allr = load_json(RESULTS, {})
                     allr.pop(case_key, None)
                     RESULTS.write_text(json.dumps(allr, indent=1))
                     if run(case_key, data["dropped"], with_results=False):
                         st.rerun()
-        st.download_button("Download a summary for the chart", summary_text(), use_container_width=True,
+        st.download_button("Download a summary for the chart", summary_text(), width="stretch",
                            file_name=f"hoofbeats_{data['case']}.txt", mime="text/plain")
-        if st.button("Start a new patient", use_container_width=True):
+        if st.button("Start a new patient", width="stretch"):
             ss.form = {k: (list(v) if isinstance(v, list) else dict(v) if isinstance(v, dict) else v)
                        for k, v in FORM.items()}
             ss.pop("lab_msg", None)
@@ -949,7 +955,7 @@ def page_evidence():
         cols = st.columns(6)
         for k, im in enumerate(data["images"]):
             if Path(im["path"]).exists():
-                cols[k % 6].image(im["path"], caption=im["modality"], use_container_width=True)
+                cols[k % 6].image(im["path"], caption=im["modality"], width="stretch")
     body = highlight(text, spans, target=ev["start"])
     components.html(f"""
       <style>

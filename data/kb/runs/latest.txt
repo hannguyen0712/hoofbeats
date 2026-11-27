@@ -1,0 +1,36 @@
+run       20261109-203848_learn-common
+started   2026-11-09 20:38:48
+command   learn-common
+note      -
+status    ok
+duration  0.0 min
+argv      python -m hoofbeats learn-common --mimic data/mimic-iv-demo/2.2 --orphadata-xml data/kb/ORPHA_ICD10_mapping_en.xml --min-adm 3
+
+seed          13
+
+========================================================================
+console output
+========================================================================
+
+[common] 63 diseases with >= 3 training admissions (177 admissions, 26 patients held out) -> data/kb/common_profiles.json
+   ICD9:518  ICD9:518 group: Acute respiratory failure; Acute edema of lu  (12 admissions)
+   ICD10:C91  Lymphoid leukemia  (12 admissions)
+   ICD9:427  ICD9:427 group: Atrial fibrillation; Paroxysmal ventricular   (11 admissions)
+   ICD10:N17  Acute kidney failure  (11 admissions)
+   ICD9:038  ICD9:038 group: Septicemia due to escherichia coli [E. coli]  (10 admissions)
+   ICD9:584  ICD9:584 group: Acute kidney failure, unspecified; Acute kid  (10 admissions)
+   ICD9:250  ICD9:250 group: Diabetes mellitus without mention of complic  (9 admissions)
+   ICD9:348  ICD9:348 group: Encephalopathy, unspecified; Other encephalo  (9 admissions)
+
+========================================================================
+metrics (also in the .json file)
+========================================================================
+{
+ "common": {
+  "diseases": 63,
+  "admissions": 177,
+  "rare_admissions": 13,
+  "held_out_patients": 26,
+  "source": "MIMIC-IV-demo"
+ }
+}

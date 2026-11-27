@@ -1,5 +1,8 @@
 __pycache__/
-/data/
+/data/*
+!/data/kb/
+# lab profiles can come from credentialed MIMIC-IV: add the demo one by hand if you want it
+/data/kb/common_profiles*.json
 /scratch/
 # never commit credentialed MIMIC data or anything derived from it
 **/mimic*/
