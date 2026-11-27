@@ -116,6 +116,11 @@ for _k in ("rep_v", "img_v", "lab_v"):    # bumped after an upload is read, to c
     ss.setdefault(_k, 0)
 
 
+def pct(p):
+    # a disease's percentage for the screen: under 0.5% shows as <1%, not 0%
+    return "<1%" if 0 < p < 0.005 else f"{p:.0%}"
+
+
 def go(page):
     ss.page = page
     st.rerun()
@@ -596,7 +601,7 @@ def page_results():
 
     if fu:
         lines = [f"{shown[d]['name'] if d in shown else d}: "
-                 f"{('%.0f%%' % (100 * fu['before'][d])) if fu['before'].get(d) is not None else 'new'} to {p:.0%}"
+                 f"{pct(fu['before'][d]) if fu['before'].get(d) is not None else 'new'} to {pct(p)}"
                  for d, p in fu["after"].items()]
         conf = [shown[d]["name"] for d in confirmed_ids if d in shown]
         st.success(("**Molecular evidence reported for " + ", ".join(conf) + ".** It needs clinical review (the "
@@ -705,7 +710,7 @@ def page_results():
                         + (f" <span class='muted'>({x['freq']}%)</span>" if x["freq"] is not None else "")
                         for x in d["fits"][:4]]
                 miss = ", ".join(html.escape(x["finding"].lower()) for x in d["missing"][:2])
-                col.markdown(f"<b>{html.escape(d['name'])}</b>, {d['probability']:.0%}"
+                col.markdown(f"<b>{html.escape(d['name'])}</b>, {pct(d['probability'])}"
                              "<div class='cmp'>" + "<br>".join(rows) + "</div>"
                              + (f"<span class='muted'>Usually seen but not recorded: {miss}</span>" if miss else ""),
                              unsafe_allow_html=True)
@@ -726,7 +731,7 @@ def page_results():
         nxt = lst[1]["probability"] if len(lst) > 1 else None
         with boxed(f"hero_{kind}"):
             st.markdown(f"<div class='hero {'rejected' if top['id'] in actions['rejected'] else ''}'>"
-                        f"<div class='num'><b>{top['probability']:.0%}</b><span>{scale}</span></div>"
+                        f"<div class='num'><b>{pct(top['probability'])}</b><span>{scale}</span></div>"
                         f"<div class='lbl'>Most likely</div>"
                         f"<div class='name'>{html.escape(top['name'])}</div>{status(top)}"
                         f"<div class='bar'><div style='width:{max(2, top['probability'] * 100):.0f}%'></div></div></div>",
@@ -739,7 +744,7 @@ def page_results():
             for n, d in enumerate(lst[1:], 2):
                 tag = {"<span class='pill pick'>Your pick</span>": "  (your pick)",
                        "<span class='pill out'>Ruled out</span>": "  (ruled out)"}.get(status(d), "")
-                with st.expander(f"{n}.  {short(d['name'], 60)}  **{d['probability']:.0%}**{tag}"):
+                with st.expander(f"{n}.  {short(d['name'], 60)}  **{pct(d['probability'])}**{tag}"):
                     st.markdown(status(d) + f"<div class='bar'><div style='width:{max(2, d['probability'] * 100):.0f}%'>"
                                 "</div></div>", unsafe_allow_html=True)
                     details(d)
@@ -763,7 +768,7 @@ def page_results():
             for n, d in enumerate(data["lists"][kind], 1):
                 tag = (" [your pick]" if actions["picked"] == d["id"] else
                        " [ruled out]" if d["id"] in actions["rejected"] else "")
-                out.append(f"{n}. {d['name']}: {d['probability']:.0%}{tag}")
+                out.append(f"{n}. {d['name']}: {pct(d['probability'])}{tag}")
                 if d["fits"]:
                     out.append("   Fits: " + "; ".join(x["finding"] + (f" ({x['freq']}% of people with it)"
                                if x["freq"] is not None else "") for x in d["fits"][:3]))
@@ -844,7 +849,7 @@ def page_results():
             else:
                 st.markdown("Tests that best tell the top diseases apart")
                 for x in data.get("separate", [])[:3]:
-                    parts = ", ".join(f"{short(shown[d]['name'].split(',')[0], 28)} {p:.0%}"
+                    parts = ", ".join(f"{short(shown[d]['name'].split(',')[0], 28)} {pct(p)}"
                                       for d, p in x["p_pos"].items() if d in shown)
                     st.markdown(f"**{x['test']}**  \n<span class='muted'>Positive in: {parts}. "
                                 f"Effort {x['burden']} of 5.</span>", unsafe_allow_html=True)
