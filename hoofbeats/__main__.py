@@ -158,6 +158,16 @@ def gather_literature(a, pm, r: LRRanker, ext, c: Case, ranking, ex, k: int = 10
 
 
 def load_kb(a, prefixes=("OMIM",)):
+    from . import model as _model
+    sp = getattr(a, "series_prior", None)
+    if sp:
+        try:
+            _model.SERIES_PRIOR = tuple(float(x) for x in str(sp).split(","))
+            assert len(_model.SERIES_PRIOR) == 2 and _model.SERIES_PRIOR[0] > 0 and 0 < _model.SERIES_PRIOR[1] < 1
+        except (ValueError, AssertionError):
+            raise SystemExit(f"--series-prior: expected 'a,mu' with a > 0 and 0 < mu < 1, got {sp!r}")
+    else:
+        _model.SERIES_PRIOR = (2.0, 0.5)
     kb = Path(a.kb)
     ont = Ontology(kb / "hp.obo")
     genes = kb / "genes_to_disease.txt"
@@ -188,8 +198,14 @@ def load_kb(a, prefixes=("OMIM",)):
           + (f" ({n_lab} lab profiles from {a.profiles['source']}, {n_sym} symptom profiles)" if a.profiles and n_sym else
              f" (common from {a.profiles['source']}, rare prior mass {rare_mass:.1%})" if a.profiles else
              " (symptom profiles)" if n_sym else ""))
+    from . import intake as _intake
+    _intake.REGION_FILTER = not getattr(a, "no_image_region_filter", False)
     RUN["settings"].update({"absent_weight": a.absent_weight, "absent_min_freq": a.absent_min_freq,
-                            "use_onset": a.use_onset, "use_sex": a.use_sex})
+                            "use_onset": a.use_onset, "use_sex": a.use_sex, "series_prior": list(_model.SERIES_PRIOR),
+                            "image_region_filter": _intake.REGION_FILTER})
+    if _model.SERIES_PRIOR != (2.0, 0.5):
+        print(f"[kb] series prior: n/m frequencies are (n + {_model.SERIES_PRIOR[0]:g} x {_model.SERIES_PRIOR[1]:g})"
+              f" / (m + {_model.SERIES_PRIOR[0]:g})")
     r = LRRanker(ont, db, prior_weight=a.prior_weight, rare_mass=rare_mass,
                  absent_weight=a.absent_weight, absent_min_freq=a.absent_min_freq)
     r.use_onset, r.use_sex = a.use_onset, a.use_sex
@@ -1245,6 +1261,30 @@ def cmd_hpo_index(a):
         if b["n"]:
             print(f"  {b['from']:.2f}  {b['n']:4d}  {b['correct'] / b['n']:6.1%}  {b['in_top_k'] / b['n']:6.1%}")
 
+CLOSE_MAX_DESCENDANTS = 60     # a shared parent this narrow makes two terms "close" (lenient image scores)
+
+
+def close_terms(ont, a: str, b: str) -> bool:
+    # ancestor matches, or siblings under a narrow shared parent (ventriculomegaly / hydrocephalus under "abnormal
+    # cerebral ventricle morphology"); the ranker already gives such pairs partial credit through the shared ancestor
+    if a in ont.ancestors(b) or b in ont.ancestors(a):
+        return True
+    pa = set(ont.terms[a].parents) if a in ont.terms else set()
+    pb = set(ont.terms[b].parents) if b in ont.terms else set()
+    # the shared parent must be an organ's "Abnormal ..." class, not a grouping by kind ("Visceromegaly" would make
+    # hepatomegaly and splenomegaly close)
+    return any(len(ont.descendants(x)) <= CLOSE_MAX_DESCENDANTS and ont.name(x).lower().startswith("abnormal")
+               for x in pa & pb)
+
+
+def image_agreement_lenient(r: LRRanker, predicted: set[str], reference: set[str]) -> tuple[float | None, float | None]:
+    # image_agreement, also counting close terms (close_terms) as agreeing
+    agree = lambda x, y: close_terms(r.ont, x, y)
+    p = sum(any(agree(x, y) for y in reference) for x in predicted) / len(predicted) if predicted else None
+    rc = sum(any(agree(y, x) for x in predicted) for y in reference) / len(reference) if reference else None
+    return p, rc
+
+
 
 def cmd_pmc_score(a):
     from .pmc_checks import score, score_task_c_llm
@@ -1438,6 +1478,13 @@ def main(argv=None):
                    'e.g. \'{"image_context": 0.15, "image": 0.15}\'. Each finding\'s LR becomes p*LR + (1-p): '
                    'unreliable findings are pulled toward no information. Source kinds: phenopacket, input, note, '
                    'image_context, image, followup, lab, vitals, medpix; "*" sets the default (1)')
+    p.add_argument("--series-prior", default=None,
+                   help="prior 'a,mu' for n/m annotation frequencies: (n + a*mu)/(m + a). Default 2,0.5 ((n+1)/(m+2)). "
+                        "4,0.3 pulls features seen in one or two patients down, so diseases known from one large "
+                        "report stop collecting credit for unrelated findings")
+    p.add_argument("--no-image-region-filter", action="store_true",
+                   help="keep image findings outside the imaged body part (by default a finding from image_context "
+                        "must belong to the organ systems of the images' location, e.g. no ECG terms from a brain MRI)")
     p.add_argument("--absent-min-freq", type=float, default=0.8,
                    help="absent findings only count for features the disease shows this often (0 = old rule)")
     p.add_argument("--pubmed", action="store_true", help="add verified PubMed abstract sentences as evidence")

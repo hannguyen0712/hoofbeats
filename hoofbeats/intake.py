@@ -251,7 +251,11 @@ def original_texts(d: IntakeCase, pos: dict) -> dict[str, str]:
 def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancestors: bool = True, path=None,
                disease_names: dict[str, str] | None = None, emit_normal_vitals: bool = False, llm_reader=None,
                rules_text: bool = True, status_policy: str = "llm", describer=None, max_images: int = 4,
-               images_per_call: int = 1) -> Case:
+               images_per_call: int = 1, image_meta: list[dict] | None = None,
+               region_filter: bool | None = None) -> Case:
+    # image_meta: location/modality of images described elsewhere (medpix-context), for the body-part filter.
+    # region_filter: drop present image_context findings outside the imaged body part (ask.body_part_roots);
+    # None = the --no-image-region-filter setting (REGION_FILTER)
     # describer: the Stage A vision model. With images and a describer, the images are described first and the
     # description is added to image_context, so every Stage 1 reader reads it. Images without a describer are an
     # error (IntakeError), so they are never skipped by accident.
@@ -272,7 +276,12 @@ def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancesto
         raise IntakeError(f"{d.case_id} has images but no image-context model: pass --context-model (and --context-endpoint) so they are described")
     if images:
         if getattr(describer, "samples", 1) > 1:     # --context-samples: the consistency filter reads HPO terms
-            describer.extract, describer.term_name = ext.findings, ont.name
+            # with the LLM reader on, the votes are on what the full Stage 1 reads, as in medpix-context
+            keep = (Status.PRESENT, Status.ABSENT)
+            describer.extract = (ext.findings if llm_reader is None else
+                                 lambda t: [f for f in ext.findings(t) + llm_reader(t, "image_context", "image_context")
+                                            if f.status in keep])
+            describer.term_name = ont.name
         described = describe_images(describer, d, images, warnings.append, max_images, images_per_call)
         if described["text"]:
             d.image_context = ((d.image_context or "").strip() + "\n\n" + described["text"]).strip()
@@ -288,10 +297,25 @@ def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancesto
     llm = (lambda t, src: llm_reader(t, src, field(src, src))) if llm_reader else (lambda t, src: [])
     if llm_reader is not None:
         llm_reader.case_id = d.case_id
+    from .ask import body_part_roots, in_body_part
+    roots = body_part_roots(image_meta if image_meta is not None else images) \
+        if (REGION_FILTER if region_filter is None else region_filter) else None
+    outside: list[str] = []
+
+    def in_region(fs):
+        # present image findings outside the imaged body part are dropped; absent ones never hurt, so they stay
+        keep = []
+        for f in fs:
+            if f.status == Status.PRESENT and not in_body_part(ont, f.hpo_id, roots):
+                outside.append(f"{f.hpo_id} {ont.name(f.hpo_id)}")
+            else:
+                keep.append(f)
+        return keep
     findings, prov = fuse([read_hpo_terms(d.hpo_terms, ont, w, pos.get("hpo_terms")),
                            text(d.note_text, "note"), llm(d.note_text, "note"),
                            read_numbers(d.note_text, "note", "note_text", age, w, **nv),
-                           text(d.image_context, "image_context"), llm(d.image_context, "image_context"),
+                           in_region(text(d.image_context, "image_context")),
+                           in_region(llm(d.image_context, "image_context")),
                            read_numbers(d.image_context, "image_context", "image_context", age, w, **nv),
                            text(d.followup_text, "followup"), llm(d.followup_text, "followup"),
                            read_numbers(d.followup_text, "followup", "followup_text", age, w, **nv),
@@ -299,6 +323,9 @@ def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancesto
                            read_labs(d.labs, w, age), read_structured_vitals(d.vitals, w, age, **nv)], ont, drop_ancestors,
                           status_policy)
     prov["normal_vitals"] = normals
+    prov["outside_body_part"] = sorted(set(outside))
+    if outside:
+        warnings.append("image findings outside the imaged body part, not scored: " + "; ".join(sorted(set(outside))))
     warnings += [f"{c['hpo_id']} {ont.name(c['hpo_id'])}: {c['reason']} "
                  f"({', '.join(c['contradicted_by'])}); {c['status']} {c['action']}" for c in prov["conflicts"]]
     meta = {"input_format": FORMAT, "policy": d.policy, "images": images, "age": d.age, "sex": d.sex,
@@ -314,6 +341,9 @@ def parse_case(obj, ont: Ontology, ext: Extractor | None = None, *, drop_ancesto
                 list(dict.fromkeys(g.strip() for g in d.genes if g.strip())), meta=meta)
     warnings += [f"provenance: {p}" for p in verify_provenance(case, original_texts(d, pos))]
     return case
+
+
+REGION_FILTER = True        # --no-image-region-filter turns it off (set by load_kb)
 
 
 def load_case(path, ont: Ontology, ext: Extractor | None = None, *, drop_ancestors: bool = True,

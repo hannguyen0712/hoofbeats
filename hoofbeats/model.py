@@ -151,8 +151,14 @@ FREQ_TERMS = {"HP:0040280": 1.0, "HP:0040281": 0.895, "HP:0040282": 0.545,
               "HP:0040283": 0.17, "HP:0040284": 0.025, "HP:0040285": 0.0}
 
 
+# prior for n/m frequencies: (n + a*mu) / (m + a). The default (2, 0.5) gives (n+1)/(m+2), so 1/1 is 2/3.
+# A stronger prior (--series-prior 4,0.3) pulls features seen in one or two patients down, so a disease known from
+# a single report with 100+ features stops taking credit for almost any finding
+SERIES_PRIOR = (2.0, 0.5)
+
+
 def parse_frequency(raw: str, default: float = 0.5) -> float:
-    # frequency term, n/m (shrunk so 1/1 is 2/3), or x%
+    # frequency term, n/m (shrunk toward SERIES_PRIOR), or x%
     raw = (raw or "").strip()
     try:
         if raw in FREQ_TERMS:
@@ -161,7 +167,8 @@ def parse_frequency(raw: str, default: float = 0.5) -> float:
             return float(raw[:-1]) / 100
         if "/" in raw:
             n, m = (int(x) for x in raw.split("/"))
-            return (n + 1) / (m + 2)
+            a, mu = SERIES_PRIOR
+            return (n + a * mu) / (m + a)
     except ValueError:
         pass
     return default

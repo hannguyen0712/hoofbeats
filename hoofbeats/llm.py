@@ -4,6 +4,7 @@ import base64
 import copy
 import hashlib
 import json
+import math
 import re
 import threading
 import time
@@ -157,19 +158,54 @@ class MedGemma:
                     fh.write(json.dumps({"key": key, "reply": reply}) + "\n")
         return reply
 
+    def yes_prob(self, user: str, system: str = SYSTEM, images: tuple[str, ...] = ()) -> float | None:
+        # P(yes) for a yes/no question, from the first answer token's probabilities (yes and no renormalized, as in
+        # threshold-calibration work on medical VLMs). Servers without logprobs, and in-process models, give the text
+        # answer as 1.0 / 0.0. None: no answer (dry run, offline miss, unreadable reply). Cached like chat().
+        key = "yesno:" + self._key(user, system, images)
+        with self._lock:
+            if key in self._cache:
+                self.cache_hits += 1
+                return yes_value(self._cache[key])
+            if self.dry_run or self.offline:
+                self.planned += self.dry_run
+                self.missed += self.offline
+                return None
+        t0 = time.time()
+        try:
+            if self.endpoint:
+                data = self._endpoint_chat(user, system, images, raw=True,
+                                           overrides={"max_tokens": 1, "temperature": 0, "logprobs": True,
+                                                      "top_logprobs": 20})
+                reply = json.dumps(yes_from_response(data))
+            else:
+                reply = json.dumps(yes_from_text(self._local_chat(user, system, images)))
+        finally:
+            with self._lock:
+                self.n_calls, self.seconds = self.n_calls + 1, self.seconds + time.time() - t0
+        with self._lock:
+            self._cache[key] = reply
+            if self._cache_file:
+                self._cache_file.parent.mkdir(parents=True, exist_ok=True)
+                with open(self._cache_file, "a") as fh:
+                    fh.write(json.dumps({"key": key, "reply": reply}) + "\n")
+        return yes_value(reply)
+
     def usage(self) -> dict:
         return {"requests": self.requests, "retries": self.retries, "cache_hits": self.cache_hits,
                 "would_send": self.planned, "offline_misses": self.missed,
                 "sec_per_request": round(self.seconds / max(self.n_calls, 1), 2)}
 
-    def _endpoint_chat(self, user, system, images, schema=None) -> str:
+    def _endpoint_chat(self, user, system, images, schema=None, overrides: dict | None = None, raw: bool = False):
+        # overrides: request fields that win over --llm-extra (yes_prob: one token with logprobs); raw: the parsed JSON
         content = user
         if images:   # OpenAI-compatible servers take images as base64 data URLs
             content = [{"type": "image_url", "image_url": {"url": f"data:{image_type(p)};base64," +
                         base64.b64encode(Path(p).read_bytes()).decode()}} for p in images]
             content.append({"type": "text", "text": user})
         body = {"model": self.model, "temperature": 0, "max_tokens": self.max_new_tokens,
-                "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}], **self.extra}
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}], **self.extra,
+                **(overrides or {})}
         if schema:
             body["response_format"] = {"type": "json_schema", "json_schema": {"name": "reply", "schema": schema, "strict": True}}
         headers = {"Content-Type": "application/json"}
@@ -187,7 +223,8 @@ class MedGemma:
             req = urllib.request.Request(self.endpoint, json.dumps(body).encode(), headers)
             try:
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                    return reply_text(json.loads(resp.read()))
+                    data = json.loads(resp.read())
+                    return data if raw else reply_text(data)
             except TimeoutError:        # a failed request (benchmarks skip the case), not a crash
                 self.errors += 1
                 raise RuntimeError(f"{self.model}: no reply within {self.timeout:.0f} s. A slow CPU or a reply stuck "
@@ -235,6 +272,41 @@ class MedGemma:
             msgs = [{"role": "system", "content": system}, {"role": "user", "content": user}]
             out = self._pipe(msgs, max_new_tokens=self.max_new_tokens, do_sample=False)
         return out[0]["generated_text"][-1]["content"]
+
+
+YES_TOKENS, NO_TOKENS = {"yes"}, {"no"}
+
+
+def yes_from_text(text) -> float | None:
+    # the answer word itself: "Yes" -> 1.0, "No" -> 0.0, anything else -> None
+    w = re.findall(r"[a-z]+", str(text or "").lower())
+    return 1.0 if w and w[0] in YES_TOKENS else 0.0 if w and w[0] in NO_TOKENS else None
+
+
+def yes_from_response(data: dict) -> float | None:
+    # P(yes) / (P(yes) + P(no)) over the first token's top alternatives (" Yes", "yes", "YES" all count);
+    # the reply text when the server sent no logprobs or neither word is among them
+    try:
+        choice = data["choices"][0]
+    except (KeyError, IndexError, TypeError):
+        return None
+    first = ((choice.get("logprobs") or {}).get("content") or [None])[0] or {}
+    p = {"yes": 0.0, "no": 0.0}
+    for alt in first.get("top_logprobs") or ([first] if first.get("token") is not None else []):
+        tok = str(alt.get("token", "")).strip().lower()
+        if tok in YES_TOKENS | NO_TOKENS and alt.get("logprob") is not None:
+            p["yes" if tok in YES_TOKENS else "no"] += math.exp(float(alt["logprob"]))
+    if p["yes"] + p["no"] > 0:
+        return p["yes"] / (p["yes"] + p["no"])
+    return yes_from_text((choice.get("message") or {}).get("content"))
+
+
+def yes_value(reply) -> float | None:
+    try:
+        v = json.loads(reply)
+    except (TypeError, ValueError):
+        return None
+    return float(v) if isinstance(v, (int, float)) else None
 
 
 def check_policy(llm, cases: list[Case], r: LRRanker | None = None) -> None:

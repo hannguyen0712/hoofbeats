@@ -29,10 +29,29 @@ import json
 import re
 from pathlib import Path
 
-POSITIVE = re.compile(r"^\s*(positive|abnormal|detected|present|yes|confirmed)\b", re.I)
+POSITIVE = re.compile(r"^\s*(positive|abnormal|detected|present|yes|confirmed|(likely )?pathogenic)\b", re.I)
 NEGATIVE = re.compile(r"^\s*(negative|normal|not detected|absent|no|unremarkable|within normal limits)\b", re.I)
 CAUSAL = {"pathogenic", "likely pathogenic"}
 STRONG = 0.90
+MAX_IMPLIED = 5     # a result with no details marks at most this many findings; a vaguer one must say which
+CLASS = re.compile(r"\b(likely pathogenic|pathogenic|uncertain significance|vus|likely benign|benign)\b", re.I)
+
+
+def classification(t: dict) -> str:
+    # the variant classification: the field, else the words in the result or details ("pathogenic variant ...").
+    # "likely pathogenic" is tested before "pathogenic", so it is never read as the stronger class
+    cls = str(t.get("classification") or "").strip().lower()
+    if cls:
+        return cls
+    m = CLASS.search(f"{t.get('result') or ''} {t.get('details') or ''}")
+    return {"vus": "uncertain significance"}.get(m.group(1).lower(), m.group(1).lower()) if m else ""
+
+
+def vague(wk, tid: str | None, n_found: int) -> bool:
+    # a general exam or specialist evaluation, or a test that looks for many findings here
+    from .workup import is_generic
+    test = wk.cat.tests.get(tid) if wk and tid else None
+    return n_found > MAX_IMPLIED or bool(test and (is_generic(test.name) or test.kind == "specialist"))
 
 
 def result_kind(result) -> str:
@@ -117,10 +136,12 @@ def find_test(wk, before: dict, t: dict) -> str | None:
     return hits.pop() if len(hits) == 1 else None
 
 
-def suggested_for(before: dict, tid: str) -> set[str]:
-    # the findings this test was suggested for (its "shows"), over every disease shown before
+def suggested_for(before: dict, tid: str, diseases: list[str] | None = None) -> set[str]:
+    # the findings this test was suggested for (its "shows"), over the given diseases (default: every one shown)
     out = set()
-    for d in ((before.get("tests") or {}).get("diseases") or {}).values():
+    for k, d in ((before.get("tests") or {}).get("diseases") or {}).items():
+        if diseases is not None and k not in diseases:
+            continue
         for x in (d.get("tests") or []) + (d.get("review") or []):
             if x.get("id") == tid:
                 out |= {s["hpo_id"] for s in x.get("shows") or []}
@@ -152,7 +173,7 @@ def interpret(wk, before: dict, c0, ex0, results: list[dict]) -> tuple[list[dict
                "effect": [], "warning": ""}
         gs = [g.strip() for g in (t.get("genes") or ([] if not tid or not tid.startswith("GENE:")
                                                       else tid[5:].split(","))) if g.strip()]
-        cls = str(t.get("classification") or "").strip().lower()
+        cls = classification(t)
         if gs or (tid or "").startswith("GENE:"):
             row["genes"], row["classification"] = gs, cls or None
             if kind == "positive" and cls in CAUSAL:
@@ -166,12 +187,20 @@ def interpret(wk, before: dict, c0, ex0, results: list[dict]) -> tuple[list[dict
                 row["effect"].append(f"diseases of {', '.join(gs)} made 10x less likely (a negative gene test lowers, "
                                      "but does not rule out, a disease)")
         elif tid and wk and kind in ("positive", "negative"):
-            # the findings it was suggested for; if it was not suggested, what it shows in the top 3 diseases
-            found = sorted(suggested_for(before, tid) or looks_for(wk, c0, ex0, tid, shown[:3]))
-            if kind == "negative" and found:
+            # the findings it was suggested for in the top 3 diseases; if it was not, what it shows in them. A vague
+            # result (a general or specialist evaluation, or a test looking for many findings) marks none by itself:
+            # the details or the note must name them, or one vague line would add or remove many findings at once
+            found = sorted(suggested_for(before, tid, shown[:3]) or looks_for(wk, c0, ex0, tid, shown[:3]))
+            is_vague = vague(wk, tid, len(found))
+            if kind == "negative" and found and not is_vague:
                 terms += [{"id": u, "status": "absent"} for u in found]
                 row["effect"].append("absent: " + ", ".join(wk.r.ont.name(u) for u in found))
-            elif kind == "positive" and len(found) == 1:
+            elif kind == "negative" and found and t.get("details"):
+                row["effect"].append(f"looks for {len(found)} findings here; which are absent is read from the details")
+            elif kind == "negative" and found:
+                row["warning"] = (f"negative, but this test looks for {len(found)} findings here: say which were "
+                                  "looked for in details, note_text or hpo_terms so they can be scored")
+            elif kind == "positive" and len(found) == 1 and not is_vague:
                 terms.append({"id": found[0], "status": "present"})
                 row["effect"].append("present: " + wk.r.ont.name(found[0]))
             elif kind == "positive" and t.get("details"):
@@ -190,7 +219,10 @@ def statuses(wk, before: dict, after: dict, rows: list[dict], probs: dict) -> li
     # the status of every disease shown after the follow-up (see the top of the file)
     causal = {g for x in rows for g in (x.get("genes") or []) if x["kind"] == "positive"
               and (x.get("classification") or "") in CAUSAL}
-    pos = {x["matched"] for x in rows if x["kind"] == "positive" and x["matched"]}
+    # a positive gene result supports a disease only when classified pathogenic / likely pathogenic
+    is_gene = lambda x: "genes" in x or str(x.get("matched") or "").startswith("GENE:")
+    pos = {x["matched"] for x in rows if x["kind"] == "positive" and x["matched"]
+           and (not is_gene(x) or (x.get("classification") or "") in CAUSAL)}
     bt = ((before.get("tests") or {}).get("diseases") or {})
     at = ((after.get("tests") or {}).get("diseases") or {})
     out, gene_done = [], set()
@@ -212,7 +244,9 @@ def statuses(wk, before: dict, after: dict, rows: list[dict], probs: dict) -> li
         else:
             level, why = "not yet confirmed", (f"probability {p:.0%}" + ("" if pos & confirm_tests else
                                                "; no confirming test has come back positive"))
-        nxt = [t["test"] for t in ((at.get(d) or {}).get("tests") or [])[:3]] if level == "not yet confirmed" else []
+        from .workup import is_generic
+        nxt = [t["test"] for t in ((at.get(d) or {}).get("tests") or [])
+               if not is_generic(t["test"], len(t.get("shows") or []))][:3] if level == "not yet confirmed" else []
         out.append({"id": d, "name": x["name"], "status": level, "why": why, "next_tests": nxt})
     return out
 
