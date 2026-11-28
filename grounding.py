@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from hoofbeats.model import verify_claim
+from hoofbeats.common_hpo import is_estimated, is_symptom_profile
 import math
 import dataclasses
 
@@ -44,9 +45,13 @@ def patient_items(r, case, claims):
 def lab_profile(r, d, refs=()):
     """Name of the lab profile a common disease's frequencies come from (MIMIC-IV admissions), or "" for a rare
     disease, whose frequencies come from HPO annotations."""
-    if d not in r.db.prior:
+    if d not in r.db.scope:          # rare diseases and symptom profiles come from HPO annotations
         return ""
     return "MIMIC-IV demo" if any("demo" in x.lower() for x in refs) or not refs else "MIMIC-IV"
+
+
+def common_source(r, d):
+    return "HPO common-disease annotations" if is_symptom_profile(r.db, d) else "HPO Annotations"
 
 
 def knowledge_items(r, case, d, claims, ex, start=1):
@@ -74,13 +79,15 @@ def knowledge_items(r, case, d, claims, ex, start=1):
         lab = lab_profile(r, d, cl.refs)
         if lab:     # a common disease: the frequency is the share of its admissions with this lab result
             text = text.replace(" of cases", f" of {lab} admissions with this diagnosis")
+        if is_estimated(r.db, d):    # text-mined annotation without a frequency: state no number for it
+            text = re.sub(r",? in ~\d+% of cases", " (frequency not recorded)", text)
         items[kid] = Item(
             kid,
             "knowledge",
             text,
             cl.patient_term,
             cl.status.value,
-            source = f"{lab} lab profile" if lab else "HPO Annotations",
+            source = f"{lab} lab profile" if lab else common_source(r, d),
             refs = tuple(sorted(cl.refs)),
             role = role,
             via = via)
@@ -108,6 +115,8 @@ def missing_items(r, case, d, ex, start, max_missing = 3):
     known = known_terms(r, case)
 
     candidates = []
+    if is_estimated(r.db, d):       # no recorded frequencies, so nothing can be called "usually present"
+        return items
     for a in r.db.annotations(d, ex):
         t = r.ont.resolve(a.hpo_id)
         if a.negated or a.freq < 0.5 or t is None or t in known:
@@ -131,7 +140,7 @@ def missing_items(r, case, d, ex, start, max_missing = 3):
             "knowledge",
             text,
             t,
-            source=f"{lab} lab profile" if lab else "HPO Annotations",
+            source=f"{lab} lab profile" if lab else common_source(r, d),
             refs=tuple(sorted(refs)),
             role = "missing")
         n += 1

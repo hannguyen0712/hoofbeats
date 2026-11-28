@@ -460,6 +460,18 @@ class DiseaseWorkup:
     gtr: dict | None = None         # GTR: summary, example targeted tests, biochemical tests
 
 
+# tests that look at everything (a general exam, a history): suggested only after the specific ones, and never as a
+# follow-up's next test, since "do a clinical assessment" tells the clinician nothing new
+GENERIC_TEST = re.compile(r"^\s*(clinical (assessment|examination|evaluation)|physical (exam|examination)|"
+                          r"dysmorphology (assessment|examination|evaluation)|medical history|family history|"
+                          r"history taking|general (examination|assessment))\b", re.I)
+GENERIC_MAX_SHOWS = 12      # a test that would show this many of one disease's findings is generic too
+
+
+def is_generic(name: str, n_shows: int = 0) -> bool:
+    return bool(GENERIC_TEST.search(name or "")) or n_shows > GENERIC_MAX_SHOWS
+
+
 def shortlist(dw: DiseaseWorkup, n: int) -> list[TestResult]:
     # the n best tests, plus the best confirming and the best ruling-out test when those are not among them
     out = list(dw.ranked[:n])
@@ -722,7 +734,8 @@ class Workupper:
                              bits, 0.0, is_done, woe_c, woe_r)
             res.score = ORDER_BY[ORDERING](res, pd_) / burden
             results.append(res)
-        results.sort(key=lambda x: (-x.score, x.test.burden, x.test.name))
+        # specific tests first; generic ones (clinical assessment, dysmorphology assessment) only after them
+        results.sort(key=lambda x: (is_generic(x.test.name, len(x.shows)), -x.score, x.test.burden, x.test.name))
         review = [x for x in results if x.done]
         todo = [x for x in results if not x.done]
         confirm = [x for x in todo if x.lr_pos >= LR_CONFIRM][:per_list]

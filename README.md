@@ -193,6 +193,40 @@ python -m hoofbeats --common none "${QWEN[@]}" medpix-context --medpix data/medp
 - `--context-read findings` makes Stage 1 read only each image finding's name, location and confidence, and the
   pertinent negatives, not the explanations and summary around them.
 - Both options are off by default, and they work the same way in `diagnose`, `multimodal` and `medpix-context`.
+- With `--llm-endpoint` (and `--llm-model`), `medpix-context` reads the history, the image descriptions and the
+  radiologist's findings with the full Stage 1 (rules, numbers, LLM reader and SapBERT linker), as `diagnose` does;
+  without it, with the rules and numbers only. The precision and recall scores and the `consensus` votes use the same
+  reader. The rules alone map many radiology phrases to nothing ("enlarged spleen", "renal mass", "ventricular
+  enlargement"), so compare models under the full Stage 1.
+- The `asked` condition ranks with the image description (the `consensus` one when that condition runs too), then
+  asks the vision model about the top `--ask-diseases` diseases' imaging findings that the case does not state yet,
+  at most `--ask-findings` per case. Each is asked both ways ("Is there X?", "Is the image free of X?"), and its
+  belief is (P(yes) + 1 - P(yes, free of X)) / 2 from the first answer token's probabilities, so a model that says
+  yes to everything stays at 0.5. Findings at or above `--ask-threshold` (default 0.7) are added. Only findings of
+  the imaged body region are asked, and never tumour types. `--ask-model` / `--ask-endpoint` pick another model
+  for the questions (its server must return logprobs). The summary scores the asked findings at thresholds 0.5 to
+  0.9; choose one on one split and report it on another.
+- The summary table now has the median rank, and each image score also has a lenient version that counts close
+  terms as agreeing (siblings under a narrow "Abnormal ..." parent, such as ventriculomegaly and hydrocephalus).
+- `scripts/sol_vision_models.sbatch` runs Qwen2.5-VL-7B, Qwen3.5-9B (one and two images per request) and
+  Lingshu-7B on the 99 hand-checked cases under the full Stage 1, with consensus and `asked` (questions answered by
+  Lingshu-7B). Download the models first (see the top of the script).
+- Body-part filter (on by default): a present finding read from `image_context` must belong to the organ systems of
+  the imaged body part (the images' `location`), plus tumours, oedema and vessels, which can be anywhere. Most
+  findings outside it are links the reader forces for words HPO has no term for ("midline shift" read as an ECG or
+  spine term), and each one lifts hundreds of unrelated diseases above the true one. Dropped findings are listed in
+  the case's provenance (`outside_body_part`) and warnings. Images without a known location are not filtered;
+  `--no-image-region-filter` turns it off. In medpix-context the radiologist's findings (`reference`) are not
+  filtered, and each row now saves the scored HPO terms (`terms`) for analysis per finding.
+- `--series-prior a,mu` sets how n/m annotation frequencies are shrunk: (n + a*mu)/(m + a). The default 2,0.5 is the
+  old (n+1)/(m+2). Diseases known from one report with 100+ features, each at 1/1 = 67%, take some credit for
+  almost any finding; 4,0.3 pulls single-patient features down to 44%. It changes the ranker for every case, so check
+  it on the rare benchmark before making it the default.
+- `--reliability '{"image_context": 0.2}'` counts image findings at 20% (each LR becomes 0.2*LR + 0.8): a wrong
+  image finding then costs little, and a right one still helps.
+- `scripts/sol_ranking_fixes.sbatch` compares these on the same 99 cases, reusing the vision-models run's cache:
+  no fixes, body-part filter, + reliability, + series prior, all, for Qwen3.5-9B (2 images per request) and
+  Qwen2.5-VL-7B.
 
 ### Rare and common diseases (MIMIC-IV demo)
 

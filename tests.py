@@ -1265,6 +1265,83 @@ class TestConsensus(unittest.TestCase):
         self.assertEqual(image_context(llm, case, max_images=1)[0].consensus, "")
 
 
+class TestAsk(unittest.TestCase):
+    # condition asked: yes/no questions about the top diseases' imaging findings; full Stage 1 in medpix-context
+    @classmethod
+    def setUpClass(cls):
+        root = Path(tempfile.mkdtemp())
+        kb = build(root)
+        cls.ont = Ontology(kb / "hp.obo")
+        cls.r = LRRanker(cls.ont, AnnotationDB(kb / "phenotype.hpoa", cls.ont, ("OMIM", "ORPHA")))
+
+    class Asker:
+        model, endpoint = "fake", None
+
+        def __init__(self):
+            self.asked = []
+
+        def yes_prob(self, user, system="", images=()):
+            self.asked.append(user)
+            return 0.2 if "free of" in user else 0.9
+
+    def test_yes_from_response(self):
+        from hoofbeats.llm import yes_from_response, yes_value
+        lp = lambda p: math.log(p)
+        data = {"choices": [{"message": {"content": "No"}, "logprobs": {"content": [{"token": "No", "logprob": lp(0.6),
+                "top_logprobs": [{"token": "No", "logprob": lp(0.6)}, {"token": " Yes", "logprob": lp(0.3)},
+                                 {"token": "yes", "logprob": lp(0.1)}]}]}}]}
+        self.assertAlmostEqual(yes_from_response(data), 0.4)
+        self.assertEqual(yes_from_response({"choices": [{"message": {"content": "Yes."}}]}), 1.0)   # no logprobs
+        self.assertIsNone(yes_from_response({"choices": [{"message": {"content": "maybe"}}]}))
+        self.assertIsNone(yes_from_response({}))
+        self.assertEqual(yes_value("0.25"), 0.25)
+        self.assertIsNone(yes_value("null"))
+
+    def test_belief(self):
+        from hoofbeats.ask import belief
+        self.assertAlmostEqual(belief(0.9, 0.2), 0.85)
+        self.assertAlmostEqual(belief(0.9, 0.9), 0.5)        # yes to both questions: undecided, not present
+        self.assertEqual(belief(None, 0.3), 0.7)
+        self.assertIsNone(belief(None, None))
+
+    def test_candidates_and_ask(self):
+        import hoofbeats.ask as ask
+        old = ask.REGIONS, ask.ALL_ROOTS
+        ask.REGIONS, ask.ALL_ROOTS = ((("brain",), ("HP:0000707",)),), ("HP:0000707",)
+        try:
+            case = Case("c", P("HP:0001250"), [])
+            rk = self.r.score(case)
+            imgs = [{"path": __file__, "modality": "MRI", "location": "Brain", "id": "i1"}]
+            # seizure is known (and focal-onset seizure below it); the eye and lab findings are outside the region
+            self.assertEqual(ask.candidates(self.r, rk, imgs, {"HP:0001250"}), ["HP:0001263"])
+            llm = self.Asker()
+            got = ask.ask_case(llm, self.r, rk, imgs, {"HP:0001250"})
+            self.assertEqual([(g.hpo_id, round(g.belief, 2)) for g in got], [("HP:0001263", 0.85)])
+            self.assertEqual(len(llm.asked), 2)               # asked both ways
+            self.assertIn("- Global developmental delay", ask.asked_text(got, 0.7))
+            self.assertEqual(ask.asked_text(got, 0.9), "")
+        finally:
+            ask.REGIONS, ask.ALL_ROOTS = old
+
+    def test_close_terms(self):
+        from hoofbeats.__main__ import close_terms, image_agreement_lenient
+        self.assertTrue(close_terms(self.ont, "HP:0007359", "HP:0001250"))      # child / parent
+        self.assertTrue(close_terms(self.ont, "HP:0001250", "HP:0001263"))      # siblings under a narrow parent
+        self.assertFalse(close_terms(self.ont, "HP:0001250", "HP:0001083"))     # nervous system vs eye
+        self.assertEqual(image_agreement_lenient(self.r, {"HP:0001263"}, {"HP:0001250"}), (1.0, 1.0))
+
+    def test_stage1_findings_and_median(self):
+        from hoofbeats.context import median_rank, stage1_findings
+        ext = Extractor(self.ont)
+        reader = lambda text, source, field: [Finding("HP:0001263", Status.PRESENT), Finding("HP:0001945", Status.UNCERTAIN)]
+        ids = lambda fs: sorted(f.hpo_id for f in fs)
+        self.assertEqual(ids(stage1_findings(ext, None, "Seizures.")), ["HP:0001250"])
+        self.assertEqual(ids(stage1_findings(ext, reader, "Seizures.")), ["HP:0001250", "HP:0001263"])
+        self.assertEqual(stage1_findings(ext, reader, "  "), [])
+        self.assertEqual(median_rank([1, 3, None], 100), 3)
+        self.assertEqual(median_rank([2, 4], 100), 3)
+
+
 class TestImageKinds(unittest.TestCase):
     def test_kinds_and_prompts(self):
         from hoofbeats.llm import context_prompt, image_kind
@@ -1336,6 +1413,66 @@ class TestFollowup(unittest.TestCase):
                          ["positive", "negative", "negative", "other", "other"])
         self.assertEqual(result_line({"test": "Echo", "result": "abnormal", "details": "root 4.6 cm"}),
                          "Echo: abnormal (root 4.6 cm).")
+
+
+    def test_body_part_filter_and_series_prior(self):
+        import hoofbeats.model as model
+        from hoofbeats.ask import body_part_roots, in_body_part
+        from hoofbeats.intake import parse_case
+        ont = Ontology(build(Path(tempfile.mkdtemp())) / "hp.obo")
+        self.ont, self.ext = ont, Extractor(ont)
+        head = [{"location": "Head", "modality": "CT"}]
+        self.assertIsNone(body_part_roots([{"location": ""}]))           # no known location: nothing is filtered
+        roots = body_part_roots(head)
+        self.assertTrue(in_body_part(self.ont, "HP:0001250", roots))      # seizure: nervous system
+        self.assertFalse(in_body_part(self.ont, "HP:0003155", roots))     # high ALP (a lab value) from a head CT
+        obj = {"case_id": "x", "image_context": "Seizures. Elevated circulating alkaline phosphatase concentration."}
+        kept = parse_case(obj, self.ont, self.ext, image_meta=head)
+        self.assertEqual({f.hpo_id for f in kept.findings}, {"HP:0001250"})
+        self.assertTrue(any("HP:0003155" in x for x in kept.meta["provenance"]["outside_body_part"]))
+        both = parse_case(obj, self.ont, self.ext, image_meta=head, region_filter=False)
+        self.assertEqual({f.hpo_id for f in both.findings}, {"HP:0001250", "HP:0003155"})
+        note = parse_case({"case_id": "y", "note_text": obj["image_context"]}, self.ont, self.ext, image_meta=head)
+        self.assertEqual(len(note.findings), 2)                            # only image text is filtered
+        # --series-prior: n/m frequencies shrink toward mu with weight a; the default keeps (n+1)/(m+2)
+        self.assertAlmostEqual(model.parse_frequency("1/1"), 2 / 3)
+        self.addCleanup(setattr, model, "SERIES_PRIOR", model.SERIES_PRIOR)
+        model.SERIES_PRIOR = (4.0, 0.3)
+        self.assertAlmostEqual(model.parse_frequency("1/1"), (1 + 1.2) / 5)
+        self.assertAlmostEqual(model.parse_frequency("50%"), 0.5)          # percentages are not touched
+
+    def test_classification_vague_and_generic(self):
+        from types import SimpleNamespace as NS
+        from hoofbeats.followup import classification, vague, statuses
+        from hoofbeats.workup import is_generic
+        # the classification is read from the result text when the field is missing; "likely" is kept
+        self.assertEqual(classification({"result": "positive", "details": "likely pathogenic variant"}), "likely pathogenic")
+        self.assertEqual(classification({"result": "pathogenic variant in FBN1"}), "pathogenic")
+        self.assertEqual(classification({"result": "positive", "details": "VUS"}), "uncertain significance")
+        self.assertEqual(classification({"result": "positive"}), "")
+        # generic tests, and tests looking for many findings, are vague
+        self.assertTrue(is_generic("clinical assessment") and is_generic("Dysmorphology assessment"))
+        self.assertFalse(is_generic("echocardiography", 4))
+        self.assertTrue(is_generic("echocardiography", 20))
+        cat = NS(tests={"T1": NS(name="neurologist evaluation", kind="specialist"),
+                        "T2": NS(name="slit lamp examination", kind="exam")})
+        wk = NS(cat=cat)
+        self.assertTrue(vague(wk, "T1", 1))
+        self.assertFalse(vague(wk, "T2", 3))
+        self.assertTrue(vague(wk, "T2", 9))
+        # an unclassified positive gene result never makes a disease "strongly supported"
+        rows = [{"test": "FBN1 gene testing", "kind": "positive", "matched": "GENE:FBN1", "genes": ["FBN1"],
+                 "classification": None}]
+        before = {"tests": {"diseases": {"OMIM:1": {"tests": [{"id": "GENE:FBN1", "test": "FBN1 gene testing",
+                                                               "role": "confirm"}]}}}}
+        after = {"top": [{"id": "OMIM:1", "name": "D"}],
+                 "tests": {"diseases": {"OMIM:1": {"tests": [{"test": "clinical assessment", "shows": []},
+                                                            {"test": "echocardiography", "shows": ["HP:1"]}]}}}}
+        st = statuses(None, before, after, rows, {"OMIM:1": 0.95})
+        self.assertEqual(st[0]["status"], "not yet confirmed")
+        self.assertEqual(st[0]["next_tests"], ["echocardiography"])
+        rows[0]["classification"] = "pathogenic"        # a classified one does count as a confirming test
+        self.assertEqual(statuses(None, before, after, rows, {"OMIM:1": 0.95})[0]["status"], "strongly supported")
 
 
 class TestImageContext(unittest.TestCase):
@@ -1531,6 +1668,9 @@ class TestImageContext(unittest.TestCase):
         self.assertEqual(image_type(self.mp / "images" / "MPX1_a.png"), "image/png")
 
     def test_medpix_conditions(self):
+        import hoofbeats.intake as intake
+        self.addCleanup(setattr, intake, "REGION_FILTER", True)
+        intake.REGION_FILTER = False        # the fake image texts here hold lab findings, which the body-part filter drops
         from hoofbeats.__main__ import image_agreement
         from hoofbeats.context import MM_CONDITIONS, medpix_context_case
         describer = FakeVision(finding="Low alkaline phosphatase", details="")   # the key finding for ORPHA:10
@@ -1544,6 +1684,37 @@ class TestImageContext(unittest.TestCase):
         self.assertAlmostEqual(rows["context"]["context_recall"], 1 / 3)   # low ALP; not hyperammonemia, ectopia lentis
         named = medpix_context_case(self.case(), ["context"], FakeVision(names_diagnosis=True), self.r, self.ext)[0]
         self.assertTrue(named["context_named_diagnosis"])
+
+    def test_asked_condition_and_full_stage1(self):
+        # condition asked: rank, ask the top diseases' findings both ways, add the yes ones; a reader feeds the scores
+        import hoofbeats.ask as ask
+        from hoofbeats.__main__ import image_agreement, image_agreement_lenient
+        from hoofbeats.context import ASK_THRESHOLDS, medpix_context_case
+
+        class Asker(FakeVision):
+            def yes_prob(self, user, system="", images=()):
+                return 0.1 if "free of" in user else 0.95
+        old = ask.REGIONS, ask.ALL_ROOTS
+        ask.REGIONS, ask.ALL_ROOTS = (), ("HP:0000118",)
+        try:
+            llm = Asker(finding="Low alkaline phosphatase", details="")
+            rows = {x["condition"]: x for x in medpix_context_case(
+                self.case(), ["text", "context", "asked"], llm, self.r, self.ext, max_images=1,
+                agreement=image_agreement, lenient=image_agreement_lenient,
+                ask={"llm": llm, "k": 3, "n": 4, "threshold": 0.7})}
+            got = json.loads(rows["asked"]["asked_findings"])
+            self.assertTrue(got and all(g["belief"] == 0.925 for g in got))
+            self.assertIn("Image questions (answered yes", rows["asked"]["context"])
+            self.assertGreaterEqual(rows["asked"]["findings"], rows["context"]["findings"])
+            self.assertTrue(all(f"asked_p@{t:g}" in rows["asked"] for t in ASK_THRESHOLDS))
+            self.assertIn("context_recall_lenient", rows["context"])
+            seen = []
+            reader = lambda text, source, field: seen.append(field) or []
+            medpix_context_case(self.case(), ["context"], FakeVision(), self.r, self.ext, max_images=1,
+                                agreement=image_agreement, reader=reader)
+            self.assertIn("image_context", seen)                 # the reader reads the image text for the scores
+        finally:
+            ask.REGIONS, ask.ALL_ROOTS = old
 
     def test_context_without_history(self):
         # --context-no-history: the describing model never sees the history; Stage 1 still reads it
@@ -1565,6 +1736,9 @@ class TestImageContext(unittest.TestCase):
             self.assertEqual({x["condition"] for x in rows}, {"text", "context"})
 
     def test_check_keeps_only_confirmed_findings(self):
+        import hoofbeats.intake as intake
+        self.addCleanup(setattr, intake, "REGION_FILTER", True)
+        intake.REGION_FILTER = False        # the fake image texts here hold lab findings, which the body-part filter drops
         from hoofbeats.__main__ import image_agreement
         from hoofbeats.context import medpix_context_case
         from hoofbeats.llm import VERIFY_SYSTEM, image_context
