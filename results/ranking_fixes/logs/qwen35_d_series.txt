@@ -1,0 +1,39 @@
+[kb] HPO hp/releases/2026-09-01, annotations 2026-09-02: 12820 rare + 0 common diseases
+[kb] series prior: n/m frequencies are (n + 4 x 0.3) / (m + 4)
+[llm] image context (Stage A) by Qwen/Qwen3.5-9B via http://127.0.0.1:53339/v1/chat/completions: --context-model
+[llm] Qwen/Qwen2.5-7B-Instruct via http://127.0.0.1:48909/v1/chat/completions; 10698 cached replies in results/vision_models/llm_cache
+[stage1] configs/stage1_v1.json: rules + numbers + LLM (Qwen/Qwen2.5-7B-Instruct, prompt v1, chooser v1, status policy llm)
+[medpix-context] 99 cases with images and a knowledge-base diagnosis (chosen); up to 2 images each; Stage 1 with rules + numbers + LLM reader
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|██████████| 199/199 [00:00<00:00, 7670.44it/s]
+[medpix-context] 1/99 cases[medpix-context] 2/99 cases[medpix-context] 3/99 cases[medpix-context] 4/99 cases[medpix-context] 5/99 cases[medpix-context] 6/99 cases[medpix-context] 7/99 cases[medpix-context] 8/99 cases[medpix-context] 9/99 cases[medpix-context] 10/99 cases[medpix-context] 11/99 cases[medpix-context] 12/99 cases[medpix-context] 13/99 cases[medpix-context] 14/99 cases[medpix-context] 15/99 cases[medpix-context] 16/99 cases[medpix-context] 17/99 cases[medpix-context] 18/99 cases[medpix-context] 19/99 cases[medpix-context] 20/99 cases[medpix-context] 21/99 cases[medpix-context] 22/99 cases[medpix-context] 23/99 cases[medpix-context] 24/99 cases[medpix-context] 25/99 cases[medpix-context] 26/99 cases[medpix-context] 27/99 cases[medpix-context] 28/99 cases[medpix-context] 29/99 cases[medpix-context] 30/99 cases[medpix-context] 31/99 cases[medpix-context] 32/99 cases[medpix-context] 33/99 cases[medpix-context] 34/99 cases[medpix-context] 35/99 cases[medpix-context] 36/99 cases[medpix-context] 37/99 cases[medpix-context] 38/99 cases[medpix-context] 39/99 cases[medpix-context] 40/99 cases[medpix-context] 41/99 cases[medpix-context] 42/99 cases[medpix-context] 43/99 cases[medpix-context] 44/99 cases[medpix-context] 45/99 cases[medpix-context] 46/99 cases[medpix-context] 47/99 cases[medpix-context] 48/99 cases[medpix-context] 49/99 cases[medpix-context] 50/99 cases[medpix-context] 51/99 cases[medpix-context] 52/99 cases[medpix-context] 53/99 cases[medpix-context] 54/99 cases[medpix-context] 55/99 cases[medpix-context] 56/99 cases[medpix-context] 57/99 cases[medpix-context] 58/99 cases[medpix-context] 59/99 cases[medpix-context] 60/99 cases[medpix-context] 61/99 cases[medpix-context] 62/99 cases[medpix-context] 63/99 cases[medpix-context] 64/99 cases[medpix-context] 65/99 cases[medpix-context] 66/99 cases[medpix-context] 67/99 cases[medpix-context] 68/99 cases[medpix-context] 69/99 cases[medpix-context] 70/99 cases[medpix-context] 71/99 cases[medpix-context] 72/99 cases[medpix-context] 73/99 cases[medpix-context] 74/99 cases[medpix-context] 75/99 cases[medpix-context] 76/99 cases[medpix-context] 77/99 cases[medpix-context] 78/99 cases[medpix-context] 79/99 cases[medpix-context] 80/99 cases[medpix-context] 81/99 cases[medpix-context] 82/99 cases[medpix-context] 83/99 cases[medpix-context] 84/99 cases[medpix-context] 85/99 cases[medpix-context] 86/99 cases[medpix-context] 87/99 cases[medpix-context] 88/99 cases[medpix-context] 89/99 cases[medpix-context] 90/99 cases[medpix-context] 91/99 cases[medpix-context] 92/99 cases[medpix-context] 93/99 cases[medpix-context] 94/99 cases[medpix-context] 95/99 cases[medpix-context] 96/99 cases[medpix-context] 97/99 cases[medpix-context] 98/99 cases[medpix-context] 99/99 cases
+
+Rank of the MedPix diagnosis by the ranker (Stage 1 findings -> disease scoring), 99 cases; image context by Qwen/Qwen3.5-9B (rows in results/ranking_fixes/qwen35_d_series/medpix_context_ctx-qwen3.5-9b.csv)
+
+| Stage 1 reads | Top-1 | Top-3 | Top-10 | MRR | median rank | findings per case |
+|---|---|---|---|---|---|---|
+| history/exam text | 0.020 | 0.091 | 0.121 | 0.065 | 367 | 3.7 |
+| text + image context (Stage A) | 0.061 | 0.131 | 0.182 | 0.106 | 191 | 9.2 |
+| text + image context, only findings at least --context-agree of --context-samples descriptions report | 0.061 | 0.101 | 0.141 | 0.097 | 126 | 9.0 |
+| text + radiologist findings (upper bound for a context) | 0.081 | 0.162 | 0.222 | 0.140 | 89 | 6.8 |
+
+Image findings outside the imaged body part, not scored (--no-image-region-filter keeps them): context 40, consensus 22
+
+Against history/exam text, same cases (95% CI resampling diseases; moves count only if they involve the top 10):
+| condition | Top-1, pts | Top-10, pts | MRR x100 | moved up | moved down |
+|---|---|---|---|---|---|
+| text + image context (Stage A) | +4.0 (-1.0 to +9.6) | +6.1 (-1.2 to +14.0) | +4.2 (-1.6 to +10.2) | 12 | 5 |
+| text + image context, only findings at least --context-agree of --context-samples descriptions report | +4.0 (+0.0 to +8.7) | +2.0 (-4.2 to +7.7) | +3.2 (-1.9 to +8.4) | 7 | 6 |
+| text + radiologist findings (upper bound for a context) | +6.1 (+0.9 to +12.0) | +10.1 (+3.0 to +17.6) | +7.6 (+2.0 to +13.4) | 16 | 5 |
+
+Image context vs the radiologist's findings (HPO terms): precision 19.4%, recall 24.9%; contexts that named the diagnosis 1.0% (disease names are never turned into findings); replies parsed 100.0%
+Lenient (close terms count too, e.g. ventriculomegaly for hydrocephalus): precision 22.3%, recall 28.0%
+Pooled over all findings: 58 of 346 match the radiologist (16.8%)
+
+Image context, findings the descriptions agree on vs the radiologist's findings (HPO terms): precision 26.7%, recall 25.2%; contexts that named the diagnosis 1.0% (disease names are never turned into findings); replies parsed 100.0%
+Lenient (close terms count too, e.g. ventriculomegaly for hydrocephalus): precision 32.4%, recall 29.3%
+Pooled over all findings: 67 of 294 match the radiologist (22.8%)
+
+[llm] 3% of image contexts stopped before their JSON was finished. MedGemma 1.5 often gets stuck repeating itself while it thinks. Use --json-mode (the server then returns JSON only), keep --llm-max-tokens (or --context-max-tokens) at 4096 or more, and set Ollama's context length to 16k.
+[llm] image context: 0 requests sent to Qwen/Qwen3.5-9B, 99 answered from cache
+[compare] summary appended to results/ranking_fixes/qwen35_d_series/llm_compare.csv
+[run] log: results/ranking_fixes/qwen35_d_series/runs/20261127-204457_medpix-context_qwen3.5-9b.txt  (ok)
